@@ -17,7 +17,9 @@ import xarray
 import glob
 import pandas as pd
 import re
+import time
 import cdsapi
+import threading
 from pathlib import Path
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
@@ -40,6 +42,28 @@ def tokenize(filename):
                             for fragment in digits.split(filename)))
 
 
+def retrieve_next():
+    while dates:
+        day = dates.pop()
+        if not os.path.exists(target_dwl + 'GridOneDayAhead_{date}.nc'.format(date=day)):
+            print("sending request for {date}".format(date=day))
+            client.retrieve("reanalysis-era5-single-levels",
+                    {
+                            'product_type': 'reanalysis',  # reanalysis are sort of the actual values
+                            'date': day,  # range as specified above
+                            # the parameters can be specified using names or numbers check the webpage for the names
+                            'param': ["20.3", "164.128", "165.128", "166.128", "167.128", "186.128", "228.128"],
+                            'time': ['00:00:00', '06:00:00', '12:00:00', '18:00:00'],  # data origin (more possible)
+                            'area': [55.099161, 5.8663153, 47.2701114, 15.0419319],  # coordinates UK [n, w, s, e] or upper left and lower right corner
+                            'grid': [0.25, 0.25],  # grid size in degree (ca. 25km grid)
+                            'format': 'netcdf',  # get a netcdf file (easier to handle than grib)
+                        },
+
+                    target_dwl + 'GridOneDayAhead_{date}.nc'.format(date=day)
+                    )
+        else:
+            print("File for {day} already exists")
+    print("List is empty, exit...")
 
 target_dir = str(Path.home()) + "/Forecast/ecmwf/"
 target_out = "GridActuals"
@@ -51,35 +75,51 @@ if not os.path.exists(target_dir + target_out):
 if not os.path.exists(target_dwl):
     os.makedirs(target_dwl)
 
-years = range(2014, 2018) # for later: everything between 24.04.2011 and 31.12.2011 is missing for now, do something like range(2006, 2019)?
+years = range(2006, 2018) # for later: everything between 24.04.2011 and 31.12.2011 is missing for now, do something like range(2006, 2019)?
 months = range(1, 13) # normally range(1, 13)
+
+dates = []
+
+for year in years:
+    for month in months:
+        for day in days_of_month(year, month):
+            dates.append(day)
 
 # functions needed to get the individual days of each month and to properly
 # arrange the files according to their alphanumerical name
 
 client = cdsapi.Client()
 
+threads = []
+
+for i in range(10):
+    t = threading.Thread(target=retrieve_next)
+    t.start()
+    threads.append(t)
+    time.sleep(1)
+
+
 
 # start by extracting the actual data for the whole time period, retrieve daily data set
 # for y in range(2006, 2018):  # for later: everything between 24.04.2011 and 31.12.2011 is missing for now
-for y in years:
-    for m in months:
-        for day in days_of_month(y, m):
-            if not os.path.exists(target_dwl + 'GridOneDayAhead_{date}.nc'.format(date=day)):
-                client.retrieve("reanalysis-era5-single-levels",
-                        {
-                                'product_type': 'reanalysis',  # reanalysis are sort of the actual values
-                                'date': day,  # range as specified above
-                                # the parameters can be specified using names or numbers check the webpage for the names
-                                'param': ["20.3", "164.128", "165.128", "166.128", "167.128", "186.128", "228.128"],
-                                'time': ['00:00:00', '06:00:00', '12:00:00', '18:00:00'],  # data origin (more possible)
-                                'area': [55.099161, 5.8663153, 47.2701114, 15.0419319],  # coordinates UK [n, w, s, e] or upper left and lower right corner
-                                'grid': [0.25, 0.25],  # grid size in degree (ca. 25km grid)
-                                'format': 'netcdf',  # get a netcdf file (easier to handle than grib)
-                            },
+# for y in years:
+#     for m in months:
+#         for day in days_of_month(y, m):
+#             if not os.path.exists(target_dwl + 'GridOneDayAhead_{date}.nc'.format(date=day)):
+#                 client.retrieve("reanalysis-era5-single-levels",
+#                         {
+#                                 'product_type': 'reanalysis',  # reanalysis are sort of the actual values
+#                                 'date': day,  # range as specified above
+#                                 # the parameters can be specified using names or numbers check the webpage for the names
+#                                 'param': ["20.3", "164.128", "165.128", "166.128", "167.128", "186.128", "228.128"],
+#                                 'time': ['00:00:00', '06:00:00', '12:00:00', '18:00:00'],  # data origin (more possible)
+#                                 'area': [55.099161, 5.8663153, 47.2701114, 15.0419319],  # coordinates UK [n, w, s, e] or upper left and lower right corner
+#                                 'grid': [0.25, 0.25],  # grid size in degree (ca. 25km grid)
+#                                 'format': 'netcdf',  # get a netcdf file (easier to handle than grib)
+#                             },
 
-                        target_dwl + 'GridOneDayAhead_{date}.nc'.format(date=day)
-                        )
+#                         target_dwl + 'GridOneDayAhead_{date}.nc'.format(date=day)
+#                         )
 
 # transform netcdf files to csv files
 files = []
