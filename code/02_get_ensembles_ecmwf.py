@@ -16,14 +16,10 @@ Output are individual csv and nc files for 7 forecast origins per month
 
 import os
 import xarray as xr
+from pathlib import Path
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from ecmwfapi import ECMWFService
-
-server = ECMWFService("mars")
-
-path_data = '/home/ws/ob4015/Forecast/ecmwf/'
-path_output = '/home/ws/ob4015/Forecast/ecmwf/UKGridEnsembles/'
 
 
 def days_of_month(y, m):
@@ -36,10 +32,27 @@ def days_of_month(y, m):
     return out
 
 
+
+server = ECMWFService("mars")
+
+target_dir = str(Path.home()) + "/Forecast/ecmwf/"
+target_out = "GridEnsembles"
+target_dwl = target_dir + "ensemble_netcdf/"
+if not os.path.exists(target_dir + target_out):
+    os.makedirs(target_dir + target_out)
+
+if not os.path.exists(target_dwl):
+    os.makedirs(target_dwl)
+# path_data = '/home/ws/ob4015/Forecast/ecmwf/'
+# path_output = '/home/ws/ob4015/Forecast/ecmwf/GridEnsembles/'
+
+years = range(2018, 2019)
+months = range(1, 2)
+
 # start by extracting the actual data for the whole time period, data sets split into years (and months?)
 
-for y in range(2016, 2019):
-    for m in range(1, 13):
+for y in years:
+    for m in months:
         for i in range(1, 8):
             d = days_of_month(y, m)[(i-1)::7]
 
@@ -59,7 +72,7 @@ for y in range(2016, 2019):
                     'grid': '0.25/0.25',  # grid size in degree
                     'format': 'netcdf'  # get a net cdf file
                 },
-                'UKGridEnsembles_{date}.nc'.format(date=d[0])
+                target_dwl + target_out + '_{date}.nc'.format(date=d[0])
             )
 
             server.execute(
@@ -77,7 +90,7 @@ for y in range(2016, 2019):
                     'grid': '0.25/0.25',  # grid size in degree
                     'format': 'netcdf'  # get a net cdf file
                 },
-                'UKGridEnsembles_cf_{date}.nc'.format(date=d[0])
+                target_dwl + target_out + '_cf_{date}.nc'.format(date=d[0])
             )
 
 
@@ -85,12 +98,12 @@ for y in range(2016, 2019):
 
 files = []
 
-for f in os.listdir(path_data):
+for f in os.listdir(target_dwl):
     if f.endswith(".nc"):
         files.append(f)
 
 for f in files:
-    os.chdir(path_output)
+    os.chdir(target_dir + target_out)
 
     if len(f) == 29:
         print(f)
