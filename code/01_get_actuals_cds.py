@@ -14,16 +14,18 @@ Needs an account at the CDS climate storage (https://cds.climate.copernicus.eu/a
 
 import os
 import xarray
-import glob
 import pandas as pd
 import re
 import time
 import cdsapi
 import threading
+import urllib3
+from glob import glob
 from pathlib import Path
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning) # to suppress InsecureRequestWarning thrown when using mobile network or similar
 
 def days_of_month(y, m):
     d0 = datetime(y, m, 1)
@@ -42,8 +44,9 @@ def tokenize(filename):
                             for fragment in digits.split(filename)))
 
 
+# start by extracting the actual data for the whole time period, retrieve daily data set
 def retrieve_next():
-    while dates:
+    while True:
         day = dates.pop()
         if not os.path.exists(target_dwl + 'GridOneDayAhead_{date}.nc'.format(date=day)):
             print("sending request for {date}".format(date=day))
@@ -62,12 +65,29 @@ def retrieve_next():
                     target_dwl + 'GridOneDayAhead_{date}.nc'.format(date=day)
                     )
         else:
-            print("File for {day} already exists")
+            pass # print("File for {date} already exists".format(date=day))
+        if not dates:
+            break
     print("List is empty, exit...")
+
+
+def concat_year():
+    y = str(year_list.pop())
+    #glob_list = [f.split('/')[-1] for f in glob(target_dwl + 'GridOneDayAhead_' + y + '*.nc')]
+    glob_list = glob('GridOneDayAhead_' + y + '*.nc')
+    results = pd.DataFrame()
+    for f in files:
+        if f in glob_list:
+            #print(f)
+            ds = xarray.open_dataset(f.split('/')[-1])
+            df = ds.to_dataframe()
+            results = results.append(df, sort=False)
+
+    results.to_csv(target_dir + 'GridActuals_' + y + '.csv')
 
 target_dir = str(Path.home()) + "/Forecast/ecmwf/"
 target_out = "GridActuals"
-target_dwl = target_dir + 'netcdf_files/'
+target_dwl = target_dir + 'netcdf_actuals/'
 
 if not os.path.exists(target_dir + target_out):
     os.makedirs(target_dir + target_out)
@@ -77,6 +97,7 @@ if not os.path.exists(target_dwl):
 
 years = range(2006, 2018) # for later: everything between 24.04.2011 and 31.12.2011 is missing for now, do something like range(2006, 2019)?
 months = range(1, 13) # normally range(1, 13)
+year_list = list(years)
 
 dates = []
 
@@ -92,34 +113,14 @@ client = cdsapi.Client()
 
 threads = []
 
-for i in range(10):
-    t = threading.Thread(target=retrieve_next)
-    t.start()
-    threads.append(t)
-    time.sleep(1)
+# for i in range(10):
+#     t = threading.Thread(target=retrieve_next)
+#     t.start()
+#     threads.append(t)
+#     # time.sleep(1) # sleep needed to put some space between requests?!
 
-
-
-# start by extracting the actual data for the whole time period, retrieve daily data set
-# for y in range(2006, 2018):  # for later: everything between 24.04.2011 and 31.12.2011 is missing for now
-# for y in years:
-#     for m in months:
-#         for day in days_of_month(y, m):
-#             if not os.path.exists(target_dwl + 'GridOneDayAhead_{date}.nc'.format(date=day)):
-#                 client.retrieve("reanalysis-era5-single-levels",
-#                         {
-#                                 'product_type': 'reanalysis',  # reanalysis are sort of the actual values
-#                                 'date': day,  # range as specified above
-#                                 # the parameters can be specified using names or numbers check the webpage for the names
-#                                 'param': ["20.3", "164.128", "165.128", "166.128", "167.128", "186.128", "228.128"],
-#                                 'time': ['00:00:00', '06:00:00', '12:00:00', '18:00:00'],  # data origin (more possible)
-#                                 'area': [55.099161, 5.8663153, 47.2701114, 15.0419319],  # coordinates UK [n, w, s, e] or upper left and lower right corner
-#                                 'grid': [0.25, 0.25],  # grid size in degree (ca. 25km grid)
-#                                 'format': 'netcdf',  # get a netcdf file (easier to handle than grib)
-#                             },
-
-#                         target_dwl + 'GridOneDayAhead_{date}.nc'.format(date=day)
-#                         )
+# for t in threads:
+#     t.join()
 
 # transform netcdf files to csv files
 files = []
@@ -132,15 +133,23 @@ for f in os.listdir(target_dwl):
 # sort list of file names
 files.sort(key=tokenize)
 
-for y in years:
-    results = pd.DataFrame()
-    y = str(y)
-    os.chdir(target_dwl)
-    for f in files:
-        if f in glob.glob(target_dwl + 'GridOneDayAhead_' + y + '*.nc'):
-            print(f)
-            ds = xarray.open_dataset(f)
-            df = ds.to_dataframe()
-            results = results.append(df, sort=False)
+os.chdir(target_dwl)
+num_cores = os.cpu_count()
 
-    results.to_csv(target_dir + 'GridActuals_' + y + '.csv')
+threads = []
+for i in range(num_cores):
+    t = threading.Thread(target=concat_year)
+    t.start()
+    threads.append(t)
+
+# for y in years:
+#     results = pd.DataFrame()
+#     y = str(y)
+#     for f in files:
+#         if f in glob(target_dwl + 'GridOneDayAhead_' + y + '*.nc'):
+#             #print(f)
+#             ds = xarray.open_dataset(f.split('/')[-1])
+#             df = ds.to_dataframe()
+#             results = results.append(df, sort=False)
+
+#     results.to_csv(target_dir + 'GridActuals_' + y + '.csv')
