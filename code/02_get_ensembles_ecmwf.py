@@ -16,10 +16,10 @@ Output are individual csv and nc files for 7 forecast origins per month
 
 import os
 import xarray as xr
-from pathlib import Path
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from ecmwfapi import ECMWFService
+from glob_vars import data_path
 
 
 def days_of_month(y, m):
@@ -35,7 +35,7 @@ def days_of_month(y, m):
 
 server = ECMWFService("mars")
 
-target_dir = str(Path.home()) + "/Forecast/ecmwf/"
+target_dir = data_path + "/ecmwf/"
 target_out = "GridEnsembles"
 target_dwl = target_dir + "ensemble_netcdf/"
 if not os.path.exists(target_dir + target_out):

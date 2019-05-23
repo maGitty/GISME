@@ -21,9 +21,9 @@ import cdsapi
 import threading
 import urllib3
 from glob import glob
-from pathlib import Path
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
+from glob_vars import data_path
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning) # to suppress InsecureRequestWarning thrown when using mobile network or similar
 
@@ -87,7 +87,7 @@ def concat_year():
         print("done with file for {year}".format(year=y))
         results.to_csv(target_dir + 'GridActuals_' + y + '.csv')
 
-target_dir = str(Path.home()) + "/Forecast/ecmwf/"
+target_dir = data_path + 'ecmwf/'
 target_out = "GridActuals"
 target_dwl = target_dir + 'netcdf_actuals/'
 

@@ -1,19 +1,17 @@
-import xarray as xr
-import matplotlib.pyplot as plt
-import cartopy.crs as ccrs
-import cartopy.feature as cfeat
+from glob_vars import data_path
+
+from cartopy import crs as ccrs, feature as cfeat
+from matplotlib import pyplot as plt
+from matplotlib import pyplot as plt, ticker, cm
 import pandas
 import datetime
+import xarray as xr
 import numpy as np
-from matplotlib import pyplot as plt
-import matplotlib.ticker as ticker
-from matplotlib import cm
 import seaborn as sns
 
-    
 
 def plot_map_cartopy_netcdf():
-    ds = xr.open_mfdataset("/home/marcel/Forecast/ecmwf/netcdf_actuals/GridOneDayAhead_2017-06-01.nc")
+    ds = xr.open_mfdataset(data_path + "netcdf_actuals/GridOneDayAhead_2017-06-01.nc")
 
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1, projection=ccrs.PlateCarree())
@@ -33,7 +31,7 @@ def plot_map_cartopy_netcdf():
     plt.show()
 
 def plot_map_seaborn_csv():
-    weather_df = pandas.read_csv('/home/marcel/Forecast/ecmwf/GridActuals_2017.csv', low_memory=False)
+    weather_df = pandas.read_csv(data_path + 'GridActuals_2017.csv', low_memory=False)
     weather_df = weather_df[weather_df['time'] == '2017-06-01 12:00:00']
 
     #weather_df.to_csv('/home/marcel/2017Grid.csv', ',')
@@ -51,7 +49,7 @@ def plot_map_seaborn_csv():
 
 def plot_map_matplotlib_csv():
     # columns: latitude, longitude, time, tcc, u10, v10, t2m, lcc, tp
-    weather_df = pandas.read_csv('/home/marcel/Forecast/ecmwf/GridActuals_2017.csv', low_memory=False)
+    weather_df = pandas.read_csv(data_path + 'GridActuals_2017.csv', low_memory=False)
     weather_df = weather_df[weather_df['time'] == '2017-06-01 12:00:00']
 
     #weather_df.to_csv('/home/marcel/2017Grid.csv', ',')
@@ -82,6 +80,8 @@ def plot_map_matplotlib_csv():
     # ax.yaxis.set_major_locator(ticker.MultipleLocator(tick_spacing))
     #plt.colorbar(cm.ScalarMappable(cmap='BuPu'), ax=ax)
     plt.show()
+
+data_path = data_path + 'ecmwf/'
 
 plot_map_cartopy_netcdf()
 plot_map_seaborn_csv()

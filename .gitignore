@@ -108,6 +108,10 @@ venv.bak/
 .spyderproject
 .spyproject
 
+# Wing project settings
+*.wpr
+*.wpu
+
 # Rope project settings
 .ropeproject
 
