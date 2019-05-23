@@ -47,43 +47,45 @@ def tokenize(filename):
 # start by extracting the actual data for the whole time period, retrieve daily data set
 def retrieve_next():
     while True:
+        if not dates:
+            print("date list is empty, exiting...")
+            break
         day = dates.pop()
         if not os.path.exists(target_dwl + 'GridOneDayAhead_{date}.nc'.format(date=day)):
             print("sending request for {date}".format(date=day))
-            client.retrieve("reanalysis-era5-single-levels",
-                    {
-                            'product_type': 'reanalysis',  # reanalysis are sort of the actual values
-                            'date': day,  # range as specified above
-                            # the parameters can be specified using names or numbers check the webpage for the names
-                            'param': ["20.3", "164.128", "165.128", "166.128", "167.128", "186.128", "228.128"],
-                            'time': ['00:00:00', '06:00:00', '12:00:00', '18:00:00'],  # data origin (more possible)
-                            'area': [55.099161, 5.8663153, 47.2701114, 15.0419319],  # coordinates UK [n, w, s, e] or upper left and lower right corner
-                            'grid': [0.25, 0.25],  # grid size in degree (ca. 25km grid)
-                            'format': 'netcdf',  # get a netcdf file (easier to handle than grib)
-                        },
-
-                    target_dwl + 'GridOneDayAhead_{date}.nc'.format(date=day)
-                    )
+            client.retrieve(
+                "reanalysis-era5-single-levels",
+                {
+                    'product_type': 'reanalysis',  # reanalysis are sort of the actual values
+                    'date': day,  # range as specified above
+                    # the parameters can be specified using names or numbers check the webpage for the names
+                    'param': ["20.3", "164.128", "165.128", "166.128", "167.128", "186.128", "228.128"],
+                    'time': ['00:00:00', '06:00:00', '12:00:00', '18:00:00'],  # data origin (more possible)
+                    'area': [55.099161, 5.8663153, 47.2701114, 15.0419319],  # coordinates UK [n, w, s, e] or upper left and lower right corner
+                    'grid': [0.25, 0.25],  # grid size in degree (ca. 25km grid)
+                    'format': 'netcdf',  # get a netcdf file (easier to handle than grib)
+                },
+                target_dwl + 'GridOneDayAhead_{date}.nc'.format(date=day)
+                )
         else:
             pass # print("File for {date} already exists".format(date=day))
-        if not dates:
-            break
-    print("List is empty, exit...")
 
 
 def concat_year():
-    y = str(year_list.pop())
-    #glob_list = [f.split('/')[-1] for f in glob(target_dwl + 'GridOneDayAhead_' + y + '*.nc')]
-    glob_list = glob('GridOneDayAhead_' + y + '*.nc')
-    results = pd.DataFrame()
-    for f in files:
-        if f in glob_list:
-            #print(f)
-            ds = xarray.open_dataset(f.split('/')[-1])
-            df = ds.to_dataframe()
-            results = results.append(df, sort=False)
-
-    results.to_csv(target_dir + 'GridActuals_' + y + '.csv')
+    while True:
+        if not year_list:
+            print("year list is empty, exiting...")
+            break
+        y = str(year_list.pop())
+        glob_list = glob('GridOneDayAhead_' + y + '*.nc')
+        results = pd.DataFrame()
+        for f in files:
+            if f in glob_list:
+                ds = xarray.open_dataset(f.split('/')[-1])
+                df = ds.to_dataframe()
+                results = results.append(df, sort=False)
+        print("done with file for {year}".format(year=y))
+        results.to_csv(target_dir + 'GridActuals_' + y + '.csv')
 
 target_dir = str(Path.home()) + "/Forecast/ecmwf/"
 target_out = "GridActuals"
@@ -95,7 +97,7 @@ if not os.path.exists(target_dir + target_out):
 if not os.path.exists(target_dwl):
     os.makedirs(target_dwl)
 
-years = range(2006, 2018) # for later: everything between 24.04.2011 and 31.12.2011 is missing for now, do something like range(2006, 2019)?
+years = range(2005, 2019) # for later: everything between 24.04.2011 and 31.12.2011 is missing for now, do something like range(2006, 2019)?
 months = range(1, 13) # normally range(1, 13)
 year_list = list(years)
 
@@ -113,43 +115,42 @@ client = cdsapi.Client()
 
 threads = []
 
-# for i in range(10):
-#     t = threading.Thread(target=retrieve_next)
-#     t.start()
-#     threads.append(t)
-#     # time.sleep(1) # sleep needed to put some space between requests?!
+###################
+# retrieving data #
+###################
+for i in range(10):
+    t = threading.Thread(target=retrieve_next)
+    t.start()
+    threads.append(t)
+    # time.sleep(1) # sleep needed to put some space between requests?!
 
-# for t in threads:
-#     t.join()
+for t in threads:
+    t.join()
+###################
 
 # transform netcdf files to csv files
 files = []
 
-# append the individual daily nc files to one csv file per year
-for f in os.listdir(target_dwl):
-    if f.endswith(".nc"):
-        files.append(f)
+##########################
+# concat nc files to csv #
+##########################
+# for f in os.listdir(target_dwl):
+#     if f.endswith(".nc"):
+#         files.append(f)
 
-# sort list of file names
-files.sort(key=tokenize)
+# # sort list of file names
+# files.sort(key=tokenize)
 
-os.chdir(target_dwl)
-num_cores = os.cpu_count()
+# os.chdir(target_dwl)
+# num_cores = os.cpu_count()
 
-threads = []
-for i in range(num_cores):
-    t = threading.Thread(target=concat_year)
-    t.start()
-    threads.append(t)
+# print("starting {cores} threads for {years} files".format(cores=num_cores, years=len(year_list)))
 
-# for y in years:
-#     results = pd.DataFrame()
-#     y = str(y)
-#     for f in files:
-#         if f in glob(target_dwl + 'GridOneDayAhead_' + y + '*.nc'):
-#             #print(f)
-#             ds = xarray.open_dataset(f.split('/')[-1])
-#             df = ds.to_dataframe()
-#             results = results.append(df, sort=False)
+# threads = []
+# for i in range(num_cores):
+#     t = threading.Thread(target=concat_year)
+#     t.start()
+#     threads.append(t)
 
-#     results.to_csv(target_dir + 'GridActuals_' + y + '.csv')
+# for t in threads:
+#     t.join()
