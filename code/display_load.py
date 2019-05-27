@@ -7,6 +7,8 @@ import pandas as pd
 import numpy as np
 import pytz
 
+from pandas.plotting import register_matplotlib_converters
+register_matplotlib_converters()
 
 def cleanfor_DE_load():
     power_df = pd.read_csv(data_path + "power_load/time_series_15min_singleindex_filtered.csv", low_memory=False)
@@ -48,8 +50,8 @@ def plot_all():
     tennet_load_data = power_df.where(power_df[tennet_load].notna())[tennet_load]
     transnetbw_load_data = power_df.where(power_df[transnetbw_load].notna())[transnetbw_load]
     
-    fig = plt.figure(4)
-    ax = fig.add_subplot(211)    
+    fig = plt.figure()
+    ax = fig.subplots()    
     
     linewidth = 1
     
@@ -61,12 +63,27 @@ def plot_all():
     #ax.plot(dates, tennet_load_data, '-', linewidth=linewidth, label=tennet_load)
     #ax.plot(dates, transnetbw_load_data, '-', linewidth=linewidth, label=transnetbw_load)
     
+    #ax.set_xlabel(time_col)
+    #ax.set_ylabel('load [MW]')
+    #ax2 = fig.add_subplot(212)
+    #ax2.axis("off")
+    
+    #linewidth = 1
+    #plt.plot(dates, de_load_data, '-', linewidth=linewidth, label=de_load)
+    #plt.plot(dates, hertz_load_data, '-', linewidth=linewidth, label=hertz_load)
+    #plt.plot(dates, amprion_load_data, '-', linewidth=linewidth, label=amprion_load)
+    #plt.plot(dates, tennet_load_data, '-', linewidth=linewidth, label=tennet_load)
+    #plt.plot(dates, transnetbw_load_data, '-', linewidth=linewidth, label=transnetbw_load)    
+    #plt.xlabel(time_col)
+    #plt.ylabel('load (MW)')
+    #plt.legend()
+    #plt.ylim(-2000, 120000)
+    
     ax.set_xlabel(time_col)
-    ax.set_ylabel('load [MW]')
-    ax2 = fig.add_subplot(212)
-    ax2.axis("off") 
-    #ax2.legend(pie[0],labels, loc="center")    
-    plt.legend(line, [de_load, hertz_load, amprion_load, tennet_load, transnetbw_load], loc='center')#bbox_to_anchor=(0, 1.1), loc='upper left', ncol=1)
+    ax.set_ylabel('load (MW)')
+    ax.set_xlim([datetime(2014, 12, 31), datetime(2019, 12, 31)]) # uncomment to show full dataset, 1/1/2015 to 31/12/2018
+    ax.set_ylim(-2000, 120000)
+    ax.legend(loc='upper right')
     plt.show()
 
 
