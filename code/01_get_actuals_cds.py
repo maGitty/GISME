@@ -84,20 +84,16 @@ def concat_year():
                 ds = xarray.open_dataset(f.split('/')[-1])
                 df = ds.to_dataframe()
                 results = results.append(df, sort=False)
-        print("done with file for {year}".format(year=y))
+        print("concatenated file for {year}".format(year=y))
         results.to_csv(target_dir + 'GridActuals_' + y + '.csv')
 
 target_dir = data_path + 'ecmwf/'
-target_out = "GridActuals"
 target_dwl = target_dir + 'netcdf_actuals/'
-
-if not os.path.exists(target_dir + target_out):
-    os.makedirs(target_dir + target_out)
 
 if not os.path.exists(target_dwl):
     os.makedirs(target_dwl)
 
-years = range(2005, 2019) # for later: everything between 24.04.2011 and 31.12.2011 is missing for now, do something like range(2006, 2019)?
+years = range(2006, 2019) # for later: everything between 24.04.2011 and 31.12.2011 is missing for now, do something like range(2006, 2019)?
 months = range(1, 13) # normally range(1, 13)
 year_list = list(years)
 
@@ -134,23 +130,23 @@ files = []
 ##########################
 # concat nc files to csv #
 ##########################
-# for f in os.listdir(target_dwl):
-#     if f.endswith(".nc"):
-#         files.append(f)
+for f in os.listdir(target_dwl):
+    if f.endswith(".nc"):
+        files.append(f)
 
-# # sort list of file names
-# files.sort(key=tokenize)
+# sort list of file name s
+files.sort(key=tokenize)
 
-# os.chdir(target_dwl)
-# num_cores = os.cpu_count()
+os.chdir(target_dwl)
+num_cores = os.cpu_count()
 
-# print("starting {cores} threads for {years} files".format(cores=num_cores, years=len(year_list)))
+print("starting {cores} threads for {years} files".format(cores=num_cores, years=len(year_list)))
 
-# threads = []
-# for i in range(num_cores):
-#     t = threading.Thread(target=concat_year)
-#     t.start()
-#     threads.append(t)
+threads = []
+for i in range(num_cores):
+    t = threading.Thread(target=concat_year)
+    t.start()
+    threads.append(t)
 
-# for t in threads:
-#     t.join()
+for t in threads:
+    t.join()
