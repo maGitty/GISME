@@ -1,13 +1,14 @@
 from glob_vars import data_path
 
-from cartopy import crs as ccrs, feature as cfeat
-from matplotlib import pyplot as plt
-from matplotlib import pyplot as plt, ticker, cm
 import pandas
-import datetime
 import xarray as xr
 import numpy as np
 import seaborn as sns
+import shapefile as shp
+from datetime import datetime
+from calendar import monthrange
+from cartopy import crs as ccrs, feature as cfeat
+from matplotlib import pyplot as plt, colors, ticker, cm
 
 
 def plot_map_cartopy_netcdf():
@@ -47,42 +48,74 @@ def plot_map_seaborn_csv():
     plt.show()
 
 
-def plot_map_matplotlib_csv():
+def plot_map_matplotlib_csv(date):
+    val = 't2m'
+    lon = 'longitude'
+    lat = 'latitude'
+    
     # columns: latitude, longitude, time, tcc, u10, v10, t2m, lcc, tp
-    weather_df = pandas.read_csv(data_path + 'GridActuals_2017.csv', low_memory=False)
-    weather_df = weather_df[weather_df['time'] == '2017-06-01 12:00:00']
+    weather_df = pandas.read_csv(f'{data_path}GridActuals_{date.year}.csv', low_memory=False)
+    weather_df = weather_df[weather_df['time'] == str(date)]
 
     #weather_df.to_csv('/home/marcel/2017Grid.csv', ',')
-    weather_df['t2m'] = weather_df['t2m'].apply(lambda x: x - 273.15)
+    weather_df[val] = weather_df[val].apply(lambda x: x - 273.15)
 
-    x_set = sorted(set(weather_df['longitude']))
-    y_set = sorted(set(weather_df['latitude']))
+    x_set = sorted(set(weather_df[lon]))
+    y_set = sorted(set(weather_df[lat]))
     x_size = len(x_set)
     y_size = len(y_set)
-    #print(x_size)
-    #print(y_size)
 
-    #temp_list = np.reshape(list(weather_df['t2m']), (x_size, y_size))
+    weather_df = weather_df[[lat, lon, val]].pivot(index=lat, columns=lon, values=val)[::-1]
 
-    weather_df = weather_df[['latitude', 'longitude', 't2m']].pivot('latitude', 'longitude', 't2m')
-
-    #fig = plt.figure()
     fig, ax = plt.subplots()
 
-    #plt.plot(np.meshgrid(x_set, y_set))
-    ax.imshow(weather_df, cmap='BuPu')#, interpolation='bilinear')
-    ax.set_xticklabels(x_set)
-    ax.set_yticklabels(y_set)
-    ax.set_xticks(np.arange(len(x_set)))
-    ax.set_yticks(np.arange(len(y_set)))
-    # tick_spacing = 1
-    # ax.xaxis.set_major_locator(ticker.MultipleLocator(tick_spacing))
-    # ax.yaxis.set_major_locator(ticker.MultipleLocator(tick_spacing))
-    #plt.colorbar(cm.ScalarMappable(cmap='BuPu'), ax=ax)
+    img = ax.imshow(weather_df, cmap='jet', extent=(6, 15, 47.5, 55), interpolation='bilinear')
+    
+    # plot map
+    sf = shp.Reader('/home/marcel/Dropbox/data/DEU_adm1.shp')
+    for i in range(16):
+        shape = sf.shape(i)
+        points = np.array(shape.points)
+        
+        intervals = list(shape.parts) + [len(shape.points)]
+        
+        #ax = plt.gca()
+        ax.set_aspect(1)
+        
+        for (i, j) in zip(intervals[:-1], intervals[1:]):
+            ax.plot(*zip(*points[i:j]), color='k', linewidth=.5)
+    
+    bounds = np.linspace(-20,40,60)
+    norm = colors.BoundaryNorm(boundaries=bounds, ncolors=256)
+    pcm = ax[0].pcolormesh()
+    
+    fig.colorbar(img)
+    ax.set_xlabel(lon)
+    ax.set_title(f'date: {date}')
+    ax.set_ylabel(lat)
     plt.show()
+
+
+def plot_highest_var():
+    years = range(2017,2018)
+    months = range(1,13)
+    dates = [datetime(year,month,day,12) for year in years for month in months for day in range(1,monthrange(year, month)[1]+1)]
+    
+    wvars = []
+    for year in years:
+        weather_df = pd.read_csv(f'{data_path}GridActuals_2017.csv', low_memory=False)
+        for date in dates:
+            wvar = weather_df[weather_df['time'] == str(date)].loc[:, 't2m'].var()
+            #print(wvar)
+            wvars.append((date,wvar))
+    
+    wvars = sorted(wvars, key=lambda x: -x[1])
+    for i in range(5):
+        date = wvars[i][0]
+        plot_map_matplotlib_csv(date)
 
 data_path = data_path + 'ecmwf/'
 
-plot_map_cartopy_netcdf()
-plot_map_seaborn_csv()
-plot_map_matplotlib_csv()
+#plot_map_cartopy_netcdf()
+#plot_map_seaborn_csv()
+plot_map_matplotlib_csv(datetime(2017,6,1,12))
