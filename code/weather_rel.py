@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 from glob_vars import data_path
 
 import csv

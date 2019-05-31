@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 """
 Created on Mon Feb 25 20:05:46 2019
@@ -38,8 +38,6 @@ server = ECMWFService("mars")
 target_dir = data_path + "/ecmwf/"
 target_out = "GridEnsembles"
 target_dwl = target_dir + "ensemble_netcdf/"
-if not os.path.exists(target_dir + target_out):
-    os.makedirs(target_dir + target_out)
 
 if not os.path.exists(target_dwl):
     os.makedirs(target_dwl)

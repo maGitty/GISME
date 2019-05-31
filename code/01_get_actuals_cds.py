@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 """
 Created on Mon Feb 25 20:05:46 2019
@@ -51,8 +51,8 @@ def retrieve_next():
             print("date list is empty, exiting...")
             break
         day = dates.pop()
-        if not os.path.exists(target_dwl + 'GridOneDayAhead_{date}.nc'.format(date=day)):
-            print("sending request for {date}".format(date=day))
+        if not os.path.exists(target_dwl + f'{target_out}{day}.nc'):
+            print(f'sending request for {day}')
             client.retrieve(
                 "reanalysis-era5-single-levels",
                 {
@@ -61,11 +61,11 @@ def retrieve_next():
                     # the parameters can be specified using names or numbers check the webpage for the names
                     'param': ["20.3", "164.128", "165.128", "166.128", "167.128", "186.128", "228.128"],
                     'time': ['00:00:00', '06:00:00', '12:00:00', '18:00:00'],  # data origin (more possible)
-                    'area': [55.099161, 5.8663153, 47.2701114, 15.0419319],  # coordinates UK [n, w, s, e] or upper left and lower right corner
+                    'area': [55.5, 5.5, 47, 15.5],  # coordinates UK [n, w, s, e] or upper left and lower right corner
                     'grid': [0.25, 0.25],  # grid size in degree (ca. 25km grid)
                     'format': 'netcdf',  # get a netcdf file (easier to handle than grib)
                 },
-                target_dwl + 'GridOneDayAhead_{date}.nc'.format(date=day)
+                target_dwl + f'{target_out}{day}.nc'
                 )
         else:
             pass # print("File for {date} already exists".format(date=day))
@@ -77,7 +77,7 @@ def concat_year():
             print("year list is empty, exiting...")
             break
         y = str(year_list.pop())
-        glob_list = glob('GridOneDayAhead_' + y + '*.nc')
+        glob_list = glob(target_out + y + '*.nc')
         results = pd.DataFrame()
         for f in files:
             if f in glob_list:
@@ -88,6 +88,7 @@ def concat_year():
         results.to_csv(target_dir + 'GridActuals_' + y + '.csv')
 
 target_dir = data_path + 'ecmwf/'
+target_out = 'GridOneDayAhead_'
 target_dwl = target_dir + 'netcdf_actuals/'
 
 if not os.path.exists(target_dwl):

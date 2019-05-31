@@ -1,11 +1,14 @@
-from glob_vars import data_path
+#!/usr/bin/python3
+
+from glob_vars import data_path, figure_path, lon, lat
+from NC_Reader import NC_Reader
 
 import pandas
 import xarray as xr
 import numpy as np
 import seaborn as sns
 import shapefile as shp
-from datetime import datetime
+from datetime import datetime, time
 from calendar import monthrange
 from cartopy import crs as ccrs, feature as cfeat
 from matplotlib import pyplot as plt, colors, ticker, cm
@@ -50,8 +53,6 @@ def plot_map_seaborn_csv():
 
 def plot_map_matplotlib_csv(date):
     val = 't2m'
-    lon = 'longitude'
-    lat = 'latitude'
     
     # columns: latitude, longitude, time, tcc, u10, v10, t2m, lcc, tp
     weather_df = pandas.read_csv(f'{data_path}GridActuals_{date.year}.csv', low_memory=False)
@@ -87,12 +88,51 @@ def plot_map_matplotlib_csv(date):
     
     bounds = np.linspace(-20,40,60)
     norm = colors.BoundaryNorm(boundaries=bounds, ncolors=256)
-    pcm = ax[0].pcolormesh()
+    #pcm = ax[0].pcolormesh()
     
     fig.colorbar(img)
     ax.set_xlabel(lon)
     ax.set_title(f'date: {date}')
     ax.set_ylabel(lat)
+    plt.show()
+
+
+def plot_NC_read(date, save=False):
+    pth = f'{data_path}netcdf_actuals/GridOneDayAhead_{date.strftime("%Y-%m-%d")}.nc'
+    reader = NC_Reader(pth)
+    data, bbox, long_name = reader.var4time('t2m', date)
+    data = data - 273.15
+
+    fig, ax = plt.subplots()
+
+    img = ax.imshow(data, cmap='jet', extent=bbox, interpolation='bilinear')
+    
+    # plot map
+    sf = shp.Reader('/home/marcel/Dropbox/data/DEU_adm1.shp')
+    for i in range(16):
+        shape = sf.shape(i)
+        points = np.array(shape.points)
+        
+        intervals = list(shape.parts) + [len(shape.points)]
+        
+        #ax = plt.gca()
+        ax.set_aspect(1)
+        
+        for (i, j) in zip(intervals[:-1], intervals[1:]):
+            ax.plot(*zip(*points[i:j]), color='k', linewidth=.4)
+    
+    bounds = np.linspace(-20,40,60)
+    norm = colors.BoundaryNorm(boundaries=bounds, ncolors=256)
+    #pcm = ax[0].pcolormesh()
+    
+    fig.colorbar(img)
+    ax.set_xlabel(lon)
+    ax.set_title(f'date: {date}')
+    ax.set_ylabel(lat)
+    
+    if save:
+        fig.savefig(f'{figure_path}nc_plot_{date.strftime("%Y%m%d%H")}.eps', bbox_inches='tight', format='eps')
+    
     plt.show()
 
 
@@ -118,4 +158,5 @@ data_path = data_path + 'ecmwf/'
 
 #plot_map_cartopy_netcdf()
 #plot_map_seaborn_csv()
-plot_map_matplotlib_csv(datetime(2017,6,1,12))
+#plot_map_matplotlib_csv(datetime(2018,6,1,12))
+plot_NC_read(datetime(2018,6,1,12), save=True)
