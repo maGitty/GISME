@@ -9,6 +9,33 @@ from matplotlib import pyplot as plt, dates
 from datetime import datetime, timezone, timedelta
 
 
+class WeatherRelator:
+    """
+    
+    """
+
+    def nmin_val_days(var, num=4):
+        """Calculate the num days with lowest temperature for var
+        Parameters
+        ----------
+        var : str
+              name of the variable
+        num : numeric, default 4
+              number of values
+        """
+        pass
+    
+    def nmax_var_days(var, num=4):
+        """Calculate the num days with highest variance for var
+        Parameters
+        ----------
+        var : str
+              name of the variable
+        num : numeric, default 4
+              number of values
+        """
+        pass        
+
 def plot_temp_maxVSload_attime(hour):
     """
     @hour: time string with format HH:MM:SS

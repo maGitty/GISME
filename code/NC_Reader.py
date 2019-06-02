@@ -5,7 +5,7 @@ from netCDF4 import Dataset
 import numpy as np
 import pandas as pd
 import xarray as xr
-from datetime import datetime,timedelta
+from datetime import datetime, timedelta, time
 
 class NC_Reader:
     """
@@ -20,9 +20,13 @@ class NC_Reader:
         self.lon = 'longitude'
         
     def var4time(self, name, datetime):
-        """
-        @param name: name of variable in nc file that should be contained in df
-        @param time_index: index of time as number, 0=0, 1=6, 2=12, 3=18 o'clock
+        """Returns a tuple of: data, boundingbox to set plot range, long name of variable
+        Parameters
+        ----------
+        name     : string
+                   name of variable in nc file that should be contained in df
+        datetime : datetime.datetime
+                   index of time as number, 0=0, 1=6, 2=12, 3=18 o'clock
         
         is supposed to return a tuple of:
         dataframe containing values of desired variable ready for plotting with imshow
@@ -54,18 +58,51 @@ class NC_Reader:
         return (data, bbox, long_name)
         
 
-    def var4pos(self, name, lon, lat):
+    def var4postime(self, name, lon, lat, dtime):
+        """Get values for variable at geographic position at specific time
+        Parameters
+        ----------
+        name  : string
+                name of the variable
+        lon   : numeric
+                the geographic longitude
+        lat   : numeric
+                the geographic latitude
+        dtime : datetime.datetime
+                the specified datetime for which the data is returned
+        """
         if name not in self.var_names:
             print('Error: name not found, variable not in dataset')
             return
         
-        with Dataset(self.filename, 'r') as nc_file:
-            ilat = list(nc_file.variables[self.lat][:]).index(lat)
-            ilon = list(nc_file.variables[self.lon][:]).index(lon)
-            result = []
-            
-            # iterate through times, as first dimension of array is time for each variable in downloaded ecmwf set
-            for timeslice in nc_file.variables[name][:]:
-                result.append(timeslice[ilat][ilon])
-            
-        return result
+        with xr.open_dataset(self.filename) as nc_file:
+            try:
+                data = nc_file[name].sel(longitude=lon, latitude=lat, time=dtime).values
+            except:
+                print('Error: coordinates not within bbox')
+                return None
+        return data
+    
+    def var4lattime(self, name, lat, daytime):
+        """Get values for variable at geographic position at daytime averaged over all days
+        Parameters
+        ----------
+        name    : string
+                  name of the variable
+        lat     : numeric
+                  the geographic latitude
+        daytime : datetime.datetime
+                  the specified daytime for which the data is returned
+        """
+        if name not in self.var_names:
+            print('Error: name not found, variable not in dataset')
+            return
+        
+        with xr.open_dataset(self.filename) as nc_file:
+            try:
+                # get fields for variable at latitude and daytime averaged over all days
+                data = nc_file[name].sel(latitude=lat, time=daytime).values.mean(axis=0)
+            except:
+                print('Error: coordinates not within bbox')
+                return None
+        return data    
