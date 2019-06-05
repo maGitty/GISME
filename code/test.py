@@ -1,6 +1,8 @@
+from glob_vars import data_path, load_path, era5_path
+from NC_Reader import NC_Reader
+from LoadReader import LoadReader
+
 from netCDF4 import Dataset, num2date
-from glob_vars import data_path, load_path
-from mpl_toolkits.basemap import Basemap
 from matplotlib import pyplot as plt
 import numpy as np
 import geopandas as gpd
@@ -10,7 +12,9 @@ import pandas as pd
 from datetime import datetime,timedelta, time
 from dateutil.relativedelta import relativedelta
 from calendar import monthrange
+from glob import glob
 import xarray as xr
+import pytz
 
 
 #nc_pth = f'{data_path}ecmwf/netcdf_actuals/GridOneDayAhead_2018-06-01.nc'
@@ -20,15 +24,134 @@ import xarray as xr
 #ts1 = df['cet_cest_timestamp'][0]
 #print(ts1, type(ts1))
 
-ds = xr.open_dataset('/home/marcel/download.nc')
-print(ds['t2m'].sel(time=time(12)).values.ndim)
-print(ds['t2m'].units)
+#ds = xr.open_dataset('/home/marcel/download.nc')
+#print(ds['t2m'].sel(time=time(12)).values.ndim)
+#print(ds['t2m'].units)
+
+rd = NC_Reader()
+ld = LoadReader(filetype='pkl')
+
+var = 't2m'
+ystart = 2016
+ystop = 2017
+
+start = pd.Timestamp(datetime(ystart,1,1,0),tz='utc')
+stop = pd.Timestamp(datetime(ystop,12,31,18),tz='utc')
+
+load = ld.from_range(start, stop, step=True)['DE_load_actual_entsoe_transparency'].get_values()
+#ncval = rd.var_over_time(var).sel(time=slice('2016-1-1','2017-12-31')).values
+ncval = rd._func_over_time(var, np.min).sel(time=slice(f'{ystart}-1-1',f'{ystop}-12-31'))
+rng = pd.date_range(start,stop,freq='6H')
+
+print(load.size,ncval.size)
+
+plt.scatter(rng, ncval,s=4,c=load,cmap='jet')
+plt.ylabel(f'{var} min reduce over DE')
+plt.xlabel('date')
+cbar = plt.colorbar()
+cbar.ax.set_ylabel('DE_load_actual_entsoe_transparency (MW)', rotation=-90, va="bottom")
+
+plt.show()
 
 
+def mfdstest():
+    lst = list(map(lambda n: f'{era5_path}{n}.nc',
+                   ['ERA5_RSL_2015H1', 'ERA5_RSL_2015H2', 'ERA5_RSL_2016H1', 'ERA5_RSL_2016H2', 'ERA5_RSL_2017H1',
+                    'ERA5_RSL_2017H2', 'ERA5_RSL_2018H1', 'ERA5_RSL_2018H2', 'ERA5_RSL_2019H1']
+                   ))
+    
+    s2 = 0
+    with xr.open_mfdataset(f'{era5_path}*.nc', decode_times=True) as mf:
+        #print([v for v in mf.variables])
+        #print(mf.to_dataframe().tail(4))
+        #print(mf['t2m'].sel(time='2018-6-8 12', longitude=10, latitude=50).values - 273.15)
+        #mi = mf['t2m'].min(dim=['longitude','latitude']).values
+        #print(mi)
+        #print(mf.where(mf['t2m'] == mf['t2m'].min(), drop=True)['time'].values)
+        dr = mf['t2m'].reduce(np.min, dim=['longitude','latitude']).dropna(dim='time')
+        #print(dr.sortby(dr)[:4])
+        #print(dr.sortby(dr))
+        #print(dr.sortby(dr)[-4:])
+        dr = mf['t2m'].reduce(np.var, dim=['longitude','latitude'])
+        #print(dr)
+        print(pd.to_datetime(dr.sortby(dr)['time'].values[0]).strftime("%Y%m%d%H"))
+        dr = mf['t2m'].var(dim=['longitude','latitude'])
+        #print(dr)
+        print(dr.sortby(dr))      
+        #print(mf['t2m'].var(dim=['longitude','latitude']).max().values)
+        
+        #idx = mf.sel(time=time(12))['t2m'].values.reshape(mf.sel(time=time(12))['t2m'].values.size)
+        #idx = idx[np.logical_not(np.isnan(idx))]
+        #idx.sort()
+        #st = set()
+        #i = 0
+        #while len(st)<3:
+            #day = mf.where(mf['t2m'] == idx[i], drop=True)['time'].values
+            #st.add(day[0])
+            #print(day,idx[i])
+            #i+=1
+        #print(st)
+        
+        print(mf.where(mf['t2m'].var(dim=['longitude','latitude']) == mf['t2m'].var(dim=['longitude','latitude']).max(), drop=True)['time'].values)
+        print(mf['t2m'].sel(time='2017-01-07 06').var().values)
+        print(np.isnan(mf['t2m'].values).any())
+        
+        vs = mf['t2m'].var(dim=['longitude','latitude'],skipna=True).values
+        vs.sort()
+        print(vs[np.logical_not(np.isnan(vs))])
+    
+    
+    #print(mf['t2m'].sel(time='2019/01').values.size)
+    #print(mf.values())
+
+#ncf1 = xr.open_dataset(f'{era5_path}ERA5_RSL_2015H1.nc')
+#print(ncf1['time'].size)
+
+def mergefiles():
+    ex_pth = f'{era5_path}ERA5_RSL_2015H1.nc'
+    ex1_pth = f'{era5_path}ERA5_RSL_2015H2.nc'
+    
+    lst = glob(f'{era5_path}*.nc')
+    big_nc = xr.open_dataset(lst.pop(), decode_times=True)
+    
+    while True:
+        if not lst:
+            print('list is empty')
+            break
+        small_nc = xr.open_dataset(lst.pop(), decode_times=True)
+        big_nc = xr.merge([big_nc, small_nc])
+    
+    print('hello')
+    big_nc.to_netcdf(path='/home/marcel/weather.nc', mode='w')
+    print(big_nc)
+    
+#print(xr.merge(map(lambda x: xr.open_dataset(x, decode_times=True), glob(f'{era5_path}*.nc'))))
+
+#ncf = xr.open_dataset(ex_pth, decode_times=True)
+#ncf1 = xr.open_dataset(ex1_pth, decode_times=True)
+#print(xr.merge([ncf,ncf1]))
+
+def xpl():
+    ex_pth = glob(f'{era5_path}*.nc')[0]
+    ex1_pth = glob(f'{era5_path}*.nc')[1]
+    
+    ncf = xr.open_dataset(ex_pth, decode_times=True)
+    #tm = ncf['time']
+    
+    # TODO like this change time to pseudo timezone, but contains no information about
+    # timezone, otherwise xarray wouldn't recognize datetime64 type
+    # take first and last date to get a range and convert to local time, then remove timezone information
+    aware = pd.date_range(ncf['time'].values[0], ncf['time'].values[-1], freq='6H', tz='UTC').tz_convert('Europe/Berlin').tz_localize(None)
+    print(aware)
+    ncf['time'] = aware
+    print(ncf['time'])
+    #print(ncf)
+    #print(ncf.variables['time'].values[0] + np.timedelta64(1,'W'))
+    #print(pytz.timezone('Europe/Berlin'))
 
 def plottest():
     nc_pth = f'{data_path}../../download.nc'
-    nc_file = Dataset(nc_pth, 'r+')
+    nc_file = Dataset(nc_pth, 'r')
     print(nc_file.variables['t2m'].shape)
     print(num2date(nc_file.variables['time'][742], nc_file.variables['time'].units))
     ind = nc_file.variables['latitude'][:]

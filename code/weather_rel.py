@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 from glob_vars import data_path
+from NC_Reader import NC_Reader
 
 import csv
 import numpy as np
@@ -9,12 +10,15 @@ from matplotlib import pyplot as plt, dates
 from datetime import datetime, timezone, timedelta
 
 
-class WeatherRelator:
+class WeatherCalc:
     """
+    this class is supposed to provide some useful functions in order to
+    retrieve certain data/features
+    """
+    def __init__(self):
+        pass
     
-    """
-
-    def nmin_val_days(var, num=4):
+    def nmin_val_days(self, var, num=4):
         """Calculate the num days with lowest temperature for var
         Parameters
         ----------
@@ -25,7 +29,7 @@ class WeatherRelator:
         """
         pass
     
-    def nmax_var_days(var, num=4):
+    def nmax_var_days(self, var, num=4):
         """Calculate the num days with highest variance for var
         Parameters
         ----------
@@ -35,6 +39,8 @@ class WeatherRelator:
               number of values
         """
         pass        
+
+wet = WeatherCalc(start, stop)
 
 def plot_temp_maxVSload_attime(hour):
     """
@@ -107,5 +113,5 @@ amprion_load = 'DE_amprion_load_actual_entsoe_transparency'
 tennet_load = 'DE_tennet_load_actual_entsoe_transparency'
 transnetbw_load = 'DE_transnetbw_load_actual_entsoe_transparency'
 
-plot_temp_maxVSload_attime('12:00:00')
-plot_temp_maxVSload_attime('18:00:00')
+#plot_temp_maxVSload_attime('12:00:00')
+#plot_temp_maxVSload_attime('18:00:00')

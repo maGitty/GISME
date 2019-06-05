@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-from glob_vars import load_path, load_file_time_cols, PKL, cest_col,utc_col
+from glob_vars import load_path, PKL, cest_col,utc_col
 
 import numpy as np
 import pandas as pd
@@ -13,6 +13,9 @@ class LoadReader:
         if self.filetype is 'pkl':
             self.load_path = self.load_path.replace('.csv', f'.{PKL}')
         
+    def _to_netcdf(self):
+        pass
+    
     def _to_pickle(self):
         """
         used to convert csv file to pickle file format for faster read access
@@ -65,11 +68,18 @@ class LoadReader:
         load_df[cest_col] = pd.to_datetime(load_df[cest_col], utc=False).dt.tz_localize('Europe/Berlin', ambiguous='infer')
         print(len(load_df))
     
-    def from_range(self, start, stop):
+    def from_range(self, start, stop, step=False):
         load_df = self._load_df()
-        #load_df[cest_col] = pd.to_datetime(load_df[cest_col], utc=True).dt.tz_convert('Europe/Berlin').dt.tz_localize(None)        
-        load_df = load_df[(load_df[cest_col] >= start) & (load_df[cest_col] <= stop)]
+        #load_df[cest_col] = pd.to_datetime(load_df[cest_col], utc=True).dt.tz_convert('Europe/Berlin').dt.tz_localize(None)
+        if not step:
+            load_df = load_df[(load_df[cest_col] >= start) & (load_df[cest_col] <= stop)]
         #load_df[cest_col] = pd.to_datetime(load_df[cest_col], utc=False).dt.tz_localize('Europe/Berlin', ambiguous='infer')
+        else:
+            load_df['hour'] = load_df[utc_col].dt.hour
+            load_df['minute'] = load_df[utc_col].dt.minute
+            load_df = load_df[load_df['hour'].isin([0,6,12,18]) & load_df['minute'].isin([0])]
+            load_df = load_df[(load_df[utc_col] >= start) & (load_df[utc_col] <= stop)]
+            #load_df = load_df[(load_df[cest_col] >= start) & (load_df[cest_col] <= stop)]
         return load_df
     
     def at_time(self, time):
@@ -94,7 +104,15 @@ def execute_example_range():
     start = pd.Timestamp(datetime(2017,1,1,12), tz='Europe/Berlin')
     stop = pd.Timestamp(datetime(2017,1,1,13), tz='Europe/Berlin')
     rng = reader.from_range(start, stop)
-    print(rng[['utc_timestamp', cest_col]])
+    print(rng[cest_col].iloc[0])
+
+def execute_example_range1():
+    reader = LoadReader('pkl')
+    #reader.interpolate_missing()
+    start = pd.Timestamp(datetime(2017,1,1,0),tz='utc')
+    stop = pd.Timestamp(datetime(2017,1,6,18),tz='utc')
+    rng = reader.from_range(start, stop, step=True)
+    print(rng['DE_load_actual_entsoe_transparency'].get_values())
 
 def execute_example_daytime():
     reader = LoadReader('pkl')
@@ -110,4 +128,4 @@ def execute_example_interpolate():
     #print(rng[['utc_timestamp', cest_col]])    
 
 
-execute_example_interpolate()
+#execute_example_range1()

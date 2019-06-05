@@ -36,7 +36,6 @@ def days_of_month(y, m):
 server = ECMWFService("mars")
 
 target_dir = data_path + "/ecmwf/"
-target_out = "GridEnsembles"
 target_dwl = target_dir + "ensemble_netcdf/"
 
 if not os.path.exists(target_dwl):
@@ -70,7 +69,7 @@ for y in years:
                     'grid': '0.25/0.25',  # grid size in degree
                     'format': 'netcdf'  # get a net cdf file
                 },
-                target_dwl + target_out + '_{date}.nc'.format(date=d[0])
+                target_dwl + '_{date}.nc'.format(date=d[0])
             )
 
             server.execute(
@@ -88,7 +87,7 @@ for y in years:
                     'grid': '0.25/0.25',  # grid size in degree
                     'format': 'netcdf'  # get a net cdf file
                 },
-                target_dwl + target_out + '_cf_{date}.nc'.format(date=d[0])
+                target_dwl + '_cf_{date}.nc'.format(date=d[0])
             )
 
 
@@ -101,7 +100,7 @@ for f in os.listdir(target_dwl):
         files.append(f)
 
 for f in files:
-    os.chdir(target_dir + target_out)
+    os.chdir(target_dwl)
 
     if len(f) == 29:
         print(f)

@@ -1,5 +1,4 @@
 #!/usr/bin/python3
-
 from glob_vars import data_path
 
 from matplotlib import pyplot as plt, dates
