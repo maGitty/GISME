@@ -1,4 +1,4 @@
-from glob_vars import data_path, load_path, era5_path
+from glob_vars import data_path, load_path, era5_path, lon, lat
 from NC_Reader import NC_Reader
 from LoadReader import LoadReader
 
@@ -15,6 +15,7 @@ from calendar import monthrange
 from glob import glob
 import xarray as xr
 import pytz
+from shapely.geometry import Point, Polygon
 
 
 #nc_pth = f'{data_path}ecmwf/netcdf_actuals/GridOneDayAhead_2018-06-01.nc'
@@ -28,30 +29,70 @@ import pytz
 #print(ds['t2m'].sel(time=time(12)).values.ndim)
 #print(ds['t2m'].units)
 
+
 rd = NC_Reader()
-ld = LoadReader(filetype='pkl')
+lons = rd.get_coords()[lon].values
+lats = rd.get_coords()[lat].values
+coords = [[x,y] for x in lons for y in lats]
 
-var = 't2m'
-ystart = 2016
-ystop = 2017
+sf = shp.Reader('/home/marcel/Dropbox/data/shapes/DEU_adm0.shp').shapes()[0]
+poly = Polygon(sf.points)
+for [x,y] in coords:
+    print(poly.contains(Point(x,y)),x,y)
+#print([poly.contains(Point(p[0],p[1])) for p in coords])
+#print(Polygon(sf.points).contains(Point(coords[10][0], coords[10][1])))
 
-start = pd.Timestamp(datetime(ystart,1,1,0),tz='utc')
-stop = pd.Timestamp(datetime(ystop,12,31,18),tz='utc')
+def plt2d():
+    rd = NC_Reader()
+    ld = LoadReader(filetype='pkl')
+    
+    var = 't2m'
+    ystart = 2015
+    ystop = 2018
+    
+    start = pd.Timestamp(datetime(ystart,1,1,0),tz='utc')
+    stop = pd.Timestamp(datetime(ystop,12,31,18),tz='utc')
+    
+    load = ld.from_range(start, stop, step=True)['DE_load_actual_entsoe_transparency'].get_values()
+    #ncval = rd.var_over_time(var).sel(time=slice('2016-1-1','2017-12-31')).values
+    ncval = rd._func_over_time(var, np.min).sel(time=slice(f'{ystart}-1-1',f'{ystop}-12-31')).values - 273.15
+    #rng = pd.date_range(start,stop,freq='6H')
+    
+    #print(load.size,ncval.size)
+    
+    plt.scatter(ncval,load,s=4)
+    plt.xlabel(f'{var} min reduce over DE (°C)')
+    plt.ylabel('DE_load_actual_entsoe_transparency (MW)')
+    #cbar = plt.colorbar()
+    #cbar.ax.set_ylabel('DE_load_actual_entsoe_transparency (MW)', rotation=-90, va="bottom")
+    
+    plt.show()
 
-load = ld.from_range(start, stop, step=True)['DE_load_actual_entsoe_transparency'].get_values()
-#ncval = rd.var_over_time(var).sel(time=slice('2016-1-1','2017-12-31')).values
-ncval = rd._func_over_time(var, np.min).sel(time=slice(f'{ystart}-1-1',f'{ystop}-12-31'))
-rng = pd.date_range(start,stop,freq='6H')
-
-print(load.size,ncval.size)
-
-plt.scatter(rng, ncval,s=4,c=load,cmap='jet')
-plt.ylabel(f'{var} min reduce over DE')
-plt.xlabel('date')
-cbar = plt.colorbar()
-cbar.ax.set_ylabel('DE_load_actual_entsoe_transparency (MW)', rotation=-90, va="bottom")
-
-plt.show()
+def plot3dim():
+    rd = NC_Reader()
+    ld = LoadReader(filetype='pkl')
+    
+    var = 't2m'
+    ystart = 2015
+    ystop = 2018
+    
+    start = pd.Timestamp(datetime(ystart,1,1,0),tz='utc')
+    stop = pd.Timestamp(datetime(ystop,12,31,18),tz='utc')
+    
+    load = ld.from_range(start, stop, step=True)['DE_load_actual_entsoe_transparency'].get_values()
+    #ncval = rd.var_over_time(var).sel(time=slice('2016-1-1','2017-12-31')).values
+    ncval = rd._func_over_time(var, np.min).sel(time=slice(f'{ystart}-1-1',f'{ystop}-12-31'))
+    rng = pd.date_range(start,stop,freq='6H')
+    
+    print(load.size,ncval.size)
+    
+    plt.scatter(rng, ncval,s=4,c=load,cmap='jet')
+    plt.ylabel(f'{var} min reduce over DE')
+    plt.xlabel('date')
+    cbar = plt.colorbar()
+    cbar.ax.set_ylabel('DE_load_actual_entsoe_transparency (MW)', rotation=-90, va="bottom")
+    
+    plt.show()
 
 
 def mfdstest():

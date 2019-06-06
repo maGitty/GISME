@@ -21,6 +21,14 @@ class NC_Reader:
         self.filename = f'{era5_path}*.nc'
         with xr.open_mfdataset(f'{era5_path}*.nc') as nc_file:
             self.var_names = [name for name in nc_file.data_vars]
+            self.coords = nc_file.coords
+            self.size = nc_file.sizes
+    
+    def get_size(self):
+        return self.size
+    
+    def get_coords(self):
+        return self.coords
     
     def get_vars(self):
         return self.var_names
@@ -206,4 +214,7 @@ class NC_Reader:
             return nc_file[name].var(dim=[lon,lat])
 
 #rd = NC_Reader()
+#lons = rd.get_coords()[lon].values
+#lats = rd.get_coords()[lat].values
+#print([[x,y] for x in lons for y in lats])
 #print(rd.nmin_val_days('t2m')[0]['time'].values)

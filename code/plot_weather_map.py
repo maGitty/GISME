@@ -318,9 +318,9 @@ fmt='jpg'
 var='ie'
 variables=['u10', 'v10', 't2m', 'e', 'ie', 'kx', 'lcc', 'skt', 'str', 'sp', 'tcc', 'tcwv', 'tp']
 
-pl = NCPlot()
-for variable in variables:
-    pl.plot_nmax_var(variable, fmt)
+#pl = NCPlot()
+#for variable in variables:
+    #pl.plot_nmax_var(variable, fmt)
 #pl.plot_nmin(var,fmt)
 #pl.plot_nmax(var,fmt)
 #pl.plot_nmin_var(var,fmt)
