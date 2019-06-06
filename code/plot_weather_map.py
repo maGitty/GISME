@@ -22,56 +22,49 @@ class NCPlot:
     def __init__(self):
         pass
     
-    def _plot_days(self, days, var, reader, fname, fmt):
+    def _plot_days(self, days, var, ncreader, fname, fmt):
         """Plot data for each day in days list and save file with specified format
         Parameters
         ----------
-        days   : list
-                 list of days
-        var    : string
-                 column name of variable to plot
-        reader : NC_Reader
-                 instance to get values for each day
-        fname  : string
-                 to name folder
-        fmt    : string or list of strings
-                 to specify which format to store the figure
+        days     : list
+                   list of days
+        var      : string
+                   column name of variable to plot
+        ncreader : NC_Reader
+                   instance to get values for each day
+        fname    : string
+                   to name folder
+        fmt      : string or list of strings
+                   to specify which format to store the figure
         """
-        new_folder = datetime.now().strftime('%Y%m%d%H%M%S/')
-        fig_pth = f'{figure_path}{var}_{fname}{new_folder}'
+        fig_pth = f'{figure_path}{var}_{fname}/'
         
-        os.makedirs(fig_pth)
+        if not os.path.exists(fig_pth):
+            os.makedirs(fig_pth)
 
         for day_num in range(len(days)):
             day = days[day_num]
-            data, bbox, long_name, minmax = reader.vals4time(var, day)
-            
-            cbox_bound = np.linspace(minmax[0],minmax[1],256)
-            cbox_ticks = np.linspace(minmax[0],minmax[1],8)
-            
-            norm = colors.BoundaryNorm(cbox_bound, ncolors=256)
+            data, bbox, long_name, minmax = ncreader.vals4time(var, day)
             
             fig, ax = plt.subplots()
+            
+            cbox_bound = np.linspace(minmax[0],minmax[1],256)
+            norm = colors.BoundaryNorm(cbox_bound, ncolors=256)
             img = ax.imshow(data, cmap='jet', extent=bbox, interpolation='bilinear', norm=norm)
             
             # plot map
-            sf = shp.Reader('/home/marcel/Dropbox/data/shapes/DEU_adm1.shp')        
+            sf = shp.Reader('/home/marcel/Dropbox/data/shapes/DEU_adm1.shp')
+            # iterate over all 16 states, in DEU_adm0.shp there is only one shape for germany
             for state in range(16):
                 shape = sf.shape(state)
                 points = np.array(shape.points)
-                
                 intervals = list(shape.parts) + [len(shape.points)]
-                
-                #ax = plt.gca()
                 ax.set_aspect(1)
                 
                 for (x, y) in zip(intervals[:-1], intervals[1:]):
                     ax.plot(*zip(*points[x:y]), color='k', linewidth=.4)
             
-            #bounds = np.linspace(-20,40,60)
-            #norm = colors.BoundaryNorm(boundaries=bounds, ncolors=256)
-            #pcm = ax[0].pcolormesh()
-            
+            cbox_ticks = np.linspace(minmax[0],minmax[1],8)
             cbar = fig.colorbar(img,ticks=cbox_ticks)
             cbar.set_label(long_name)
             ax.set_xlabel(lon)
@@ -80,10 +73,10 @@ class NCPlot:
             
             if type(fmt) is list:
                 for f in fmt:
-                    pth = f'{fig_pth}{day_num}nc_plot_{pd.to_datetime(day).strftime("%Y%m%d%H")}.{f}'
+                    pth = f'{fig_pth}{day_num}nc_plot_{pd.to_datetime(day).strftime("%Y%m%d%H")}_{datetime.now().strftime("%Y%m%d%H%M%S")}.{f}'
                     fig.savefig(pth, bbox_inches='tight', format=f, optimize=True, dpi=150)                    
             else:
-                pth = f'{fig_pth}{day_num}nc_plot_{pd.to_datetime(day).strftime("%Y%m%d%H")}.{fmt}'
+                pth = f'{fig_pth}{day_num}_{pd.to_datetime(day).strftime("%Y%m%d%H")}_{datetime.now().strftime("%Y%m%d%H%M%S")}.{fmt}'
                 fig.savefig(pth, bbox_inches='tight', format=fmt, optimize=True, dpi=150)
             # close figures as they won't be closed automatically by python during runtime
             plt.close(fig)
@@ -314,14 +307,14 @@ def plot_highest_var(fmt='eps', n=4):
 
 data_path = data_path + 'ecmwf/'
 
-fmt='jpg'
-var='ie'
+fmt='pdf'
+var='t2m'
 variables=['u10', 'v10', 't2m', 'e', 'ie', 'kx', 'lcc', 'skt', 'str', 'sp', 'tcc', 'tcwv', 'tp']
 
-#pl = NCPlot()
-#for variable in variables:
-    #pl.plot_nmax_var(variable, fmt)
-#pl.plot_nmin(var,fmt)
+pl = NCPlot()
+#for var in variables:
+    #pl.plot_nmax_var(var, fmt, 1)
+pl.plot_nmin(var,fmt)
 #pl.plot_nmax(var,fmt)
 #pl.plot_nmin_var(var,fmt)
 #pl.plot_nmax_var(var,fmt)

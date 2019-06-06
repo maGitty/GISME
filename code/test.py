@@ -29,18 +29,25 @@ from shapely.geometry import Point, Polygon
 #print(ds['t2m'].sel(time=time(12)).values.ndim)
 #print(ds['t2m'].units)
 
-
 rd = NC_Reader()
-lons = rd.get_coords()[lon].values
-lats = rd.get_coords()[lat].values
-coords = [[x,y] for x in lons for y in lats]
+t2ms = rd.vals4time('t2m', datetime(2017,1,1,12))[0].flatten()
+tccs = rd.vals4time('tcc', datetime(2017,1,1,12))[0].flatten()
+plt.scatter(tccs,t2ms,s=2)
+plt.show()
 
-sf = shp.Reader('/home/marcel/Dropbox/data/shapes/DEU_adm0.shp').shapes()[0]
-poly = Polygon(sf.points)
-for [x,y] in coords:
-    print(poly.contains(Point(x,y)),x,y)
-#print([poly.contains(Point(p[0],p[1])) for p in coords])
-#print(Polygon(sf.points).contains(Point(coords[10][0], coords[10][1])))
+def isinDE():
+    # TODO try again on faster pc
+    rd = NC_Reader()
+    lons = rd.get_coords()[lon].values
+    lats = rd.get_coords()[lat].values
+    coords = [[x,y] for x in lons for y in lats]
+    
+    sf = shp.Reader('/home/marcel/Dropbox/data/shapes/DEU_adm0.shp').shapes()[0]
+    poly = Polygon(sf.points)
+    for [x,y] in coords:
+        print(poly.contains(Point(x,y)),x,y)
+    #print([poly.contains(Point(p[0],p[1])) for p in coords])
+    #print(Polygon(sf.points).contains(Point(coords[10][0], coords[10][1])))
 
 def plt2d():
     rd = NC_Reader()

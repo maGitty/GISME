@@ -1,9 +1,10 @@
 #!/usr/bin/python3
 
-from glob_vars import load_path, PKL, cest_col,utc_col
+from glob_vars import load_path, cest_col,utc_col
 
 import numpy as np
 import pandas as pd
+import xarray as xr
 from datetime import datetime
 
 class LoadReader:
@@ -11,46 +12,68 @@ class LoadReader:
         self.load_path = load_path
         self.filetype = filetype
         if self.filetype is 'pkl':
-            self.load_path = self.load_path.replace('.csv', f'.{PKL}')
+            self.load_path = self.load_path.replace('.csv', '.pkl')
         
     def _to_netcdf(self):
-        pass
+        """used to convert csv file to .nc file format for speedup and compatibility"""
+        assert self.filetype is not 'nc', 'already has nc format'
+        
+        load_df = self.__load_df()
+        ind = load_df[utc_col].values
+        ds = load_df.to_xarray()
+        dvars = [x for x in ds.data_vars]
+        
+        """
+        magic, set index for all vars to utc, then reset indexes which turns all variables to coordinates
+        then set utc to be a coordinate and reset all coordinates except utc to be variables again
+        in the end drop unused 'index' and cest time columns
+        """
+        ds = ds.set_index({utc_col:dvars})
+        ds = ds.reset_index(dvars[1:])
+        ds = ds.set_coords(utc_col)
+        ds = ds.reset_coords(dvars[1:])
+        ds = ds.reset_index(['index',cest_col], drop=True)
+        # write to file with .nc type
+        ds.to_netcdf(self.load_path.replace(f'.{self.filetype}','.nc'))
+        self.filetype = 'nc'
+        
     
     def _to_pickle(self):
         """
         used to convert csv file to pickle file format for faster read access
         """
-        if self.filetype is 'pkl':
-            print('reader is already pickled')
-            return
-        load_df = self._load_df()
+        assert self.filetype is not 'pkl', 'already has pkl format'
+        
+        load_df = self.__load_df()
         
         load_df[cest_col] = pd.to_datetime(load_df[cest_col], format='%Y-%m-%dT%H:%M:%S%z').to_timestamp()
         
-        temp_path = self.load_path.replace('.csv', f'.{PKL}')
+        temp_path = self.load_path.replace('.csv', f'.pkl')
         
         # write to pickle file
         load_df.to_pickle(temp_path)
         # change filetype of reader
         self.load_path = temp_path
-        self.filetype = PKL
+        self.filetype = 'pkl'
     
-    def _load_df(self):
+    def __load_df(self):
         if self.filetype is 'csv':
             load_df = pd.read_csv(self.load_path, low_memory=False)
-            load_df[cest_col] = pd.to_datetime(load_df[cest_col], format='%Y-%m-%dT%H:%M:%S%z').to_timestamp()
+            load_df[utc_col] = pd.to_datetime(load_df[utc_col])
             return load_df
-        elif self.filetype is PKL:
+        elif self.filetype is 'pkl':
             return pd.read_pickle(self.load_path)
+        elif self.filetype is 'nc':
+            return xr.open_dataset(self.load_path)
         else:
             print('Error: wrong filetype')
             return None
         
-    def _interpolate_missing(self):
+    def __interpolate_missing(self):
         """
         warning! might not work as expected, there might be unexpected behaviour, maybe is also filling values when 
         """
-        load_df = self._load_df()
+        load_df = self.__load_df()
         dr = pd.date_range(start=load_df[utc_col].min(), end=load_df[utc_col].max(), freq='15MIN', ambiguous='infer').tz_convert('Europe/Berlin')
         print(load_df[cest_col][0], dr[0])
         for i in range(len(load_df)):
@@ -69,7 +92,7 @@ class LoadReader:
         print(len(load_df))
     
     def from_range(self, start, stop, step=False):
-        load_df = self._load_df()
+        load_df = self.__load_df()
         #load_df[cest_col] = pd.to_datetime(load_df[cest_col], utc=True).dt.tz_convert('Europe/Berlin').dt.tz_localize(None)
         if not step:
             load_df = load_df[(load_df[cest_col] >= start) & (load_df[cest_col] <= stop)]
@@ -83,11 +106,11 @@ class LoadReader:
         return load_df
     
     def at_time(self, time):
-        load_df = self._load_df()
+        load_df = self.__load_df()
         return load_df[load_df[cest_col] == time]
     
     def at_daytime(self, daytime):
-        load_df = self._load_df()
+        load_df = self.__load_df()
         load_df[cest_col] = pd.to_datetime(load_df[cest_col], utc=True).dt.tz_convert('Europe/Berlin').dt.tz_localize(None)        
         load_df = load_df.set_index(cest_col).at_time(daytime).reset_index()
         load_df[cest_col] = pd.to_datetime(load_df[cest_col], utc=False).dt.tz_localize('Europe/Berlin', ambiguous='infer')        
@@ -121,11 +144,13 @@ def execute_example_daytime():
 
 def execute_example_interpolate():
     reader = LoadReader('pkl')
-    reader._interpolate_missing()
+    reader.__interpolate_missing()
     #start = pd.Timestamp(datetime(2017,1,1,12), tz='Europe/Berlin')
     #stop = pd.Timestamp(datetime(2017,1,1,13), tz='Europe/Berlin')
     #rng = reader.from_range(start, stop)
     #print(rng[['utc_timestamp', cest_col]])    
 
+#reader = LoadReader()
+#reader._to_netcdf()
 
 #execute_example_range1()

@@ -1,7 +1,6 @@
 #!/usr/bin/python3
 from glob_vars import lon, lat, era5_path
 
-from netCDF4 import Dataset
 import os
 import numpy as np
 import pandas as pd
@@ -13,27 +12,69 @@ class NC_Reader:
     used to read nc files and to return pandas DataFrame containing desired data
     """
     def __init__(self):
+        """Set path to open files, store some information for faster response
         """
-        raise AssertionError if path doesn't exist
-        """
-        assert(os.path.exists(era5_path))
+        assert os.path.exists(era5_path), 'path to weather data does not exist'
         
         self.filename = f'{era5_path}*.nc'
         with xr.open_mfdataset(f'{era5_path}*.nc') as nc_file:
+            print(nc_file)
             self.var_names = [name for name in nc_file.data_vars]
             self.coords = nc_file.coords
             self.size = nc_file.sizes
+            self.date_bounds = nc_file['time'].min().values, nc_file['time'].max().values
     
-    def get_size(self):
-        return self.size
-    
-    def get_coords(self):
-        return self.coords
-    
-    def get_vars(self):
-        return self.var_names
+    def __func_over_time(self, name, func):
+        """
+        Private method, return data for specified variable after applying
+        function to reduce along longitude and latitude axes
+        """
+        assert name in self.var_names, 'wrong variable name'
         
-    def merge_files(self, fname_list, out_path):
+        with xr.open_mfdataset(self.filename) as nc_file:
+            return nc_file[name].reduce(func, dim=[lon,lat]).dropna(dim='time')    
+    
+    def __nminmax_reduce_days(self, name, func, minmax, n):
+        """
+        Private method, return list of n days with min/max values for variable after
+        applying function to reduce along longitude and latitude axes
+        
+        Parameters
+        ----------
+        name : string
+               name of the variable
+        n    : int
+               number of min/max values
+              
+        Returns
+        -------
+        list of n days with min/max values for specified variable after applying func
+        """
+        assert (name in self.var_names and minmax in ['min', 'max']), 'wrong variable name or minmax not in ["min","max"]'
+        
+        data = self.__func_over_time(name, func)
+        
+        data = data.sortby(data)
+        
+        n_minmax = data[:n] if minmax is 'min' else data[-n:]
+        
+        return n_minmax
+    
+    def __nmin_reduce_days(self, name, func, n):
+        """
+        Private method, return list of n days with min values for variable after
+        applying function to reduce along longitude and latitude axes
+        """
+        return self.__nminmax_reduce_days(name, func, 'min', n)
+    
+    def __nmax_reduce_days(self, name, func, n):
+        """
+        Private method, return list of n days with max values for variable after
+        applying function to reduce along longitude and latitude axes
+        """
+        return self.__nminmax_reduce_days(name, func, 'max', n)
+        
+    def __merge_files(self, fname_list, out_path):
         """
         currently unused, use xr.open_mfdataset instead of merging, seems not to make a difference
         """
@@ -50,6 +91,22 @@ class NC_Reader:
             big_nc = xr.merge([big_nc, small_nc])
             
         big_nc.to_netcdf(path=out_path, mode='w')
+    
+    def get_size(self):
+        """Returns shape of whole data"""
+        return self.size
+    
+    def get_coords(self):
+        """Returns coordinating dimensions and respective value lists"""
+        return self.coords
+    
+    def get_vars(self):
+        """returns list of variable names held by data"""
+        return self.var_names
+    
+    def get_date_bounds(self):
+        """returns tuple of upper/lower date boundaries"""
+        return self.date_bounds
         
     def vals4time(self, name, datetime):
         """Returns the values for specified variable and time
@@ -73,7 +130,7 @@ class NC_Reader:
         bounding box to set the plot range
         long name to display as title or similar
         """
-        assert(name in self.var_names)
+        assert name in self.var_names, 'wrong variable name'
 
         with xr.open_mfdataset(self.filename) as nc_file:
             minmax = np.floor(nc_file[name].min()), np.ceil(nc_file[name].max())
@@ -104,7 +161,7 @@ class NC_Reader:
         -------
         single value for specified variable, position and time
         """
-        assert(name in self.var_names)
+        assert name in self.var_names, 'wrong variable name'
         
         with xr.open_mfdataset(self.filename) as nc_file:
             try:
@@ -130,7 +187,7 @@ class NC_Reader:
         -------
         values for specified variable and latitude along longitude and daytime averaged over all days
         """
-        assert(name in self.var_names)
+        assert name in self.var_names, 'wrong variable name'
 
         with xr.open_mfdataset(self.filename) as nc_file:
             try:
@@ -141,79 +198,91 @@ class NC_Reader:
                 return None
         return data
     
-    def _nminmax_reduce_days(self, name, func, minmax, n=4):
-        """Return list of n days with min/max values for var after applying func
-        
-        Parameters
-        ----------
-        name : string
-               name of the variable
-        n    : int
-               number of min/max values
-              
-        Returns
-        -------
-        list of n days with min/max values for specified variable after applying func
+    def var_over_time(self, name):
         """
-        assert(name in self.var_names and minmax in ['min', 'max'])
+        Returns variance over time reduced along longitude
+        and latitude dimensions and drops NA values
+        """
+        assert name in self.var_names, 'wrong variable name'
         
-        with xr.open_mfdataset(self.filename) as nc_file:
-            nc_file = nc_file[name].reduce(func, dim=[lon,lat]).dropna(dim='time')
-            nc_file = nc_file.sortby(nc_file)
-            
-            n_minmax = nc_file[:n] if minmax is 'min' else nc_file[-n:]
-        
-        return n_minmax
-    
-    def _nmin_reduce_days(self, name, func, n=4):
-        return self._nmin_reduce_days(name, func, n)
-    
-    def _nmax_reduce_days(self, name, func, n=4):
-        return self._nmax_reduce_days(name, func, n)
+        return self.__func_over_time(name, np.var)
     
     def nmin_val_days(self, name, n=4):
-        return self._nmin_reduce_days(name, np.min, n)
+        """
+        Returns n min value days reduced with np.min along
+        longitude and latitude dimensions and drops NA values
+        """
+        return self.__nmin_reduce_days(name, np.min, n)
 
     def nmax_val_days(self, name, n=4):
-        return self._nmax_reduce_days(name, np.min, n)
+        """
+        Returns n max value days reduced with np.min along
+        longitude and latitude dimensions and drops NA values
+        """
+        return self.__nmax_reduce_days(name, np.min, n)
     
     def nminvar_val_days(self, name, n=4):
-        return self._nmin_reduce_days(name, np.var, n)
+        """
+        Returns n min value days reduced with np.var along
+        longitude and latitude dimensions and drops NA values
+        """
+        return self.__nmin_reduce_days(name, np.var, n)
     
     def nmaxvar_val_days(self, name, n=4):
-        return self._nmax_reduce_days(name, np.var, n)
+        """
+        Returns n max value days reduced with np.var along
+        longitude and latitude dimensions and drops NA values
+        """
+        return self.__nmax_reduce_days(name, np.var, n)
     
     def nminmean_val_days(self, name, n=4):
-        return self._nmin_reduce_days(name, np.mean, n)
+        """
+        Returns n min value days reduced with np.mean along
+        longitude and latitude dimensions and drops NA values
+        """
+        return self.__nmin_reduce_days(name, np.mean, n)
     
     def nmaxmean_val_days(self, name, n=4):
-        return self._nmax_reduce_days(name, np.mean, n)
+        """
+        Returns n max value days reduced with np.mean along
+        longitude and latitude dimensions and drops NA values
+        """
+        return self.__nmax_reduce_days(name, np.mean, n)
     
     def nminmed_val_days(self, name, n=4):
-        return self._nmin_reduce_days(name, np.median, n)
+        """
+        Returns n min value days reduced with np.median along
+        longitude and latitude dimensions and drops NA values
+        """
+        return self.__nmin_reduce_days(name, np.median, n)
     
     def nmaxmed_val_days(self, name, n=4):
-        return self._nmax_reduce_days(name, np.median, n)
+        """
+        Returns n max value days reduced with np.median along
+        longitude and latitude dimensions and drops NA values
+        """
+        return self.__nmax_reduce_days(name, np.median, n)
     
     def nminsum_val_days(self, name, n=4):
-        return self._nmin_reduce_days(name, np.mean, n)
+        """
+        Returns n min value days reduced with np.sum along
+        longitude and latitude dimensions and drops NA values
+        """
+        return self.__nmin_reduce_days(name, np.mean, n)
     
     def nmaxsum_val_days(self, name, n=4):
-        return self._nmax_reduce_days(name, np.mean, n)
+        """
+        Returns n max value days reduced with np.sum along
+        longitude and latitude dimensions and drops NA values
+        """
+        return self.__nmax_reduce_days(name, np.mean, n)
     
-    def _func_over_time(self, name, func):
-        assert(name in self.var_names)
-        
-        with xr.open_mfdataset(self.filename) as nc_file:
-            return nc_file[name].reduce(func, dim=[lon,lat]).dropna(dim='time')
-    
-    def var_over_time(self, name):
-        assert(name in self.var_names)
-
-        with xr.open_mfdataset(self.filename) as nc_file:
-            return nc_file[name].var(dim=[lon,lat])
 
 #rd = NC_Reader()
+#print(rd.get_date_bounds())
+#print(rd.val4postime('t2m', 10, 50, datetime(2017,1,1,12)))
+#print(rd.vals4lattime('t2m', 50, time(12)))
+#print(rd.vals4time('t2m', datetime(2017,1,1,12)))
 #lons = rd.get_coords()[lon].values
 #lats = rd.get_coords()[lat].values
 #print([[x,y] for x in lons for y in lats])
