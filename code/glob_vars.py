@@ -11,7 +11,6 @@ shape_path = data_path + 'shapes/'
 
 # names/labels
 era5_prefix = 'GridOneDayAhead_'
-PKL = 'pkl'
 lon = 'longitude'
 lat = 'latitude'
 utc_col = 'utc_timestamp'
