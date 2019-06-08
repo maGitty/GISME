@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-from glob_vars import lon, lat, era5_path
+from glob_vars import lon_col, lat_col, era5_path
 
 import os
 import numpy as np
@@ -7,7 +7,7 @@ import pandas as pd
 import xarray as xr
 from datetime import datetime, timedelta, time
 
-class NC_Reader:
+class WeatherReader:
     """
     used to read nc files and to return pandas DataFrame containing desired data
     """
@@ -17,22 +17,23 @@ class NC_Reader:
         assert os.path.exists(era5_path), 'path to weather data does not exist'
         
         self.filename = f'{era5_path}*.nc'
-        with xr.open_mfdataset(f'{era5_path}*.nc') as nc_file:
-            print(nc_file)
-            self.var_names = [name for name in nc_file.data_vars]
-            self.coords = nc_file.coords
-            self.size = nc_file.sizes
-            self.date_bounds = nc_file['time'].min().values, nc_file['time'].max().values
+        with xr.open_mfdataset(self.filename) as nc_file:
+            # drop times where no data is available, until now only seen at the end of the dataset
+            self.wdata = nc_file.dropna('time')
+        
+        self.var_names = [name for name in self.wdata.data_vars]
+        self.date_bounds = self.wdata['time'].min().values, self.wdata['time'].max().values
+        #print(nc_file.dropna('time'))
     
     def __func_over_time(self, name, func):
         """
         Private method, return data for specified variable after applying
         function to reduce along longitude and latitude axes
         """
-        assert name in self.var_names, 'wrong variable name'
+        assert name in self.var_names, f'column {name} not found'
         
-        with xr.open_mfdataset(self.filename) as nc_file:
-            return nc_file[name].reduce(func, dim=[lon,lat]).dropna(dim='time')    
+        long_name = f'{self.wdata[name].long_name} ({self.wdata[name].units})'
+        return self.wdata[name].reduce(func, dim=[lon_col,lat_col]), long_name
     
     def __nminmax_reduce_days(self, name, func, minmax, n):
         """
@@ -50,15 +51,15 @@ class NC_Reader:
         -------
         list of n days with min/max values for specified variable after applying func
         """
-        assert (name in self.var_names and minmax in ['min', 'max']), 'wrong variable name or minmax not in ["min","max"]'
+        assert (name in self.var_names and minmax in ['min', 'max']), f'wrong variable name ({name}) or minmax not in ["min","max"]'
         
-        data = self.__func_over_time(name, func)
+        data, long_name = self.__func_over_time(name, func)
         
         data = data.sortby(data)
         
         n_minmax = data[:n] if minmax is 'min' else data[-n:]
         
-        return n_minmax
+        return n_minmax, long_name
     
     def __nmin_reduce_days(self, name, func, n):
         """
@@ -89,16 +90,18 @@ class NC_Reader:
                 return
             small_nc = xr.open_dataset(fname_list.pop(), decode_times=True)
             big_nc = xr.merge([big_nc, small_nc])
+            small_nc.close()
             
         big_nc.to_netcdf(path=out_path, mode='w')
+        big_nc.close()
     
     def get_size(self):
         """Returns shape of whole data"""
-        return self.size
+        return self.wdata.sizes
     
     def get_coords(self):
         """Returns coordinating dimensions and respective value lists"""
-        return self.coords
+        return self.wdata.coords
     
     def get_vars(self):
         """returns list of variable names held by data"""
@@ -107,6 +110,14 @@ class NC_Reader:
     def get_date_bounds(self):
         """returns tuple of upper/lower date boundaries"""
         return self.date_bounds
+    
+    def get_lon(self):
+        """returns list of longitude values"""
+        return self.wdata[lon_col].values
+    
+    def get_lat(self):
+        """returns list of latitude values"""
+        return self.wdata[lat_col].values
         
     def vals4time(self, name, datetime):
         """Returns the values for specified variable and time
@@ -130,17 +141,16 @@ class NC_Reader:
         bounding box to set the plot range
         long name to display as title or similar
         """
-        assert name in self.var_names, 'wrong variable name'
+        assert name in self.var_names, f'column {name} not found'
 
-        with xr.open_mfdataset(self.filename) as nc_file:
-            minmax = np.floor(nc_file[name].min()), np.ceil(nc_file[name].max())
-            data = nc_file[name].sel(time=datetime).values
-            lons = nc_file[lon].values
-            lats = nc_file[lat].values
-            bbox = (lons.min(), lons.max(), lats.min(), lats.max())
-            long_name = f'{nc_file[name].long_name} ({nc_file[name].units})'
+        minmax = np.floor(self.wdata[name].min()), np.ceil(self.wdata[name].max())
+        data = self.wdata[name].sel(time=datetime).values
+        lons = self.wdata[lon_col].values
+        lats = self.wdata[lat_col].values
+        bbox = (lons.min(), lons.max(), lats.min(), lats.max())
+        long_name = f'{self.wdata[name].long_name} ({self.wdata[name].units})'
 
-            return (data, bbox, long_name, minmax)
+        return data, bbox, long_name, minmax
         
 
     def val4postime(self, name, lon, lat, dtime):
@@ -161,49 +171,72 @@ class NC_Reader:
         -------
         single value for specified variable, position and time
         """
-        assert name in self.var_names, 'wrong variable name'
+        assert name in self.var_names, f'column {name} not found'
         
-        with xr.open_mfdataset(self.filename) as nc_file:
-            try:
-                data = nc_file[name].sel(longitude=lon, latitude=lat, time=dtime).values
-            except:
-                print('Error: coordinates not within bbox')
-                return None
+        try:
+            data = self.wdata[name].sel(longitude=lon, latitude=lat, time=dtime)
+        except:
+            raise Exception(f'coordinates not within bbox? lon:{lon}, lat:{lat}')
         return data
     
-    def vals4lattime(self, name, lat, daytime):
-        """Get values for variable at geographic position at daytime averaged over all days
+    def vals4lon_daytime(self, name, longitude, daytime):
+        """Get values for variable at geographic longitude at daytime averaged over all days
         
         Parameters
         ----------
-        name    : string
-                  name of the variable
-        lat     : numeric
-                  the geographic latitude
-        daytime : datetime.datetime
-                  the specified daytime for which the data is returned
+        name      : string
+                    name of the variable
+        longitude : numeric
+                    the geographic longitude
+        daytime   : datetime.datetime
+                    the specified daytime for which the data is returned
+        
+        Returns
+        -------
+        values for specified variable and longitude along latitude and daytime averaged over all days
+        """
+        assert name in self.var_names, f'column {name} not found'
+
+        try:
+            long_name = f'{self.wdata[name].long_name} ({self.wdata[name].units})'
+            # get fields for variable at longitude and daytime averaged over all days
+            data = self.wdata[name].sel(longitude=longitude, time=daytime).values.mean(axis=0)
+        except:
+            raise Exception(f'coordinates not within bbox? lon:{longitude}')
+        return data, long_name
+    
+    def vals4lat_daytime(self, name, latitude, daytime):
+        """Get values for variable at geographic latitude at daytime averaged over all days
+        
+        Parameters
+        ----------
+        name     : string
+                   name of the variable
+        latitude : numeric
+                   the geographic latitude
+        daytime  : datetime.datetime
+                   the specified daytime for which the data is returned
         
         Returns
         -------
         values for specified variable and latitude along longitude and daytime averaged over all days
         """
-        assert name in self.var_names, 'wrong variable name'
+        assert name in self.var_names, f'column {name} not found'
 
-        with xr.open_mfdataset(self.filename) as nc_file:
-            try:
-                # get fields for variable at latitude and daytime averaged over all days
-                data = nc_file[name].sel(latitude=lat, time=daytime).values.mean(axis=0)
-            except:
-                print('Error: coordinates not within bbox')
-                return None
-        return data
+        try:
+            long_name = f'{self.wdata[name].long_name} ({self.wdata[name].units})'
+            # get fields for variable at latitude and daytime averaged over all days
+            data = self.wdata[name].sel(latitude=latitude, time=daytime).mean(dim='time')
+        except:
+            raise Exception(f'coordinates not within bbox? lat:{latitude}')
+        return data, long_name
     
     def var_over_time(self, name):
         """
         Returns variance over time reduced along longitude
         and latitude dimensions and drops NA values
         """
-        assert name in self.var_names, 'wrong variable name'
+        assert name in self.var_names, f'column {name} not found'
         
         return self.__func_over_time(name, np.var)
     
@@ -278,12 +311,14 @@ class NC_Reader:
         return self.__nmax_reduce_days(name, np.mean, n)
     
 
-#rd = NC_Reader()
+rd = WeatherReader()
 #print(rd.get_date_bounds())
+#print(rd.vals4time('t2m',datetime(2018,4,1,6)))
 #print(rd.val4postime('t2m', 10, 50, datetime(2017,1,1,12)))
-#print(rd.vals4lattime('t2m', 50, time(12)))
+#print(rd.vals4lat_daytime('t2m', 50, time(12)))
 #print(rd.vals4time('t2m', datetime(2017,1,1,12)))
 #lons = rd.get_coords()[lon].values
 #lats = rd.get_coords()[lat].values
 #print([[x,y] for x in lons for y in lats])
 #print(rd.nmin_val_days('t2m')[0]['time'].values)
+#print(rd.var_over_time('t2m'))
