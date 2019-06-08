@@ -1,5 +1,5 @@
-from glob_vars import data_path, load_path, era5_path, lon, lat
-from NC_Reader import NC_Reader
+from glob_vars import data_path, load_path, era5_path, lon, lat, bbox
+from WeatherReader import WeatherReader
 from LoadReader import LoadReader
 
 from netCDF4 import Dataset, num2date
@@ -29,28 +29,51 @@ from shapely.geometry import Point, Polygon
 #print(ds['t2m'].sel(time=time(12)).values.ndim)
 #print(ds['t2m'].units)
 
-rd = NC_Reader()
-t2ms = rd.vals4time('t2m', datetime(2017,1,1,12))[0].flatten()
-tccs = rd.vals4time('tcc', datetime(2017,1,1,12))[0].flatten()
-plt.scatter(tccs,t2ms,s=2)
-plt.show()
+#rd = NC_Reader()
+#t2ms = rd.vals4time('t2m', datetime(2017,1,1,12))[0].flatten()
+#tccs = rd.vals4time('tcc', datetime(2017,1,1,12))[0].flatten()
+#plt.scatter(tccs,t2ms,s=2)
+#plt.show()
 
 def isinDE():
     # TODO try again on faster pc
-    rd = NC_Reader()
+    rd = WeatherReader()
     lons = rd.get_coords()[lon].values
     lats = rd.get_coords()[lat].values
-    coords = [[x,y] for x in lons for y in lats]
-    
+    #coords = [[x,y] for x in lons for y in lats]
+    slctr =  [[]]
     sf = shp.Reader('/home/marcel/Dropbox/data/shapes/DEU_adm0.shp').shapes()[0]
     poly = Polygon(sf.points)
-    for [x,y] in coords:
-        print(poly.contains(Point(x,y)),x,y)
+    print(len(lons),len(lats))
+    coords = np.empty((len(lats),len(lons)),np.dtype(Point))
+    
+    print(np.dtype(Point))
+    
+    
+    for y in range(len(lats)):
+        for x in range(len(lons)):
+            lo = lons[x]
+            la = lats[y]
+            coords[y,x] = Point(lo,la)
+
+    contains = np.vectorize(lambda p: p.within(poly) or p.touches(poly))
+    
+    contained = contains(coords)
+    print(contained)
+    np.save(f'{data_path}isin', contained)
+    return contained
     #print([poly.contains(Point(p[0],p[1])) for p in coords])
     #print(Polygon(sf.points).contains(Point(coords[10][0], coords[10][1])))
 
+#contained = isinDE()
+
+contained = np.load(f'{data_path}isin.npy')
+
+plt.imshow(contained,cmap=plt.cm.gray, extent=bbox)#,interpolation='bilinear')
+plt.show()
+
 def plt2d():
-    rd = NC_Reader()
+    rd = WeatherReader()
     ld = LoadReader(filetype='pkl')
     
     var = 't2m'
@@ -62,7 +85,7 @@ def plt2d():
     
     load = ld.from_range(start, stop, step=True)['DE_load_actual_entsoe_transparency'].get_values()
     #ncval = rd.var_over_time(var).sel(time=slice('2016-1-1','2017-12-31')).values
-    ncval = rd._func_over_time(var, np.min).sel(time=slice(f'{ystart}-1-1',f'{ystop}-12-31')).values - 273.15
+    ncval = rd.__func_over_time(var, np.min).sel(time=slice(f'{ystart}-1-1',f'{ystop}-12-31')).values - 273.15
     #rng = pd.date_range(start,stop,freq='6H')
     
     #print(load.size,ncval.size)
@@ -76,7 +99,7 @@ def plt2d():
     plt.show()
 
 def plot3dim():
-    rd = NC_Reader()
+    rd = WeatherReader()
     ld = LoadReader(filetype='pkl')
     
     var = 't2m'
@@ -88,7 +111,7 @@ def plot3dim():
     
     load = ld.from_range(start, stop, step=True)['DE_load_actual_entsoe_transparency'].get_values()
     #ncval = rd.var_over_time(var).sel(time=slice('2016-1-1','2017-12-31')).values
-    ncval = rd._func_over_time(var, np.min).sel(time=slice(f'{ystart}-1-1',f'{ystop}-12-31'))
+    ncval = rd.__func_over_time(var, np.min).sel(time=slice(f'{ystart}-1-1',f'{ystop}-12-31'))
     rng = pd.date_range(start,stop,freq='6H')
     
     print(load.size,ncval.size)

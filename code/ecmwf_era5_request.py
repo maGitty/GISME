@@ -18,8 +18,7 @@ def retrieve_year():
             break
         year,month = yms.pop()
         # set up paths
-        month_ind = 1 if month[0] == '01' else 2
-        ncfile = f'ERA5_RSL_{year}H{month_ind}.nc'
+        ncfile = f'ERA5_RSL_{year}{month}.nc'
         file_path = era5_path+ncfile
         # check if file already exists, if so, continue with next file
         if os.path.exists(file_path):
@@ -32,15 +31,17 @@ def retrieve_year():
                     'product_type':'reanalysis',
                     'variable':[
                         '10m_u_component_of_wind','10m_v_component_of_wind','2m_temperature',
-                        'evaporation','instantaneous_moisture_flux','k_index',
-                        'low_cloud_cover','skin_temperature','surface_net_thermal_radiation',
-                        'surface_pressure','total_cloud_cover','total_column_water_vapour',
-                        'total_precipitation'
+                        'leaf_area_index_high_vegetation','leaf_area_index_low_vegetation','low_cloud_cover',
+                        'soil_temperature_level_1','surface_latent_heat_flux','surface_net_thermal_radiation',
+                        'surface_sensible_heat_flux','total_cloud_cover','total_column_rain_water',
+                        'total_sky_direct_solar_radiation_at_surface'
                     ],
                     'year':[
                         str(year)
                     ],
-                    'month':month,
+                    'month':[
+                        month
+                    ],
                     'day':[
                         '01','02','03',
                         '04','05','06',
@@ -62,20 +63,26 @@ def retrieve_year():
                         0.25,0.25
                     ],
                     'time':[
-                        '00:00','06:00','12:00',
-                        '18:00'
+                        '00:00','01:00','02:00',
+                        '03:00','04:00','05:00',
+                        '06:00','07:00','08:00',
+                        '09:00','10:00','11:00',
+                        '12:00','13:00','14:00',
+                        '15:00','16:00','17:00',
+                        '18:00','19:00','20:00',
+                        '21:00','22:00','23:00'
                     ],     
                     'format':'netcdf'
                 },
-                file_path)
+                f'{era5_path}{ncfile}')
         except:
-            print(f'download not available for {year} in {month_ind} half')
+            print(f'download not available for {year} in month {month}')
       
             
 client = cdsapi.Client()
 
 years = range(2015,2020)
-months = [['01','02','03','04','05','06'],['07','08','09','10','11','12']]
+months = ['01','02','03','04','05','06','07','08','09','10','11','12']
 # yms consists of a year and a list of months of one half of a year
 # because a the cdsapi refused downloading due to a size limit
 yms = []
