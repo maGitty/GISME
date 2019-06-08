@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
-from glob_vars import data_path, figure_path, lon, lat
-from NC_Reader import NC_Reader
+from glob_vars import data_path, figure_path, lon_col, lat_col
+from WeatherReader import WeatherReader
 
 import os
 import pandas as pd
@@ -22,7 +22,7 @@ class NCPlot:
     def __init__(self):
         pass
     
-    def _plot_days(self, days, var, ncreader, fname, fmt):
+    def __plot_days(self, days, var, reader, fname, fmt):
         """Plot data for each day in days list and save file with specified format
         Parameters
         ----------
@@ -44,7 +44,7 @@ class NCPlot:
 
         for day_num in range(len(days)):
             day = days[day_num]
-            data, bbox, long_name, minmax = ncreader.vals4time(var, day)
+            data, bbox, long_name, minmax = reader.vals4time(var, day)
             
             fig, ax = plt.subplots()
             
@@ -67,9 +67,9 @@ class NCPlot:
             cbox_ticks = np.linspace(minmax[0],minmax[1],8)
             cbar = fig.colorbar(img,ticks=cbox_ticks)
             cbar.set_label(long_name)
-            ax.set_xlabel(lon)
+            ax.set_xlabel(lon_col)
             ax.set_title(f'date: {day}')
-            ax.set_ylabel(lat)
+            ax.set_ylabel(lat_col)
             
             if type(fmt) is list:
                 for f in fmt:
@@ -82,64 +82,64 @@ class NCPlot:
             plt.close(fig)
     
     def plot_nmin(self, var, fmt='eps', n=4):
-        reader = NC_Reader()
+        reader = WeatherReader()
         hv = reader.nmin_val_days(var, n)['time'].values
         
-        self._plot_days(hv, var, reader, 'min', fmt)
+        self.__plot_days(hv, var, reader, 'min', fmt)
 
     def plot_nmax(self, var, fmt='eps', n=4):
-        reader = NC_Reader()
+        reader = WeatherReader()
         hv = reader.nmax_val_days(var, n)['time'].values
         
-        self._plot_days(hv, var, reader, 'max', fmt)
+        self.__plot_days(hv, var, reader, 'max', fmt)
     
     def plot_nmin_var(self, var, fmt='eps', n=4):
-        reader = NC_Reader()
+        reader = WeatherReader()
         hv = reader.nminvar_val_days(var, n)['time'].values
         
-        self._plot_days(hv, var, reader, 'minvar', fmt)
+        self.__plot_days(hv, var, reader, 'minvar', fmt)
     
     def plot_nmax_var(self, var, fmt='eps', n=4):
-        reader = NC_Reader()
+        reader = WeatherReader()
         hv = reader.nmaxvar_val_days(var, n)['time'].values
         
-        self._plot_days(hv, var, reader, 'maxvar', fmt)
+        self.__plot_days(hv, var, reader, 'maxvar', fmt)
     
     def plot_nmin_mean(self, var, fmt='eps', n=4):
-        reader = NC_Reader()
+        reader = WeatherReader()
         hv = reader.nminmean_val_days(var, n)['time'].values
         
-        self._plot_days(hv, var, reader, 'minmean', fmt)
+        self.__plot_days(hv, var, reader, 'minmean', fmt)
 
     def plot_nmax_mean(self, var, fmt='eps', n=4):
-        reader = NC_Reader()
+        reader = WeatherReader()
         hv = reader.nmaxmean_val_days(var, n)['time'].values
         
-        self._plot_days(hv, var, reader, 'maxmean', fmt)
+        self.__plot_days(hv, var, reader, 'maxmean', fmt)
     
     def plot_nmin_med(self, var, fmt='eps', n=4):
-        reader = NC_Reader()
+        reader = WeatherReader()
         hv = reader.nminmed_val_days(var, n)['time'].values
         
-        self._plot_days(hv, var, reader, 'minmed', fmt)
+        self.__plot_days(hv, var, reader, 'minmed', fmt)
 
     def plot_nmax_med(self, var, fmt='eps', n=4):
-        reader = NC_Reader()
+        reader = WeatherReader()
         hv = reader.nmaxmed_val_days(var, n)['time'].values
         
-        self._plot_days(hv, var, reader, 'maxmed', fmt)
+        self.__plot_days(hv, var, reader, 'maxmed', fmt)
     
     def plot_nmin_sum(self, var, fmt='eps', n=4):
-        reader = NC_Reader()
+        reader = WeatherReader()
         hv = reader.nminsum_val_days(var, n)['time'].values
         
-        self._plot_days(hv, var, reader, 'minsum', fmt)
+        self.__plot_days(hv, var, reader, 'minsum', fmt)
 
     def plot_nmax_sum(self, var, fmt='eps', n=4):
-        reader = NC_Reader()
+        reader = WeatherReader()
         hv = reader.nmaxsum_val_days(var, n)['time'].values
         
-        self._plot_days(hv, var, reader, 'maxsum', fmt)
+        self.__plot_days(hv, var, reader, 'maxsum', fmt)
 
 
 def plot_map_cartopy_netcdf():
@@ -168,10 +168,10 @@ def plot_map_seaborn_csv():
 
     #weather_df.to_csv('/home/marcel/2017Grid.csv', ',')
     weather_df['t2m'] = weather_df['t2m'].apply(lambda x: x - 273.15)
-    weather_df = weather_df[['latitude', 'longitude', 't2m']]
+    weather_df = weather_df[[lat_col, lon_col, 't2m']]
 
-    x_set = sorted(set(weather_df['longitude']))
-    y_set = sorted(set(weather_df['latitude']))
+    x_set = sorted(set(weather_df[lon_col]))
+    y_set = sorted(set(weather_df[lat_col]))
     x_size = len(x_set)
     y_size = len(y_set)
 
@@ -189,12 +189,12 @@ def plot_map_matplotlib_csv(date):
     #weather_df.to_csv('/home/marcel/2017Grid.csv', ',')
     weather_df[val] = weather_df[val].apply(lambda x: x - 273.15)
 
-    x_set = sorted(set(weather_df[lon]))
-    y_set = sorted(set(weather_df[lat]))
+    x_set = sorted(set(weather_df[lon_col]))
+    y_set = sorted(set(weather_df[lat_col]))
     x_size = len(x_set)
     y_size = len(y_set)
 
-    weather_df = weather_df[[lat, lon, val]].pivot(index=lat, columns=lon, values=val)[::-1]
+    weather_df = weather_df[[lat_col, lon_col, val]].pivot(index=lat_col, columns=lon_col, values=val)[::-1]
 
     fig, ax = plt.subplots()
 
@@ -219,9 +219,9 @@ def plot_map_matplotlib_csv(date):
     #pcm = ax[0].pcolormesh()
     
     fig.colorbar(img)
-    ax.set_xlabel(lon)
+    ax.set_xlabel(lon_col)
     ax.set_title(f'date: {date}')
-    ax.set_ylabel(lat)
+    ax.set_ylabel(lat_col)
     plt.show()
 
 
@@ -254,9 +254,9 @@ def plot_NC_read(date, save=False):
     #pcm = ax[0].pcolormesh()
     
     fig.colorbar(img)
-    ax.set_xlabel(lon)
+    ax.set_xlabel(lon_col)
     ax.set_title(f'date: {date}')
-    ax.set_ylabel(lat)
+    ax.set_ylabel(lat_col)
     
     if save:
         fig.savefig(f'{figure_path}nc_plot_{date.strftime("%Y%m%d%H")}.eps', bbox_inches='tight', format='eps')
@@ -299,9 +299,9 @@ def plot_highest_var(fmt='eps', n=4):
         #pcm = ax[0].pcolormesh()
         
         fig.colorbar(img)
-        ax.set_xlabel(lon)
+        ax.set_xlabel(lon_col)
         ax.set_title(f'date: {day}')
-        ax.set_ylabel(lat)
+        ax.set_ylabel(lat_col)
         
         fig.savefig(f'{fig_pth}nc_plot_{pd.to_datetime(day).strftime("%Y%m%d%H")}.{fmt}', bbox_inches='tight', format=fmt)        
 
