@@ -1,4 +1,4 @@
-from glob_vars import data_path, load_path, era5_path, lon, lat, bbox
+from glob_vars import data_path, load_path, era5_path, lon_col, lat_col, bbox, de_load
 from WeatherReader import WeatherReader
 from LoadReader import LoadReader
 
@@ -18,28 +18,41 @@ import pytz
 from shapely.geometry import Point, Polygon
 
 
-#nc_pth = f'{data_path}ecmwf/netcdf_actuals/GridOneDayAhead_2018-06-01.nc'
-
-#df = pd.read_pickle(load_path.replace('.csv', '.pkl'))
-#print(df.head())
-#ts1 = df['cet_cest_timestamp'][0]
-#print(ts1, type(ts1))
-
-#ds = xr.open_dataset('/home/marcel/download.nc')
-#print(ds['t2m'].sel(time=time(12)).values.ndim)
-#print(ds['t2m'].units)
-
 #rd = NC_Reader()
 #t2ms = rd.vals4time('t2m', datetime(2017,1,1,12))[0].flatten()
 #tccs = rd.vals4time('tcc', datetime(2017,1,1,12))[0].flatten()
 #plt.scatter(tccs,t2ms,s=2)
 #plt.show()
 
+#sf = shp.Reader('/home/marcel/Dropbox/data/shapes/DEU_adm1.shp').shapes()
+#print(len(sf))
+
+#for shape in sf:
+    #points = np.array(shape.points)
+    #intervals = list(shape.parts) + [len(shape.points)]
+    
+    #for (x, y) in zip(intervals[:-1], intervals[1:]):
+        #plt.plot(*zip(*points[x:y]), color='k', linewidth=.4)    
+
+#plt.show()
+#start = pd.Timestamp(datetime(2016,1,1,0),tz='utc')
+#stop = pd.Timestamp(datetime(2017,12,31,18),tz='utc')
+
+##with xr.open_dataset(load_path) as lf:
+    ##print(lf[de_load].sel(utc_timestamp=pd.date_range(start,stop,freq='6H')))
+    ##print(lf[de_load].sel(utc_timestamp=time(12)))
+#ld = LoadReader()
+#print(ld.vals4slice(de_load, start, stop))
+
+with xr.open_mfdataset(f'{era5_path}*.nc') as nc:
+    print(nc['time'].values)
+
+
 def isinDE():
     # TODO try again on faster pc
     rd = WeatherReader()
-    lons = rd.get_coords()[lon].values
-    lats = rd.get_coords()[lat].values
+    lons = rd.get_coords()[lon_col].values
+    lats = rd.get_coords()[lat_col].values
     #coords = [[x,y] for x in lons for y in lats]
     slctr =  [[]]
     sf = shp.Reader('/home/marcel/Dropbox/data/shapes/DEU_adm0.shp').shapes()[0]
@@ -67,14 +80,14 @@ def isinDE():
 
 #contained = isinDE()
 
-contained = np.load(f'{data_path}isin.npy')
+#contained = np.load(f'{data_path}isin.npy')
 
-plt.imshow(contained,cmap=plt.cm.gray, extent=bbox)#,interpolation='bilinear')
-plt.show()
+#plt.imshow(contained,cmap=plt.cm.gray, extent=bbox)#,interpolation='bilinear')
+#plt.show()
 
 def plt2d():
     rd = WeatherReader()
-    ld = LoadReader(filetype='pkl')
+    ld = LoadReader()
     
     var = 't2m'
     ystart = 2015
@@ -82,21 +95,27 @@ def plt2d():
     
     start = pd.Timestamp(datetime(ystart,1,1,0),tz='utc')
     stop = pd.Timestamp(datetime(ystop,12,31,18),tz='utc')
+    print(len(pd.date_range(start,stop,freq='1H')))
     
-    load = ld.from_range(start, stop, step=True)['DE_load_actual_entsoe_transparency'].get_values()
+    #print(ld.vals4slice(de_load, start, stop))
+    load = ld.vals4slice(de_load, start, stop, step=6)
     #ncval = rd.var_over_time(var).sel(time=slice('2016-1-1','2017-12-31')).values
-    ncval = rd.__func_over_time(var, np.min).sel(time=slice(f'{ystart}-1-1',f'{ystop}-12-31')).values - 273.15
+    ncval = rd.reduce_lonlat(var, np.min).sel(time=slice(f'{ystart}-1-1',f'{ystop}-12-31'))
     #rng = pd.date_range(start,stop,freq='6H')
     
-    #print(load.size,ncval.size)
+    print(load['utc_timestamp'])
+    print(ncval['time'])
+    print(load.size,ncval.size)
     
-    plt.scatter(ncval,load,s=4)
+    plt.scatter(ncval.values-273.15,load.values,s=4)
     plt.xlabel(f'{var} min reduce over DE (°C)')
     plt.ylabel('DE_load_actual_entsoe_transparency (MW)')
     #cbar = plt.colorbar()
     #cbar.ax.set_ylabel('DE_load_actual_entsoe_transparency (MW)', rotation=-90, va="bottom")
     
     plt.show()
+
+#plt2d()
 
 def plot3dim():
     rd = WeatherReader()
