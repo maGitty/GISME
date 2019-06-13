@@ -19,21 +19,20 @@ class WeatherReader:
         self.filename = f'{era5_path}*.nc'
         with xr.open_mfdataset(self.filename) as nc_file:
             # drop times where no data is available, until now only seen at the end of the dataset
-            self.wdata = nc_file.dropna('time')
+            self.wdata = nc_file #.dropna('time') # drops times with no values, carefully use, might throw away single points somewhere
         
         self.var_names = [name for name in self.wdata.data_vars]
         self.date_bounds = self.wdata['time'].min().values, self.wdata['time'].max().values
         #print(nc_file.dropna('time'))
     
-    def __func_over_time(self, name, func):
+    def reduce_lonlat(self, name, func):
         """
         Private method, return data for specified variable after applying
         function to reduce along longitude and latitude axes
         """
         assert name in self.var_names, f'column {name} not found'
         
-        long_name = f'{self.wdata[name].long_name} ({self.wdata[name].units})'
-        return self.wdata[name].reduce(func, dim=[lon_col,lat_col]), long_name
+        return self.wdata[name].reduce(func, dim=[lon_col,lat_col])
     
     def __nminmax_reduce_days(self, name, func, minmax, n):
         """
@@ -53,13 +52,11 @@ class WeatherReader:
         """
         assert (name in self.var_names and minmax in ['min', 'max']), f'wrong variable name ({name}) or minmax not in ["min","max"]'
         
-        data, long_name = self.__func_over_time(name, func)
-        
+        data = self.reduce_lonlat(name, func)
         data = data.sortby(data)
-        
         n_minmax = data[:n] if minmax is 'min' else data[-n:]
         
-        return n_minmax, long_name
+        return n_minmax
     
     def __nmin_reduce_days(self, name, func, n):
         """
@@ -238,7 +235,7 @@ class WeatherReader:
         """
         assert name in self.var_names, f'column {name} not found'
         
-        return self.__func_over_time(name, np.var)
+        return self.reduce_lonlat(name, np.var)
     
     def nmin_val_days(self, name, n=4):
         """

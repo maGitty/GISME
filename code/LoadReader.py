@@ -62,11 +62,17 @@ class LoadReader:
         
         return self.ldata[name].sel(utc_timestamp=datetime)
     
-    def vals4slice(self, name, start, stop):
+    def vals4slice(self, name, start, stop, step=None):
         """returns values for variable in specified time range"""
         assert name in self.var_names, f'column {name} not found'
         
-        return self.ldata[name].sel(utc_timestamp=slice(start,stop))
+        if step is None:
+            # if no step specified simply return all values between start and stop
+            return self.ldata[name].sel(utc_timestamp=slice(start,stop))
+        else:
+            # if step is given, return only desired points by passing a timeseries with frequency
+            return self.ldata[name].sel(utc_timestamp=pd.date_range(start,stop,freq=f"{step}H"))
+        
     
     def vals4times(self, name, timespec):
         """"""
