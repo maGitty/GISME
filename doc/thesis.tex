@@ -23,16 +23,18 @@
 
 \input{tex/preamble}
 
-%\usepackage{eso-pic}
-%\newcommand\BackgroundPic{%
-%\put(0,0){%
-%\parbox[b][\paperheight]{\paperwidth}{%
-%\vfill
-%\centering
-%\includegraphics[width=\paperwidth,%
-%keepaspectratio]{logos/bulb1.png}%
-%\vfill
-%}}}
+\usepackage[nosuper,toc,acronyms]{glossaries}
+
+\usepackage{eso-pic}
+\newcommand\BackgroundPic{%
+\put(0,0){%
+\parbox[b][\paperheight]{\paperwidth}{%
+\vfill
+\centering
+\includegraphics[width=\paperwidth,%
+keepaspectratio]{logos/bulb1.png}%
+\vfill
+}}}
 
 %% ---------------------------------
 %% | Information about the thesis  |
@@ -57,10 +59,10 @@
 %% The advisors are PhDs or Postdocs
 \advisorone{Nicole Ludwig, M.Sc}
 %% The second advisor can be omitted
-%\advisortwo{}
+\advisortwo{Marian Turowski, M.Sc}
 
 %% Please enter the start end end time of your thesis
-\editingtime{Winter Term 2018}{2019}
+\editingtime{Summer Term}{2019}
 
 \settitle
 
@@ -85,6 +87,11 @@
 % Please make sure your bibfiles name is thesis.bib and is located in the tex subfolder
 \input{tex/bibliography} 
 
+%% --------------------------------
+%% | Glossary                     |
+%% --------------------------------
+\input{tex/glsentries}
+
 %% ====================================
 %% ====================================
 %% ||                                ||
@@ -94,7 +101,7 @@
 %% ====================================
 \begin{document}
 
-%\AddToShipoutPicture*{\BackgroundPic}
+\AddToShipoutPicture*{\BackgroundPic}
 
 \hypersetup{pageanchor=false}
 
@@ -149,6 +156,10 @@
 \input{sections/evaluation.tex}
 \input{sections/discussion.tex}
 \input{sections/conclusion.tex}
+
+%\glsaddall
+\printglossary[title=List of Terms,toctitle=Terms and abbreviations,type=\acronymtype]
+
 
 %% --------------------
 %% |   Bibliography   |
