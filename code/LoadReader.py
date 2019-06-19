@@ -12,6 +12,11 @@ from datetime import datetime
 
 class LoadReader:
     def __init__(self):
+        """Initializes instance
+        
+        Returns
+        -------
+        None"""
         assert os.path.exists(load_path), 'file containing load data does not exist'
         
         with xr.open_dataset(load_path) as load_file:
@@ -21,7 +26,12 @@ class LoadReader:
             #print(load_file['DE_load_actual_entsoe_transparency'].values)
     
     def _csv_to_nc(self):
-        """used to convert csv file to .nc file format for speedup and compatibility"""
+        """Used to convert csv file to .nc file format for speedup and compatibility
+        
+        Returns
+        -------
+        None
+        """
         load_file = pd.read_csv(f'{os.path.splitext(load_path)[0]}.csv',header=0,index_col=0)
         load_file.index = pd.to_datetime(load_file.index)
         
@@ -49,21 +59,21 @@ class LoadReader:
         return self.ldata.coords
     
     def get_vars(self):
-        """returns list of variable names held by data"""
+        """Returns list of variable names held by data"""
         return self.var_names
     
     def get_date_bounds(self):
-        """returns tuple of upper/lower date boundaries"""
+        """Returns tuple of upper/lower date boundaries"""
         return self.date_bounds
     
     def val4time(self, name, datetime):
-        """returns value for variable at specified datetime"""
+        """Returns value for variable at specified datetime"""
         assert name in self.var_names, f'column {name} not found'
         
         return self.ldata[name].sel(utc_timestamp=datetime)
     
     def vals4slice(self, name, start, stop, step=None):
-        """returns values for variable in specified time range"""
+        """Returns values for variable in specified time range"""
         assert name in self.var_names, f'column {name} not found'
         
         if step is None:

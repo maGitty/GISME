@@ -1,18 +1,22 @@
 #!/usr/bin/python3
-from glob_vars import lon_col, lat_col, era5_path
+from glob_vars import lon_col, lat_col, era5_path, nuts_shape
 
 import os
 import numpy as np
 import pandas as pd
 import xarray as xr
+import shapefile as shp
 from datetime import datetime, timedelta, time
+from shapely.geometry import Polygon, Point
 
 class WeatherReader:
-    """
-    used to read nc files and to return pandas DataFrame containing desired data
-    """
+    """used to read nc files and to return xarray.DataArray containing desired data"""
     def __init__(self):
         """Set path to open files, store some information for faster response
+        
+        Returns
+        -------
+        None
         """
         assert os.path.exists(era5_path), 'path to weather data does not exist'
         
@@ -23,28 +27,29 @@ class WeatherReader:
         
         self.var_names = [name for name in self.wdata.data_vars]
         self.date_bounds = self.wdata['time'].min().values, self.wdata['time'].max().values
-        #print(nc_file.dropna('time'))
     
     def reduce_lonlat(self, name, func):
-        """
-        Private method, return data for specified variable after applying
-        function to reduce along longitude and latitude axes
+        """Private method, return data for specified variable after applying
+           function to reduce along longitude and latitude axes
         """
         assert name in self.var_names, f'column {name} not found'
         
         return self.wdata[name].reduce(func, dim=[lon_col,lat_col])
     
     def __nminmax_reduce_days(self, name, func, minmax, n):
-        """
-        Private method, return list of n days with min/max values for variable after
-        applying function to reduce along longitude and latitude axes
+        """Private method, return list of n days with min/max values for variable after
+           applying function to reduce along longitude and latitude axes
         
         Parameters
         ----------
-        name : string
-               name of the variable
-        n    : int
-               number of min/max values
+        name   : string
+                 name of the variable
+        func   : numpy ndarray function
+                 function to apply along longitude/latitude
+        minmax : string
+                 specifies if n min or max must be returned
+        n      : int
+                 number of min/max values
               
         Returns
         -------
@@ -52,45 +57,23 @@ class WeatherReader:
         """
         assert (name in self.var_names and minmax in ['min', 'max']), f'wrong variable name ({name}) or minmax not in ["min","max"]'
         
-        data = self.reduce_lonlat(name, func)
+        data = self.reduce_lonlat(name, func).dropna('time')
         data = data.sortby(data)
         n_minmax = data[:n] if minmax is 'min' else data[-n:]
         
         return n_minmax
     
     def __nmin_reduce_days(self, name, func, n):
-        """
-        Private method, return list of n days with min values for variable after
-        applying function to reduce along longitude and latitude axes
+        """Private method, return list of n days with min values for variable after
+           applying function to reduce along longitude and latitude axes
         """
         return self.__nminmax_reduce_days(name, func, 'min', n)
     
     def __nmax_reduce_days(self, name, func, n):
-        """
-        Private method, return list of n days with max values for variable after
-        applying function to reduce along longitude and latitude axes
+        """Private method, return list of n days with max values for variable after
+           applying function to reduce along longitude and latitude axes
         """
         return self.__nminmax_reduce_days(name, func, 'max', n)
-        
-    def __merge_files(self, fname_list, out_path):
-        """
-        currently unused, use xr.open_mfdataset instead of merging, seems not to make a difference
-        """
-        if not fname_list:
-            print('Error: empty list!')
-            return
-        big_nc = xr.open_dataset(fname_list.pop(), decode_times=True)
-        
-        while True:
-            if not fname_list:
-                print('list is empty')
-                return
-            small_nc = xr.open_dataset(fname_list.pop(), decode_times=True)
-            big_nc = xr.merge([big_nc, small_nc])
-            small_nc.close()
-            
-        big_nc.to_netcdf(path=out_path, mode='w')
-        big_nc.close()
     
     def get_size(self):
         """Returns shape of whole data"""
@@ -101,21 +84,80 @@ class WeatherReader:
         return self.wdata.coords
     
     def get_vars(self):
-        """returns list of variable names held by data"""
+        """Returns list of variable names held by data"""
         return self.var_names
     
     def get_date_bounds(self):
-        """returns tuple of upper/lower date boundaries"""
+        """Returns tuple of upper/lower date boundaries"""
         return self.date_bounds
     
     def get_lon(self):
-        """returns list of longitude values"""
+        """Returns list of longitude values"""
         return self.wdata[lon_col].values
     
     def get_lat(self):
-        """returns list of latitude values"""
+        """Returns list of latitude values"""
         return self.wdata[lat_col].values
+    
+    def get_long_name(self,var):
+        """Returns long name for given abreviated variable name
         
+        Parameters
+        ----------
+        var : string
+              short name of variable
+        
+        Returns
+        -------
+        long name of variable as string
+        """
+        return self.wdata[var].long_name
+    
+    def print_vars_texfmt(self):
+        """Prints all variables in format 'name & unit & min & max' to just insert to latex
+        
+        Returns
+        -------
+        None
+        """
+        for var in self.var_names:
+            variable = self.wdata[var].dropna('time')
+            print(f'{variable.long_name} & {variable.units} & '
+                  f'{variable.values.min().round(2):.2f} & '
+                  f'{variable.values.max().round(2):.2f} \\\\')
+    
+    def check_isinDE(self):
+        """Used to check which points of dataset are within germany
+        
+        Returns
+        -------
+        2D numpy.ndarray containing booleans wether point lies within germany or not
+        """
+        lons = self.get_coords()[lon_col].values
+        lats = self.get_coords()[lat_col].values
+        
+        eu_shape = shp.Reader(nuts_shape)
+        
+        for record in eu_shape.shapeRecords():
+            if 'DE' in record.record:
+                de_shape = record
+        
+        poly = Polygon(de_shape.points)
+        
+        coords = np.empty((len(lats),len(lons)),np.dtype(Point))
+    
+        for y in range(len(lats)):
+            for x in range(len(lons)):
+                lo = lons[x]
+                la = lats[y]
+                coords[y,x] = Point(lo,la)
+    
+        contains = np.vectorize(lambda p: p.within(poly) or p.touches(poly))
+    
+        contained = contains(coords)
+        np.save(f'{data_path}isin', contained)
+        return contained
+    
     def vals4time(self, name, datetime):
         """Returns the values for specified variable and time
         
@@ -130,28 +172,23 @@ class WeatherReader:
         -------
         tuple of :
             2D data with values for variable over latitude and longitude
-            boundingbox quadruple to set plot range
             long name of variable
         
         is supposed to return a tuple of:
         dataframe containing values of desired variable ready for plotting with imshow
-        bounding box to set the plot range
-        long name to display as title or similar
         """
         assert name in self.var_names, f'column {name} not found'
 
-        minmax = np.floor(self.wdata[name].min()), np.ceil(self.wdata[name].max())
-        data = self.wdata[name].sel(time=datetime).values
-        lons = self.wdata[lon_col].values
-        lats = self.wdata[lat_col].values
-        bbox = (lons.min(), lons.max(), lats.min(), lats.max())
-        long_name = f'{self.wdata[name].long_name} ({self.wdata[name].units})'
-
-        return data, bbox, long_name, minmax
+        # filter data by name and time
+        data = self.wdata[name].sel(time=datetime)
+        # update DataArray attributes to add min and max values for complete time
+        data.attrs.update({'vmin':np.floor(self.wdata[name].min().values),'vmax':np.ceil(self.wdata[name].max().values)})
+        
+        return data
         
 
     def val4postime(self, name, lon, lat, dtime):
-        """Get value for variable at geographic position at specific time
+        """Returns value for variable at geographic position at specific time
         
         Parameters
         ----------
@@ -173,11 +210,12 @@ class WeatherReader:
         try:
             data = self.wdata[name].sel(longitude=lon, latitude=lat, time=dtime)
         except:
-            raise Exception(f'coordinates not within bbox? lon:{lon}, lat:{lat}')
+            raise Exception(f'coordinates not within bbox? lon:{lon}, lat:{lat} '
+                            f'or specified time not found? time:{dtime}')
         return data
     
     def vals4lon_daytime(self, name, longitude, daytime):
-        """Get values for variable at geographic longitude at daytime averaged over all days
+        """Returns values for variable at geographic longitude at daytime averaged over all days
         
         Parameters
         ----------
@@ -203,7 +241,7 @@ class WeatherReader:
         return data, long_name
     
     def vals4lat_daytime(self, name, latitude, daytime):
-        """Get values for variable at geographic latitude at daytime averaged over all days
+        """Returns values for variable at geographic latitude at daytime averaged over all days
         
         Parameters
         ----------
@@ -229,93 +267,161 @@ class WeatherReader:
         return data, long_name
     
     def var_over_time(self, name):
-        """
-        Returns variance over time reduced along longitude
-        and latitude dimensions and drops NA values
+        """Returns variance over time reduced along longitude
+           and latitude dimensions and drops NA values
+        
+        Parameters
+        ----------
+        name : string
+               name of the variable
+        
+        Returns
+        -------
+        array for variable for each day reduced over longitude and latitude
         """
         assert name in self.var_names, f'column {name} not found'
         
         return self.reduce_lonlat(name, np.var)
     
     def nmin_val_days(self, name, n=4):
-        """
-        Returns n min value days reduced with np.min along
-        longitude and latitude dimensions and drops NA values
+        """Returns n min value days reduced with np.min along
+           longitude and latitude dimensions and drops NA values
+        
+        Parameters
+        ----------
+        name : string
+               name of the variable
+        n    : integer
+               specifies number of days to return
         """
         return self.__nmin_reduce_days(name, np.min, n)
 
     def nmax_val_days(self, name, n=4):
-        """
-        Returns n max value days reduced with np.min along
-        longitude and latitude dimensions and drops NA values
+        """Returns n max value days reduced with np.min along
+           longitude and latitude dimensions and drops NA values
+        
+        Parameters
+        ----------
+        name : string
+               name of the variable
+        n    : integer
+               specifies number of days to return
         """
         return self.__nmax_reduce_days(name, np.min, n)
     
     def nminvar_val_days(self, name, n=4):
-        """
-        Returns n min value days reduced with np.var along
-        longitude and latitude dimensions and drops NA values
+        """Returns n min value days reduced with np.var along
+           longitude and latitude dimensions and drops NA values
+        
+        Parameters
+        ----------
+        name : string
+               name of the variable
+        n    : integer
+               specifies number of days to return
         """
         return self.__nmin_reduce_days(name, np.var, n)
     
     def nmaxvar_val_days(self, name, n=4):
-        """
-        Returns n max value days reduced with np.var along
-        longitude and latitude dimensions and drops NA values
+        """Returns n max value days reduced with np.var along
+           longitude and latitude dimensions and drops NA values
+        
+        Parameters
+        ----------
+        name : string
+               name of the variable
+        n    : integer
+               specifies number of days to return
         """
         return self.__nmax_reduce_days(name, np.var, n)
     
     def nminmean_val_days(self, name, n=4):
-        """
-        Returns n min value days reduced with np.mean along
-        longitude and latitude dimensions and drops NA values
+        """Returns n min value days reduced with np.mean along
+           longitude and latitude dimensions and drops NA values
+        
+        Parameters
+        ----------
+        name : string
+               name of the variable
+        n    : integer
+               specifies number of days to return
         """
         return self.__nmin_reduce_days(name, np.mean, n)
     
     def nmaxmean_val_days(self, name, n=4):
-        """
-        Returns n max value days reduced with np.mean along
-        longitude and latitude dimensions and drops NA values
+        """Returns n max value days reduced with np.mean along
+           longitude and latitude dimensions and drops NA values
+        
+        Parameters
+        ----------
+        name : string
+               name of the variable
+        n    : integer
+               specifies number of days to return
         """
         return self.__nmax_reduce_days(name, np.mean, n)
     
     def nminmed_val_days(self, name, n=4):
-        """
-        Returns n min value days reduced with np.median along
-        longitude and latitude dimensions and drops NA values
+        """Returns n min value days reduced with np.median along
+           longitude and latitude dimensions and drops NA values
+        
+        Parameters
+        ----------
+        name : string
+               name of the variable
+        n    : integer
+               specifies number of days to return
         """
         return self.__nmin_reduce_days(name, np.median, n)
     
     def nmaxmed_val_days(self, name, n=4):
-        """
-        Returns n max value days reduced with np.median along
-        longitude and latitude dimensions and drops NA values
+        """Returns n max value days reduced with np.median along
+           longitude and latitude dimensions and drops NA values
+        
+        Parameters
+        ----------
+        name : string
+               name of the variable
+        n    : integer
+               specifies number of days to return
         """
         return self.__nmax_reduce_days(name, np.median, n)
     
     def nminsum_val_days(self, name, n=4):
-        """
-        Returns n min value days reduced with np.sum along
-        longitude and latitude dimensions and drops NA values
+        """Returns n min value days reduced with np.sum along
+           longitude and latitude dimensions and drops NA values
+        
+        Parameters
+        ----------
+        name : string
+               name of the variable
+        n    : integer
+               specifies number of days to return
         """
         return self.__nmin_reduce_days(name, np.mean, n)
     
     def nmaxsum_val_days(self, name, n=4):
-        """
-        Returns n max value days reduced with np.sum along
-        longitude and latitude dimensions and drops NA values
+        """Returns n max value days reduced with np.sum along
+           longitude and latitude dimensions and drops NA values
+        
+        Parameters
+        ----------
+        name : string
+               name of the variable
+        n    : integer
+               specifies number of days to return
         """
         return self.__nmax_reduce_days(name, np.mean, n)
     
 
 rd = WeatherReader()
+#print(rd.get_vars())
+#rd.print_vars_texfmt()
 #print(rd.get_date_bounds())
-#print(rd.vals4time('t2m',datetime(2018,4,1,6)))
+rd.vals4time('t2m',datetime(2018,4,1,6))
 #print(rd.val4postime('t2m', 10, 50, datetime(2017,1,1,12)))
 #print(rd.vals4lat_daytime('t2m', 50, time(12)))
 #print(rd.vals4time('t2m', datetime(2017,1,1,12)))
 #lons = rd.get_coords()[lon].values
 #lats = rd.get_coords()[lat].values
-#print([[x,y] for x in lons for y in lats])
-#print(rd.nmin_val_days('t2m')[0]['time'].values)
-#print(rd.var_over_time('t2m'))
+
