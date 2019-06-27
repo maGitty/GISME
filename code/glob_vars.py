@@ -18,6 +18,11 @@ lat_col = 'latitude'
 utc_col = 'utc_timestamp'
 cest_col = 'cet_cest_timestamp'
 de_load = 'DE_load_actual_entsoe_transparency'
+hertz_load = 'DE_50hertz_load_actual_entsoe_transparency'
+amprion_load = 'DE_amprion_load_actual_entsoe_transparency'
+tennet_load = 'DE_tennet_load_actual_entsoe_transparency'
+transnet_load = 'DE_transnetbw_load_actual_entsoe_transparency'
+
 
 hasMWlbl = ['load','capacity','generation']
 

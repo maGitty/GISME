@@ -66,11 +66,11 @@ class LoadReader:
         """Returns tuple of upper/lower date boundaries"""
         return self.date_bounds
     
-    def val4time(self, name, datetime):
-        """Returns value for variable at specified datetime"""
+    def vals4time(self, name, time):
+        """Returns values for variable for specified time"""
         assert name in self.var_names, f'column {name} not found'
         
-        return self.ldata[name].sel(utc_timestamp=datetime)
+        return self.ldata[name].sel(utc_timestamp=time)
     
     def vals4slice(self, name, start, stop, step=None):
         """Returns values for variable in specified time range"""
