@@ -6,7 +6,7 @@
 % TODO cite arxiv and google scholar so it is listed in references
 Searching information always is a key element in research. Therefor, \href{arxiv.org}{arXiv} and \href{scholar.google.de}{Google Scholar} were used in order to find suitable reading.\\
 It proofed to be difficult to find such papers using keywords such as "grid-based" or "geographic", because most of the results referred to either other grids, such as in Smart Grid, or completely different geographic research subjects.\\
-As weather data from the \acrfull{ecmwf} is used in this thesis, which is grid based, one solution was to search for "ECMWF", as this type of data is widely used within the research field of energy.\\
+As weather data from the \acrshort{ecmwf} is used in this thesis, which is grid based, one solution was to search for "ECMWF", as this type of data is widely used within the research field of energy.\\
 
 also used \href{base-search.net}{BASE} which proposed "energy network geographic data" after searching a bit, I came to the term "energy network ecmwf" which gave some hits.\\
 One criteria is the title which tells much about the subject of the work. If the title implies both, working with geographic or grid-based data and also has a connection to the field of energy networks, it might be suitable for this work.\\
@@ -14,18 +14,29 @@ Another one is the abstract and/or introduction which tells some more details ab
 
 \section{Data}
 
-\subsection{\acrshort{ecmwf}}
+\subsection{ECMWF}
 
 The data used in this thesis originates from \acrshort{ecmwf}, which is a research institute that produces global numerical weather predictions and other data.\\
 It is time series based and for each timestamp there is a 2-dimensional array referred to by longitude and latitude respectively.\\
 
 It must be mentioned that, as the data used has been reanalized, the expected error is likely to be smaller than if working with real-time data.\\
 
+As data parameters there are also longitude and latitude, where the longitude is chosen to be from 5.5 to 15.5 and the latitude from 47 to 55.5. As the resolution of the used grid is at 0.25°, this results in a total of 1435 grid points per timestamp. As the range of the data from \acrshort{ecmwf} extends from 2015/1/1 to 2019/3/31(TODO update), there is a total of 1551 days with each 12 timestamps due to the 2 hours frequency and thus 18612 timestamps. Considering that there is a value for each point in the grid and every timestamp, there are 26708220 values for each variable.\\
+
+In order to reduce complexity, a shapefile of the \acrshort{nuts} dataset was used. The shapefile contains all countries in the EU. The shape of germany was filtered from this data and each point in the \acrshort{ecmwf} dataset is checked wether it is within germany or not. The result can be seen in figure \ref{fig:isin}.\\
+
 \begin{figure}[h!]%
 \centering
 \includegraphics[width=.7\columnwidth]{plots/isin}%
 \caption{This figure shows the 2D boolean numpy.ndarray used to filter grid squares that are within germany. It was created by using a shapefile of germany (TODO insert source \url{https://ec.europa.eu/eurostat/cache/GISCO/distribution/v2/nuts/nuts-2016-files.html}) and checking for each point of the grid if it is within the shapefile. (TODO shorter explanation, put explanation in text)}%
 \label{fig:isin}%
+\end{figure}
+
+\begin{figure}[h!]%
+\centering
+\includegraphics[width=.7\columnwidth]{plots/t2m_mean_2015010112_2018123112_24F}%
+\caption{This figure shows a plot of the mean temperature in germany from 2015/1/1 to 2018/12/31 with one value per day at 12am utc time.}%
+\label{fig:t2m_mean_2015010112_2018123112_24F}%
 \end{figure}
 
 \begin{table}[h!]%

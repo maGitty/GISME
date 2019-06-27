@@ -3,7 +3,6 @@ from glob_vars import lon_col, lat_col, era5_path, nuts_shape
 
 import os
 import numpy as np
-import pandas as pd
 import xarray as xr
 import shapefile as shp
 from datetime import datetime, timedelta, time

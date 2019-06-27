@@ -1,19 +1,19 @@
 #!/usr/bin/python3
 
-from glob_vars import data_path, figure_path, lon_col, lat_col, de_load, bbox
+from glob_vars import figure_path,lon_col,lat_col,de_load,hertz_load,amprion_load,tennet_load,transnet_load,bbox
 from WeatherReader import WeatherReader
 from LoadReader import LoadReader
 
 import os
 import pandas as pd
-import xarray as xr
 import numpy as np
-import seaborn as sns
 import shapefile as shp
 from datetime import datetime, time
-from calendar import monthrange
-from cartopy import crs as ccrs, feature as cfeat
 from matplotlib import pyplot as plt, colors, ticker, cm
+#import seaborn as sns
+#import xarray as xr
+#from calendar import monthrange
+#from cartopy import crs as ccrs, feature as cfeat
 
 from pandas.plotting import register_matplotlib_converters
 register_matplotlib_converters()
@@ -23,15 +23,17 @@ class DataPlotter:
     """
     
     """
-    def __init__(self,fmt='pdf'):
+    def __init__(self,fmt='pdf',save=True,show=False):
         """Initializes WeatherPlot instance
         
         Parameters
         ----------
-        reader : WeatherReader
-                 used to retrieve weather data from nc files
         fmt    : string
                  format that figure is saved to
+        save  : boolean
+                wether to save plots to file or not
+        show  : boolean
+                wether to show plots or not
         
         Returns
         -------
@@ -40,10 +42,12 @@ class DataPlotter:
         self.fmt = fmt
         self.wreader = WeatherReader()
         self.lreader = LoadReader()
+        self.save = save
+        self.show = show
     
     #def __create_fig_map(self,) # TODO write function to create figure from data, enables to make multiple subplots in one figure
     
-    def __plot_days(self, days, fname,save=True,show=False):
+    def __plot_days(self, days, fname):
         """Plot data for each day in days list and save file with specified format
         
         Parameters
@@ -52,10 +56,6 @@ class DataPlotter:
                 list of days
         fname : string
                 to name folder
-        save  : boolean
-                wether to save plot to file or not
-        show  : boolean
-                wether to show plot or not
         
         Returns
         -------
@@ -92,29 +92,30 @@ class DataPlotter:
             ax.set_title(f'date: {day}')
             ax.set_ylabel(lat_col)
             
+            # set ticks for x and y in order to display the grid
             xticks = np.linspace(bbox[0],bbox[1],(bbox[1]-bbox[0])*4+1)
             ax.set_xticks(xticks,minor=True)
             yticks = np.linspace(bbox[2],bbox[3],(bbox[3]-bbox[2])*4+1)
             ax.set_yticks(yticks,minor=True)
             
-            ax.grid(which='minor',alpha=0.2,color='k',linewidth=.5)
-            ax.grid(which='major',alpha=0.4,color='k',linewidth=.5)
+            ax.grid(which='minor',alpha=0.2,color='k',linewidth=.5,linestyle='--')
+            ax.grid(which='major',alpha=0.4,color='k',linewidth=.5,linestyle='--')
             
             file_name = f'{dir_pth}{day_num}_{pd.to_datetime(day).strftime("%Y%m%d%H")}_{datetime.now().strftime("%Y%m%d%H%M%S")}'
             
-            if save:
+            if self.save:
                 print(f'saving plot for {day} in {file_name}')
                 if type(self.fmt) is list:
                     for f in self.fmt:
                         fig.savefig(f'{file_name}.{f}', bbox_inches='tight', format=f, optimize=True, dpi=150)                    
                 else:
                     fig.savefig(f'{file_name}.{self.fmt}', bbox_inches='tight', format=self.fmt, optimize=True, dpi=150)
-            if show:
+            if self.show:
                 plt.show()
             # close figures as they won't be closed automatically by python during runtime
             plt.close(fig)
     
-    def plot_nmin(self, var, n=4, save=True, show=False):
+    def plot_nmin(self, var, n=4):
         """Plot/save the n days with the smallest values for the specified
            variable reduced over longitude and latitude
         
@@ -130,13 +131,11 @@ class DataPlotter:
         None
         """
         assert var in self.wreader.get_vars(), f"variable '{var}' not found"
-        #print(self.wreader.nmin_val_days(var, n).name)
-        #print(self.wreader.nmin_val_days(var, n).sizes)
-        days = self.wreader.nmin_val_days(var, n)
-        
-        self.__plot_days(days, 'min', save, show)
 
-    def plot_nmax(self, var, n=4, save=True, show=False):
+        days = self.wreader.nmin_val_days(var, n)
+        self.__plot_days(days, 'min')
+
+    def plot_nmax(self, var, n=4):
         """Plot/save the n days with the largest values for the specified
            variable reduced over longitude and latitude
         
@@ -152,11 +151,11 @@ class DataPlotter:
         None
         """
         assert var in self.wreader.get_vars(), f"variable '{var}' not found"
-        days = self.wreader.nmax_val_days(var, n)
         
-        self.__plot_days(days, 'max', save, show)
+        days = self.wreader.nmax_val_days(var, n)
+        self.__plot_days(days, 'max')
     
-    def plot_nmin_var(self, var, n=4, save=True, show=False):
+    def plot_nmin_var(self, var, n=4):
         """Plot/save the n days with the smallest variance for the specified
            variable reduced over longitude and latitude
         
@@ -172,11 +171,11 @@ class DataPlotter:
         None
         """
         assert var in self.wreader.get_vars(), f"variable '{var}' not found"
-        days = self.wreader.nminvar_val_days(var, n)
         
-        self.__plot_days(days, 'minvar', save, show)
+        days = self.wreader.nminvar_val_days(var, n)
+        self.__plot_days(days, 'minvar')
     
-    def plot_nmax_var(self, var, n=4, save=True, show=False):
+    def plot_nmax_var(self, var, n=4):
         """Plot/save the n days with the largest variance for the specified
            variable reduced over longitude and latitude
         
@@ -192,11 +191,11 @@ class DataPlotter:
         None
         """        
         assert var in self.wreader.get_vars(), f"variable '{var}' not found"
-        days = self.wreader.nmaxvar_val_days(var, n)
         
-        self.__plot_days(days, 'maxvar', save, show)
+        days = self.wreader.nmaxvar_val_days(var, n)
+        self.__plot_days(days, 'maxvar')
     
-    def plot_nmin_mean(self, var, n=4, save=True, show=False):
+    def plot_nmin_mean(self, var, n=4):
         """Plot/save the n days with the smallest mean for the specified
            variable reduced over longitude and latitude
         
@@ -212,11 +211,11 @@ class DataPlotter:
         None
         """        
         assert var in self.wreader.get_vars(), f"variable '{var}' not found"
-        days = self.wreader.nminmean_val_days(var, n, save, show)
         
-        self.__plot_days(days, 'minmean', save, show)
+        days = self.wreader.nminmean_val_days(var, n)
+        self.__plot_days(days, 'minmean')
 
-    def plot_nmax_mean(self, var, n=4, save=True, show=False):
+    def plot_nmax_mean(self, var, n=4):
         """Plot/save the n days with the largest mean for the specified
            variable reduced over longitude and latitude
         
@@ -232,11 +231,11 @@ class DataPlotter:
         None
         """        
         assert var in self.wreader.get_vars(), f"variable '{var}' not found"
-        days = self.wreader.nmaxmean_val_days(var, n)
         
-        self.__plot_days(days, 'maxmean', save, show)
+        days = self.wreader.nmaxmean_val_days(var, n)
+        self.__plot_days(days, 'maxmean')
     
-    def plot_nmin_med(self, var, n=4, save=True, show=False):
+    def plot_nmin_med(self, var, n=4):
         """Plot/save the n days with the smallest median for the specified
            variable reduced over longitude and latitude
         
@@ -252,11 +251,11 @@ class DataPlotter:
         None
         """        
         assert var in self.wreader.get_vars(), f"variable '{var}' not found"
-        days = self.wreader.nminmed_val_days(var, n)
         
-        self.__plot_days(days, 'minmed', save, show)
+        days = self.wreader.nminmed_val_days(var, n)
+        self.__plot_days(days, 'minmed')
 
-    def plot_nmax_med(self, var, n=4, save=True, show=False):
+    def plot_nmax_med(self, var, n=4):
         """Plot/save the n days with the largest median for the specified
            variable reduced over longitude and latitude
         
@@ -272,11 +271,11 @@ class DataPlotter:
         None
            """        
         assert var in self.wreader.get_vars(), f"variable '{var}' not found"
-        days = self.wreader.nmaxmed_val_days(var, n)
         
-        self.__plot_days(days, 'maxmed', save, show)
+        days = self.wreader.nmaxmed_val_days(var, n)
+        self.__plot_days(days, 'maxmed')
     
-    def plot_nmin_sum(self, var, n=4, save=True, show=False):
+    def plot_nmin_sum(self, var, n=4):
         """Plot/save the n days with the smallest sum for the specified
            variable reduced over longitude and latitude
         
@@ -292,11 +291,11 @@ class DataPlotter:
         None
         """        
         assert var in self.wreader.get_vars(), f"variable '{var}' not found"
-        days = self.wreader.nminsum_val_days(var, n)
         
-        self.__plot_days(days, 'minsum', save, show)
+        days = self.wreader.nminsum_val_days(var, n)
+        self.__plot_days(days, 'minsum')
 
-    def plot_nmax_sum(self, var, n=4, save=True, show=False):
+    def plot_nmax_sum(self, var, n=4):
         """Plot/save the n days with the largest sum for the specified
            variable reduced over longitude and latitude
         
@@ -311,13 +310,12 @@ class DataPlotter:
         -------
         None
         """        
-        assert var in self.wreader.get_vars(), f"variable '{var}' not found"
-        days = self.wreader.nmaxsum_val_days(var, n)
+        assert var in self.wreader.get_vars(), f'variable "{var}" not found'
         
-        self.__plot_days(days, 'maxsum', save, show)
+        days = self.wreader.nmaxsum_val_days(var, n)
+        self.__plot_days(days, 'maxsum')
     
-    def plot_load_time_func(self,var,start,stop,func,load_col=de_load
-                            ,freq=24,save=True,show=False):
+    def plot_load_time_func(self, var, start, stop, func, load_col=de_load, freq=24):
         """Plot/save function of load and date with variable
            after applying given function to its data
         
@@ -335,10 +333,6 @@ class DataPlotter:
                    specifies column in load file that will be plotted
         freq     : integer (where freq mod 2 == 0, as resolution of data is 2H)
                    specifies in what frequency of hours points will be plotted
-        save     : boolean
-                   wether to save plot to file or not
-        show     : boolean
-                   wether to show plot or not
         
         Returns
         -------
@@ -380,78 +374,91 @@ class DataPlotter:
         pth = figure_path + 'plot_load_time_func/'
         if not os.path.exists(pth):
             os.makedirs(pth)
+            
         file_name = pth + f'{var}_{fname}_{start.strftime("%Y%m%d%H")}_{stop.strftime("%Y%m%d%H")}_{freq}F'
+        
+        # rotate labels from x-axis by 30° for readability
         plt.setp(ax.get_xticklabels(), rotation=30, horizontalalignment='right')
-        if save:
+        
+        if self.save:
             fig.savefig(f'{file_name}.{self.fmt}', bbox_inches='tight', format=self.fmt, optimize=True, dpi=150)
-        if show:
+        if self.show:
             plt.show()
         
         plt.close(fig)
+    
+    def plot_load(self, var, start, stop,freq):
+        """Plot/save function of load variable/s
+        
+        Parameters
+        ----------
+        var      : string
+                   name of variable to plot
+        start    : pandas.Timestamp
+                   starting time (e.g. start = pandas.Timestamp(datetime(2015,1,1,12),tz='utc'))
+        stop     : pandas.Timestamp
+                   stopping time
+        freq     : integer (where freq mod 2 == 0, as resolution of data is 2H)
+                   specifies in what frequency of hours points will be plotted
+        
+        Returns
+        -------
+        None
+        """
+        #assert var in self.lreader.get_vars(), f'variable "{var}" not found' # assert not needed 
+        
+        fig, ax = plt.subplots()
+        
+        drange = pd.date_range(start,stop,freq=f'{freq}H')
+        
+        for var_name in var:
+            data = self.lreader.vals4time(var_name, drange)
+            ax.plot(drange, data, '-', label=f'{var_name} (MW)')
+        
+        ax.set_xlabel('UTC time')
+        ax.set_ylabel('load (MW)')
+        ax.set_ylim(-2000, 120000)
+        ax.legend(loc='upper right')
+        
+        pth = figure_path + 'load_plot/'
+        if not os.path.exists(pth):
+            os.makedirs(pth)
+        
+        file_name = pth + f'{var}_{start.strftime("%Y%m%d%H")}_{stop.strftime("%Y%m%d%H")}_{freq}F'
+        
+        # rotate labels from x-axis by 30° for readability
+        plt.setp(ax.get_xticklabels(), rotation=30, horizontalalignment='right')
+        
+        if self.save:
+            fig.savefig(f'{file_name}.{self.fmt}', bbox_inches='tight', format=self.fmt, optimize=True, dpi=150)
+        if self.show:
+            plt.show()
+        
+        plt.close(fig)        
 
-
-def plot_map_cartopy_netcdf():
-    ds = xr.open_mfdataset(data_path + "netcdf_actuals/GridOneDayAhead_2017-06-01.nc")
-
-    fig = plt.figure()
-    ax = fig.add_subplot(1, 1, 1, projection=ccrs.PlateCarree())
-
-    # generate a basemap with country borders, oceans and coastlines
-    ax.add_feature(cfeat.LAND)
-    ax.add_feature(cfeat.OCEAN)
-    ax.add_feature(cfeat.COASTLINE)
-    ax.add_feature(cfeat.BORDERS, linestyle='dotted')
-
-    area = ds.t2m - 273.15
-
-    grid = area.sel(time='2017-06-01T12:00:00')
-    grid.plot(ax=ax, transform=ccrs.PlateCarree(), cmap='BuPu')
-    #ax.imshow(grid, interpolation='bilinear')
-
-    plt.show()
-
-def plot_map_seaborn_csv():
-    weather_df = pd.read_csv(data_path + 'GridActuals_2017.csv', low_memory=False)
-    weather_df = weather_df[weather_df['time'] == '2017-06-01 12:00:00']
-
-    #weather_df.to_csv('/home/marcel/2017Grid.csv', ',')
-    weather_df['t2m'] = weather_df['t2m'].apply(lambda x: x - 273.15)
-    weather_df = weather_df[[lat_col, lon_col, 't2m']]
-
-    x_set = sorted(set(weather_df[lon_col]))
-    y_set = sorted(set(weather_df[lat_col]))
-    x_size = len(x_set)
-    y_size = len(y_set)
-
-    sns.heatmap(np.array(weather_df['t2m']).reshape(y_size, x_size), cmap='BuPu')
-    plt.show()
-
-
-data_path = data_path + 'ecmwf/'
 
 fmt='pdf'
 var='t2m'
 n=1
-#variables=['u10', 'v10', 't2m', 'e', 'ie', 'kx', 'lcc', 'skt', 'str', 'sp', 'tcc', 'tcwv', 'tp']
 
-# numpy functions
+# used numpy functions
 funcs = [np.nanmin,np.nanmax,np.nanvar,np.nanmean,np.nanmedian,np.nansum]
 
 start = pd.Timestamp(2015,1,1,12)
 stop = pd.Timestamp(2018,12,31,12)
 freq = 24
 
-pl = DataPlotter(fmt)
+pl = DataPlotter(fmt,save=False,show=True)
 
 rd= WeatherReader()
-
+#pl.plot_load([de_load,hertz_load,amprion_load,tennet_load,transnet_load], start, stop, freq)
 #for var in rd.get_vars():
     #for func in funcs:
         #pl.plot_load_time_func(var,start,stop,func)
 
-#pl.plot_load_time_func(var, start, stop, np.mean,show=True)
+pl.plot_load_time_func(var, start, stop, np.mean)
 
-pl.plot_nmin(var,n,save=False, show=True)
+#pl.plot_nmin(var,n)
 #rd = WeatherReader()
 #for var in rd.get_vars():
     #pl.plot_nmin(var,n)

@@ -80,14 +80,13 @@ def isinDE():
     np.save(f'{data_path}isin', contained)
     return contained
 
-def testFun(**kwargs):
-    print(kwargs)
-    
-testFun(save=True,bull='shit')
+#print(len(pd.date_range(datetime(2015,1,1),datetime(2019,3,31),freq='1D')))
 
 #contained = isinDE()
 
-#contained = np.load(f'{data_path}isin.npy')
+contained = np.load(f'{data_path}isin.npy')
+
+print(np.unique(contained, return_counts=True), contained.size)
 #print(type(contained))
 
 #plt.imshow(contained,cmap=plt.cm.gray, extent=bbox)#,interpolation='bilinear')

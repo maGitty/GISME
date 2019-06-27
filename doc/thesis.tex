@@ -22,6 +22,7 @@
 %% ---------------------------------
 
 \input{tex/preamble}
+%\usepackage[utf8]{inputenc}
 
 \usepackage[nosuper,toc,acronyms]{glossaries}
 
@@ -32,7 +33,7 @@
 \vfill
 \centering
 \includegraphics[width=\paperwidth,%
-keepaspectratio]{logos/bulb1.png}%
+keepaspectratio]{logos/bulb5.png}%
 \vfill
 }}}
 
@@ -157,8 +158,12 @@ keepaspectratio]{logos/bulb1.png}%
 \input{sections/discussion.tex}
 \input{sections/conclusion.tex}
 
-%\glsaddall
-\printglossary[title=List of Terms,toctitle=Terms and abbreviations,type=\acronymtype]
+
+%% ----------------
+%% |   Glossary   |
+%% ----------------
+
+\printglossary[title=Terms and abbreviations,toctitle=Terms and abbreviations,type=\acronymtype]
 
 
 %% --------------------
