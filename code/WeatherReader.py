@@ -1,7 +1,8 @@
 #!/usr/bin/python3
-from glob_vars import lon_col, lat_col, era5_path, nuts_shape
+from glob_vars import lon_col, lat_col, era5_path, nuts0_shape
 
 import os
+import re
 import numpy as np
 import xarray as xr
 import shapefile as shp
@@ -26,14 +27,6 @@ class WeatherReader:
         
         self.var_names = [name for name in self.wdata.data_vars]
         self.date_bounds = self.wdata['time'].min().values, self.wdata['time'].max().values
-    
-    def reduce_lonlat(self, name, func):
-        """Private method, return data for specified variable after applying
-           function to reduce along longitude and latitude axes
-        """
-        assert name in self.var_names, f'column {name} not found'
-        
-        return self.wdata[name].reduce(func, dim=[lon_col,lat_col])
     
     def __nminmax_reduce_days(self, name, func, minmax, n):
         """Private method, return list of n days with min/max values for variable after
@@ -74,6 +67,14 @@ class WeatherReader:
         """
         return self.__nminmax_reduce_days(name, func, 'max', n)
     
+    def reduce_lonlat(self, name, func):
+        """Private method, return data for specified variable after applying
+           function to reduce along longitude and latitude axes
+        """
+        assert name in self.var_names, f'column {name} not found'
+        
+        return self.wdata[name].reduce(func, dim=[lon_col,lat_col])
+    
     def get_size(self):
         """Returns shape of whole data"""
         return self.wdata.sizes
@@ -112,6 +113,22 @@ class WeatherReader:
         """
         return self.wdata[var].long_name
     
+    def get_minmax(self,name):
+        """Returns min and max for specified variable and times
+        
+        Parameters
+        ----------
+        name : string
+               short name of variable
+        days : string or some time format supported by xarray
+               days for which min and max has to be returned
+        
+        Returns
+        -------
+        tuple of min and max
+        """
+        return (np.floor(self.wdata[name].min().values),np.ceil(self.wdata[name].max().values))
+    
     def print_vars_texfmt(self):
         """Prints all variables in format 'name & unit & min & max' to just insert to latex
         
@@ -119,9 +136,11 @@ class WeatherReader:
         -------
         None
         """
+        pow_regex = re.compile('(\*\*)(\S+)')
         for var in self.var_names:
             variable = self.wdata[var].dropna('time')
-            print(f'{variable.long_name} & {variable.units} & '
+            unit = pow_regex.sub("^{\g<2>}",variable.units).replace(' ','~')
+            print(f'{variable.long_name} & ${unit}$ & '
                   f'{variable.values.min().round(2):.2f} & '
                   f'{variable.values.max().round(2):.2f} \\\\')
     
@@ -135,13 +154,14 @@ class WeatherReader:
         lons = self.get_coords()[lon_col].values
         lats = self.get_coords()[lat_col].values
         
-        eu_shape = shp.Reader(nuts_shape)
+        eu_shape = shp.Reader(nuts0_shape)
         
         for record in eu_shape.shapeRecords():
             if 'DE' in record.record:
                 de_shape = record
+                break
         
-        poly = Polygon(de_shape.points)
+        poly = Polygon(de_shape.shape.points)
         
         coords = np.empty((len(lats),len(lons)),np.dtype(Point))
     
@@ -155,7 +175,13 @@ class WeatherReader:
     
         contained = contains(coords)
         np.save(f'{data_path}isin', contained)
+        
         return contained
+    
+    def check_isinRegion(self):
+        """TODO
+        """
+        pass # TODO
     
     def vals4time(self, name, datetime):
         """Returns the values for specified variable and time
@@ -414,10 +440,10 @@ class WeatherReader:
     
 
 rd = WeatherReader()
-#print(rd.get_vars())
+#print(rd.nmaxvar_val_days('t2m',50)['time'].values)
 #rd.print_vars_texfmt()
 #print(rd.get_date_bounds())
-rd.vals4time('t2m',datetime(2018,4,1,6))
+#rd.vals4time('t2m',datetime(2018,4,1,6))
 #print(rd.val4postime('t2m', 10, 50, datetime(2017,1,1,12)))
 #print(rd.vals4lat_daytime('t2m', 50, time(12)))
 #print(rd.vals4time('t2m', datetime(2017,1,1,12)))

@@ -40,7 +40,6 @@ class WeatherCalc:
         """
         pass        
 
-wet = WeatherCalc(start, stop)
 
 def plot_temp_maxVSload_attime(hour):
     """
