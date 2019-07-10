@@ -15,7 +15,7 @@
 %% Available page modes: oneside, twoside
 %% Available languages: english, ngerman
 %% Available modes: draft, final
-\documentclass[twoside, english]{thesisIAI}
+\documentclass[twoside, english,figuresleft]{thesisIAI}
 
 %% ---------------------------------
 %% | Additonal Packages |
@@ -25,17 +25,27 @@
 %\usepackage[utf8]{inputenc}
 
 \usepackage[nosuper,toc,acronyms]{glossaries}
-
+\usepackage{url}
 \usepackage{eso-pic}
+\usepackage{makecell}
+
 \newcommand\BackgroundPic{%
 \put(0,0){%
 \parbox[b][\paperheight]{\paperwidth}{%
 \vfill
 \centering
 \includegraphics[width=\paperwidth,%
-keepaspectratio]{logos/bulb5.png}%
+keepaspectratio]{logos/bulb.png}%
 \vfill
 }}}
+
+\newcommand{\tcite}{\Textcite}
+\newcommand{\acrs}{\acrshort}
+
+\NewDocumentCommand{\apply}{O{,~}mm}
+{% #1 = output separator, #2 = command to apply, #3 = list
+  \critch_apply:Nnn { #2 } { #1 } { #3 }
+}
 
 %% ---------------------------------
 %% | Information about the thesis  |
@@ -45,7 +55,8 @@ keepaspectratio]{logos/bulb5.png}%
 \author{Marcel Herm}
 
 %% Title (and possibly subtitle) of the thesis
-\title{GIS meets energy}
+%\title{GIS meets energy}
+\title{Evaluating the benefit of grid-based weather information in energy forecasting}
 
 %% Type of the thesis 
 \thesistype{Bachelors's Thesis}

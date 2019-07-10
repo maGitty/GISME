@@ -1,11 +1,22 @@
 \chapter{Related Work}
 \label{ch:RW}
 
+In this chapter, the subject of this thesis will be compared to similar work, a few points will be outlined and considered to be either valuable in terms of relevance for this thesis. There will also be a few points about the process of research.\\
+
+\section{Research}
+\label{sec:res}
+
+% TODO cite arxiv and google scholar so it is listed in references
+Gathering information is a key element in research. Therefor, \tcite{arXiv},\tcite{scholGoogle} and \tcite{base} have been used in order to find suitable reading.\\
+
+%It proofed to be difficult to find suitable papers using keywords such as "grid-based" or "geographic", because most of the results referred to either other grids, such as in Smart Grid, or completely different geographic research subjects.\\
+%As weather data from the \gls{ecmwf} is used in this thesis, which is grid based, one solution was to search for "ECMWF", as this type of data is widely used within the research field of energy.\\
+%also used \href{base-search.net}{BASE} which proposed "energy network geographic data" after searching a bit, I came to the term "energy network ecmwf" which gave some hits.\\
+As the title of a work often gives a good overview, a major criteria at searching for similar papers was if the title implies working with geographic or grid-based data and/or has an application in the field of energy networks and aims at forecasting correlating values.\\
+Another criteria is the abstract and/or introduction, where the priority was to check wether the used data is grid based and if not directly mentioned in the title, if or how the forecasting is done.\\
 %This chapter is supposed to summarise previous work of other researchers related to your topic.
 %The aim is to give an overview of existing literature while highlighting differences and similarities to this thesis.
-
 %Please choose a coherent citation style throughout the thesis. For example
-
 %\begin{itemize}
 %	\item Direct citation of results, an approach or similar
 %	%\item[] \Textcite{Fan.2015} find that their method improves the benchmark.
@@ -15,28 +26,49 @@
 %	\item[] \textquote{\emph{Energy optimisation in buildings is important}} %\Parencite{Fan.2015}.
 %\end{itemize}
 
-When it comes to weather based prediction of power, a lot of papers have been puplished. Some of them also used data from \acrshort{ecmwf}, but none of them had a focus on the aspect of grid-based data. So first of all it is important to filter out works that deal with grid-based data, as very often it is not directly mentioned.\\
+\section{Related Work}
+\label{sec:rw}
 
+When it comes to weather based prediction of power, a lot of papers have been puplished. Some of them also used data from \gls{ecmwf}, but in the process of research, there didn't come up any that had a focus on the aspect of grid-based data.\\
 
-\begin{table}[h!]%
+A lot of the papers that combine forecasting energy demand or generation with using weather data are focusing either on forecasting \acrshort{pv} electricity generation as in \tcite{Bofinger2006} and \tcite{Sperati2016} or on electricity generation from wind as in \tcite{Davo2016} and \tcite{Alessandrini2015}.\\
+
+For time series forecasting, often used methods are e.g. \gls{arma} models as mentioned in \tcite{Hyndman2018} which are (TODO rough explanation of ARMA and related models). But  also \gls{nn} are often used, where it is common to reduce the number input variables in order to speed up computation, which is desirable for the huge amount of grid-based data that grows quadratically with size. Last there are also some papers that use regression models other than \gls{arma} such as simple \gls{lr},\gls{mlr} or \gls{svm}.\\\
+E.g. \tcite{Aguiar2016} uses \gls{ann} to do intra-day forecasting of \gls{sr} on Gran Canaria and, as in this thesis, data from \gls{ecmwf} is used.\\
+\tcite{Alessandrini2015} propose a novelty by applying an \gls{anen} method to retain a probabilistic wind power forecast. Here the data from \gls{ecmwf} is indirectly used by feeding it into the \gls{rams} to get forecast data for the prediction.\\
+\tcite{Bofinger2006} also used data from \gls{ecmwf}, but also data from local weather stations to forecast solar power output. The data is then refined using \gls{mos}, spatially interpolated and then simulated for germany.\\
+Another paper that used data from \gls{ecmwf} is \tcite{Davo2016}. Here also data from \gls{noaaesrl} was used which was used for an online competition hosted by \tcite{kaggle}. Reference power data was obtained from \tcite{terna}. This is the only paper so far using \gls{pca} to reduce dimensionality, but as in \tcite{Alessandrini2015}, \gls{anen} is used, whereas here, \gls{nn} are used before. The target values here are both \gls{sr} and wind power produced over Sicily.\\
+Similar to this thesis, \tcite{DeFelice2015} aims to forecast electricity demand using data from \gls{ecmwf}, though  for italy and with a medium-term temporal range in contrast to the short-term range targeted in this thesis. Therefor \gls{lr} and \gls{svm} are used. As power prediction is a rather complex problem, it is not very surprising that the non-linear \gls{svm} perform better than \gls{lr}.\\
+In terms of this thesis, a very interesting paper is \tcite{Diagne2013} where different forecasting methods are reviewed, even though for solar radiation forecasting. Also different data sources are compared, specifically \gls{ecmwf},\gls{mm5} and \gls{wrf}. The paper focuses on \gls{ar} methods and \gls{nn} considering a very short time range from 5 min up to 6h.\\
+In contrast, \tcite{Ludwig2015} does not consider \gls{nn}, but therefor compares \gls{lasso} and \gls{rf} next to \gls{arma} and \gls{armax} models. The target value here is the german electricity price for the next day and the used data is obtained by distributed measures from \gls{dwd} for weather data and from \gls{epex} for the price history. A desirable side effect from \gls{rf} is the output of the variable importance which is useful in order to filter considered used variables.\\
+Further methods are presented in \tcite{Salcedo-Sanz2018} with combinations of \gls{cro},\gls{elm},\gls{gga},\gls{mars},\gls{svr} for short-term solar radiation forecast in Australia. The used data comes mostly from \gls{ecmwf}, but also from \gls{silo} and therefor also uses gridded and non-gridded data.\\
+Another application of \gls{ecmwf} data is proposed in \tcite{Sperati2016} for short-term (0-72h) solar power forecasting using a \gls{pdf} combined with \gls{nn},\gls{vd},\gls{emos} and \gls{pe}.\\
+
+Table \ref{tab:relwork} provides an overview about some of the mentioned related works including further information in terms of spatial distribution of the used data that does not correspond to the target value, used methods, origin of the data, temporal scope and the target value. It is to mention that regarding the temporal scope, short term means up to a few days, middle term refers to up to a few months and long term is about seasonal forecasting which possibly includes multiple years.\\
+
+\begin{sidewaystable}[!ht]%
 \rowcolors{2}{gray!25}{white}
 \centering
 \footnotesize
 \begin{tabular}{llllll}
-\tablehead paper & \tablehead grid-based & \tablehead methods & \tablehead used data & \tablehead scope & \tablehead year \\\hline
-\Textcite{Sperati2016} & grid?! & \acrshort{pdf},\acrshort{nn},\acrshort{vd},\acrshort{emos},\acrshort{pe} & \acrshort{ecmwf} & short term & 2016\\
-\Textcite{DeFelice2015} & grid?! & \acrshort{lr},\acrshort{svm} & \acrshort{ecmwf} & medium term & 2015\\
-\Textcite{Alessandrini2015} & grid?! & methods?! & \acrshort{ecmwf} & short term & 2015\\
-\Textcite{Aguiar2016} & grid?! & \acrshort{arma},\acrshort{nn} & \acrshort{ecmwf} & intra-day & 2016\\
-\Textcite{Fairley2017} & grid?! & methods?! & \acrshort{ecmwf} & none?! & 2017\\
-\Textcite{Davo2016} & grid?! & methods?! & \acrshort{ecmwf} & & 2016\\
-\Textcite{Salcedo-Sanz2018} & grid?! & \acrshort{elm},\acrshort{cro},\acrshort{svr},\acrshort{gga} & \acrshort{ecmwf} & short term?! & 2018\\
-\Textcite{Voivontas1998} & grid?! & methods?! & \acrshort{sdhws} & none?! & 2016\\
-\Textcite{Aertsen2012} & grid?! & methods?! & not sure yet & none?! & 2016\\
-%\Textcite{2006} & grid?! & methods?! & & & 2016\\
+\tablehead paper & \tablehead distribution & \tablehead methods & \tablehead data origin & \tablehead scope & \tablehead target \\\hline
+\tcite{Aguiar2016} & grid-based & \acrshort{nn} & \acrshort{ecmwf},\acrshort{hc3} & intra-day & \acrshort{sr}\\
+\tcite{Alessandrini2015} & distributed & \acrshort{anen} & \acrshort{ecmwf}/\acrshort{rams} & short term & wind power\\
+\tcite{Bofinger2006} & mixed & \acrshort{mos},\acrshort{idw} & \acrshort{ecmwf} & short term & solar power\\
+\tcite{Davo2016} & grid-based & \acrshort{pca},\acrshort{anen},\acrshort{rams} & \acrshort{ecmwf},\acrshort{noaaesrl},\tcite{terna} & short/mid term & wind power,\acrshort{sr}\\
+\tcite{DeFelice2015} & grid-based & \acrshort{lr},\acrshort{svm} & \acrshort{ecmwf} & medium term & electricity demand\\
+\tcite{Diagne2013} & grid-based & \acrshort{arma},\acrshort{arima},\acrshort{cards},\acrshort{ann},\acrshort{wnn} & \acrshort{ecmwf},\acrshort{mm5},\acrshort{wrf} & short term?! & \acrshort{sr}\\
+\tcite{Ludwig2015} & distributed & \acrshort{arma},\acrshort{armax},\acrshort{lasso},\acrshort{rf} & \acrshort{epex},\acrshort{dwd} & short term & energy prices\\
+\tcite{Salcedo-Sanz2018} & mixed & \acrshort{elm},\acrshort{cro},\acrshort{mars},\acrshort{mlr},\acrshort{svr},\acrshort{gga} & \acrshort{ecmwf},\acrshort{silo} & short term & \acrshort{sr}\\
+\tcite{Sperati2016} & grid-based & \acrshort{pdf},\acrshort{nn},\acrshort{vd},\acrshort{emos},\acrshort{pe} & \acrshort{ecmwf} & short term & solar power\\
+%\tcite{Kaminska-Chuchmala2014} & distributed &  & & & \\
+%\tcite{Fairley2017} & grid?! & methods?! & \acrshort{ecmwf} & none?! & TODO\\ % might not be relevant!
+%\tcite{Aertsen2012} & grid?! & \acrshort{ok},\acrshort{ck},\acrshort{rk} & not sure yet & long term & TODO\\
+%\tcite{Voivontas1998} & grid?! & & \acrshort{sdhws} & none?! & TODO\\
 \end{tabular}
 \caption{List of related works and used methods respectively as well as some further details.}
 \label{tab:relwork}
-\end{table}
+\end{sidewaystable}
 
+One key difference of the presented works to this thesis is that here, reanalyzed data from \gls{ecmwf} is used for prediction which means, that the forecast tends to be far better than forecasts that are usually used in other works. This also means that results from this thesis might not exactly match results using the same procedure with real-time data.\\
 

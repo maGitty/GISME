@@ -1,4 +1,4 @@
-from glob_vars import data_path, load_path, era5_path, lon_col, lat_col, bbox, de_load
+from glob_vars import data_path, load_path, era5_path, lon_col, lat_col, bbox, de_load,variable_dictionary,nuts3_01res_shape
 from WeatherReader import WeatherReader
 from LoadReader import LoadReader
 
@@ -15,7 +15,64 @@ from calendar import monthrange
 from glob import glob
 import xarray as xr
 import pytz
+import re
 from shapely.geometry import Point, Polygon
+
+
+def containsReg():
+    wr = WeatherReader()
+    lons = wr.get_coords()[lon_col].values
+    lats = wr.get_coords()[lat_col].values
+    
+    de_shape = shp.Reader(nuts3_01res_shape)
+    
+    for shape in de_shape.shapeRecords()[30:]:
+        if 'DE' in shape.record:
+            re_shape = shape
+            break
+    print(re_shape.record)
+    
+    poly = Polygon(re_shape.shape.points)
+    
+    coords = np.empty((len(lats),len(lons)),np.dtype(Point))
+    
+    for y in range(len(lats)):
+        for x in range(len(lons)):
+            lo = lons[x]
+            la = lats[y]
+            coords[y,x] = Point(lo,la)
+    
+    contains = np.vectorize(lambda p: p.within(poly) or p.touches(poly))
+    
+    contained = contains(coords)
+    plt.imshow(wr.vals4time('t2m',datetime(2017,1,1,12)).where(contained).values)
+    plt.show()
+    #np.save(f'{data_path}isin', contained)
+
+
+#contained = np.load(f'{data_path}isin.npy')
+
+#wr = WeatherReader()
+#plt.imshow(wr.vals4time('t2m', datetime(2017,1,1,12)).where(contained).values)
+#plt.show()
+
+#sf = shp.Reader('/home/marcel/Dropbox/data/shapes/NUTS_RG_60M_2016_4326_LEVL_3.shp/NUTS_RG_60M_2016_4326_LEVL_3.shp')
+#print(sf.fields)
+#print(sf.shapeRecords()[52].record['NUTS_NAME'].strip('\000'))
+
+#df = pd.read_csv('/home/marcel/Dropbox/data/demo_r_d3dens/demo_r_d3dens_1_Data.csv',encoding='latin1')
+#print(df.columns)
+#print(df[df['GEO'] == sf.shapeRecords()[52].record['NUTS_NAME'].strip('\000')]['Value'])
+
+#records = [rec for rec in sf.shapeRecords() if rec.record['CNTR_CODE'] == 'DE']
+
+#for record in records:
+    #shape = record.shape
+    #points = np.array(shape.points)
+    #intervals = list(shape.parts) + [len(shape.points)]
+    #for (x, y) in zip(intervals[:-1], intervals[1:]):
+        #plt.plot(*zip(*points[x:y]), color='k', linewidth=.4) 
+#plt.show()
 
 
 #rd = NC_Reader()
@@ -84,9 +141,9 @@ def isinDE():
 
 #contained = isinDE()
 
-contained = np.load(f'{data_path}isin.npy')
+#contained = np.load(f'{data_path}isin.npy')
 
-print(np.unique(contained, return_counts=True), contained.size)
+#print(np.unique(contained, return_counts=True), contained.size)
 #print(type(contained))
 
 #plt.imshow(contained,cmap=plt.cm.gray, extent=bbox)#,interpolation='bilinear')
