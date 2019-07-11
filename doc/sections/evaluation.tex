@@ -15,10 +15,7 @@ It must be mentioned that, as the data used has been reanalized, so the expected
 
 As data parameters there are also longitude and latitude, where the longitude is chosen to be from 5.5 to 15.5 and the latitude from 47 to 55.5. As the resolution of the used grid is at 0.25°, this results in a total of 1435 grid points per timestamp. As the range of the data from \acrshort{ecmwf} extends from 2015/1/1 to 2019/3/31(TODO update), there is a total of 1551 days with each 12 timestamps due to the 2 hours frequency and thus 18612 timestamps. Considering that there is a value for each point in the grid and every timestamp, there are 26708220 values for each variable.\\
 
-In order to reduce complexity, a shapefile of the \acrshort{nuts} dataset was used. The shapefile contains all countries in the EU. The shape of germany was filtered from this data and each point in the \acrshort{ecmwf} dataset is checked wether it is within germany or not. The result can be seen in figure \ref{fig:isin}.\\
-
-\subsection{Population}
-
+In order to reduce complexity, a shapefile of the \acrshort{nuts} dataset was used. The shapefile contains all countries in the EU. The shape of germany was filtered from this data and each point in the \acrshort{ecmwf} dataset is checked wether it is within germany or not. The result can be seen in \Cref{fig:isin}.\\
 
 
 \begin{figure}[h!]%
@@ -42,19 +39,7 @@ In order to reduce complexity, a shapefile of the \acrshort{nuts} dataset was us
 \label{fig:maxvar4_maps}%
 \end{figure}
 
-\begin{figure}[h!]%
-\centering
-\includegraphics[width=\textheight,angle=-90,origin=c]{plots/t2m_mean_2015010112_2018123112_24F}%
-\caption{Load curve with mean of 2 meter height measured temperature in germany as color from 2015/1/1 to 2018/12/31 with one single point per day at 12am utc time respectively.}%
-\label{fig:t2m_mean_2015010112_2018123112_24F}%
-\end{figure}
 
-\begin{figure}[h!]%
-\centering
-\includegraphics[width=\textwidth]{plots/demo/demo2018_logscale}%
-\caption{Population of germany for each region respectively using a log scale for better distinction.}%
-\label{fig:demo2018_logscale}%
-\end{figure}
 
 \begin{table}[h!]%
 \rowcolors{2}{gray!25}{white}
@@ -83,10 +68,30 @@ Total sky direct solar radiation at surface & $J~m^{-2}$ & -0.12 & 3088320.00 \\
 
 \subsection{Load data}
 
+\begin{figure}[h!]%
+\centering
+\includegraphics[width=\textheight,angle=-90,origin=c]{plots/t2m_mean_2015010112_2018123112_24F}%
+\caption{Load curve with mean of 2 meter height measured temperature in germany as color from 2015/1/1 to 2018/12/31 with one single point per day at 12am utc time respectively.}%
+\label{fig:t2m_mean_2015010112_2018123112_24F}%
+\end{figure}
+
+The load data has been retained from \tcite{opsdata}.\\
+\Cref{fig:t2m_mean_2015010112_2018123112_24F} shows the distribution of loads over time with one point per day at 12am utc time. The color shows the mean temperature measured at 2 meters height.\\
 
 %Describe the data set you are using. Use appropriate visualization (\eg graphs, statistical summaries \etc) to help the reader get to know your data set.
 
-\Cref{tab:wvars} is an example table. Remember to use full sentences in your caption and explain everything one can see in the table there as well. You can of course also use a simpler format for your table.
+%\Cref{tab:wvars} is an example table. Remember to use full sentences in your caption and explain everything one can see in the table there as well. You can of course also use a simpler format for your table.
+
+
+\subsection{Population}
+
+\begin{figure}[h!]%
+\centering
+\includegraphics[width=\textwidth]{plots/demo/demo2018_logscale}%
+\caption{Population of germany for each region respectively using a log scale for better distinction.}%
+\label{fig:demo2018_logscale}%
+\end{figure}
+
 
 %\begin{table}[h!]%
 %\caption{Example table with rotated table heads to save space and two different row colours to ease the readability.}
