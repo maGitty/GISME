@@ -27,7 +27,12 @@
 \usepackage[nosuper,toc,acronyms]{glossaries}
 \usepackage{url}
 \usepackage{eso-pic}
+\usepackage{caption}
+\usepackage{subcaption}
 \usepackage{makecell}
+\usepackage{tabularx}
+
+\newcolumntype{L}{>{\raggedright\arraybackslash}X}
 
 \newcommand\BackgroundPic{%
 \put(0,0){%
@@ -113,7 +118,7 @@ keepaspectratio]{logos/bulb.png}%
 %% ====================================
 \begin{document}
 
-\AddToShipoutPicture*{\BackgroundPic}
+%\AddToShipoutPicture*{\BackgroundPic}
 
 \hypersetup{pageanchor=false}
 

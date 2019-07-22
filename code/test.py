@@ -50,11 +50,11 @@ def containsReg():
     #np.save(f'{data_path}isin', contained)
 
 
-#contained = np.load(f'{data_path}isin.npy')
+contained = np.load(f'{data_path}isin.npy')
 
-#wr = WeatherReader()
-#plt.imshow(wr.vals4time('t2m', datetime(2017,1,1,12)).where(contained).values)
-#plt.show()
+wr = WeatherReader()
+plt.imshow(wr.vals4time('t2m', datetime(2017,1,1,12)).where(contained).values)
+plt.show()
 
 #sf = shp.Reader('/home/marcel/Dropbox/data/shapes/NUTS_RG_60M_2016_4326_LEVL_3.shp/NUTS_RG_60M_2016_4326_LEVL_3.shp')
 #print(sf.fields)

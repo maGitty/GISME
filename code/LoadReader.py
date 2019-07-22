@@ -20,7 +20,7 @@ class LoadReader:
         assert os.path.exists(load_path), 'file containing load data does not exist'
         
         with xr.open_dataset(load_path) as load_file:
-            self.ldata = load_file
+            self.__ldata__ = load_file
             self.var_names = [name for name in load_file.data_vars]
             self.date_bounds = load_file[utc_col].min().values, load_file[utc_col].max().values
             #print(load_file['DE_load_actual_entsoe_transparency'].values)
@@ -52,11 +52,11 @@ class LoadReader:
     
     def get_size(self):
         """Returns shape of whole data"""
-        return self.ldata.sizes
+        return self.__ldata__.sizes
     
     def get_coords(self):
         """Returns coordinating dimensions and respective value lists"""
-        return self.ldata.coords
+        return self.__ldata__.coords
     
     def get_vars(self):
         """Returns list of variable names held by data"""
@@ -67,10 +67,21 @@ class LoadReader:
         return self.date_bounds
     
     def vals4time(self, name, time):
-        """Returns values for variable for specified time/s"""
+        """Returns values for variable for specified time/s
+        
+        Parameters
+        ----------
+        name   : string
+                 name of the variable
+        time   : pandas.Timestamp or string
+                 time for which value is to be returned
+        
+        Returns
+        -------
+        xarray.DataArray containing desired data with respective timestamps"""
         assert name in self.var_names, f'column {name} not found'
         
-        return self.ldata[name].sel(utc_timestamp=time)
+        return self.__ldata__[name].sel(utc_timestamp=time)
         
     def vals4slice(self, name, start, stop, step=None):
         """Returns values for variable in specified time range
@@ -91,17 +102,87 @@ class LoadReader:
         -------
         xarray.DataArray containing desired data with respective timestamps
         """
-        assert name in self.var_names, f'column {name} not found'
+        assert (name in self.var_names) and (step%2 is 0), f'column {name} not found'
         
         if step is None:
             # if no step specified simply return all values between start and stop
-            return self.ldata[name].sel(utc_timestamp=slice(start,stop))
+            return self.__ldata__[name].sel(utc_timestamp=slice(start,stop))
         else:
             # if step is given, return only desired points by passing a timeseries with frequency
-            return self.ldata[name].sel(utc_timestamp=pd.date_range(start,stop,freq=f"{step}H"))
+            return self.__ldata__[name].sel(utc_timestamp=pd.date_range(start,stop,freq=f"{step}H"))
+    
+    def vals4step(self,name,step=2):
+        """Returns complete values for specified step size
+        
+        Parameters
+        ----------
+        name   : string
+                 name of the variable
+        step   : None or integer div'able by 2
+                 step for timestamps between start end end time in hours,
+                 must be div'able by 2 due to 2H data resolution
+        
+        Returns
+        -------
+        xarray.DataArray containing desired data with respective timestamps
+        """
+        return self.__ldata__[name].sel(utc_timestamp=pd.date_range(*self.date_bounds,freq=f"{step}H"))
+        
     
     
 rd = LoadReader()
+
+#start = datetime(2015,1,1)
+#stop = datetime(2017,12,31)
+
+#data = rd.vals4slice(de_load, start, stop, step=2).values
+#print(data)
+
+#from statsmodels.tsa.arima_model import ARIMA
+#print('creating model')
+#model = ARIMA(data, order=(4,1,4))
+#print('fitting model')
+#model_fit = model.fit()
+
+#print('forecasting')
+#yhat = model_fit.predict(len(data),len(data)+100,typ='levels')
+#print(yhat)
+
+#data_index = range(len(data))
+#yhat_index = range(len(data),len(data)+len(yhat))
+
+#from matplotlib import pyplot as plt
+#plt.plot(data_index[-100:],data[-100:],color='b')
+#plt.plot(yhat_index,yhat,color='r')
+
+#plt.show()	
+
+#train = rd.vals4time(de_load,slice(datetime(2015,1,1), datetime(2017,12,31)))
+#print(rd.vals4time(de_load,slice(datetime(2018,1,1),datetime(2018,12,31))))
+
+#from pmdarima.arima import auto_arima
+#start = datetime.now()
+#print(f'starting at {start}')
+#stepwise_model = auto_arima(data, start_p=4, start_q=4,
+                           #max_p=5, max_q=5, m=(4*365),
+                           #start_P=1, seasonal=True,
+                           #d=1, D=1, trace=True,
+                           #error_action='ignore',
+                           #suppress_warnings=True,
+                           #stepwise=True)
+
+#mid = datetime.now()
+#print(f'created model at {mid}')
+#print(stepwise_model.aic())
+#end = datetime.now()
+#print(f'finished at {end}')
+
+#print(start)
+#print(mid)
+#print(end)
+
+
+#print(rd.ldata[de_load].groupby('utc_timestamp.year').mean().values) % TODO plot, maybe bars?
 #rd._csv_to_nc()
 #print(rd.val4time(de_load,datetime(2017,12,1,12)))
 #print(rd.get_coords())

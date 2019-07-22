@@ -1,11 +1,14 @@
-from glob_vars import demography_file,lon_col,lat_col,nuts3_01res_shape,figure_path
+from glob_vars import demography_file,lon_col,lat_col,nuts3_01res_shape,figure_path,de_load
+from LoadReader import LoadReader
 
 import os
 import numpy as np
 import pandas as pd
 import shapefile as shp
+from datetime import datetime
 from descartes import PolygonPatch
 from matplotlib import pyplot as plt, cm, colors
+from statsmodels.graphics.tsaplots import plot_acf,plot_pacf
 
 
 class Utility:
@@ -26,12 +29,29 @@ class Utility:
         demo_df['Value'] = demo_df['Value'].map(lambda val: pd.NaT if val == ':' else float(val.replace(',','')))
         self.demo_df = demo_df
     
+    def __save_show_fig(self,fig,dir_pth,file_name):
+        """TODO
+        
+        """
+        if self.save:
+            print(f'saving plot in {file_name}')
+            if not os.path.exists(dir_pth):
+                os.makedirs(dir_pth)
+            if type(self.fmt) is list:
+                for f in self.fmt:
+                    fig.savefig(f'{file_name}.{f}', bbox_inches='tight', format=f, optimize=True, dpi=150)
+            else:
+                fig.savefig(f'{file_name}.{self.fmt}', bbox_inches='tight', format=self.fmt, optimize=True, dpi=150)
+        if self.show:
+            plt.show()
+        plt.close(fig)
+    
     def demo_for_year(self,year):
         """TODO
         
         """
         df = self.demo_df[self.demo_df['TIME'] == year]
-        values = pd.array([df.loc[region.record['NUTS_ID'],:]['Value'] for region in self.regions])
+        values = np.array([df.loc[region.record['NUTS_ID'],:]['Value'] for region in self.regions]) / 1000
         _min = values.min()
         _max = values.max()
         
@@ -46,28 +66,59 @@ class Utility:
         norm = colors.BoundaryNorm(cbox_bound, ncolors=256)
         sm = cm.ScalarMappable(norm=norm,cmap=cm.get_cmap('jet'))
         cbar = plt.colorbar(sm)
-        cbar.set_label('inhabitants')
+        cbar.set_label('inhabitants (in 1k)')
         
         for value,region in zip(values,self.regions):
             ax.add_patch(PolygonPatch(region.shape.__geo_interface__,fc=sm.to_rgba(value),ec='none'))
-            
-        if self.save:
-            dir_pth = f'{figure_path}demo/'
-            file_name = f'{dir_pth}demo{year}_logscale'
-            print(f'saving plot for {year} in {file_name}')
-            if not os.path.exists(dir_pth):
-                os.makedirs(dir_pth)
-            if type(self.fmt) is list:
-                for f in self.fmt:
-                    fig.savefig(f'{file_name}.{f}', bbox_inches='tight', format=f, optimize=True, dpi=150)
-            else:
-                fig.savefig(f'{file_name}.{self.fmt}', bbox_inches='tight', format=self.fmt, optimize=True, dpi=150)
-        if self.show:
-            plt.show()        
-        plt.close(fig)
+        
+        dir_pth = f'{figure_path}demo/'
+        file_name = f'{dir_pth}demo{year}_logscale'
+        
+        self.__save_show_fig(fig, dir_pth, file_name)
+    
+    def plot_load_acf(self,start,stop,lags=84,ndiff=0):
+        """TODO
+        
+        """
+        rd = LoadReader()
+        data = rd.vals4step(de_load,step=2).interpolate_na(dim='utc_timestamp',method='linear').diff(dim='utc_timestamp',n=ndiff).values
+        
+        fig = plot_acf(data,fft=True,use_vlines=True,lags=lags)
+        
+        dir_pth = f'{figure_path}ACF/'
+        file_name = f'{dir_pth}load_{lags}lags_ndiff{ndiff}'
+        
+        self.__save_show_fig(fig, dir_pth, file_name)
+    
+    def plot_load_pacf(self,start,stop,lags=84,ndiff=0):
+        """TODO
+        
+        """
+        rd = LoadReader()
+        data = rd.vals4step(de_load,step=2).interpolate_na(dim='utc_timestamp',method='linear').diff(dim='utc_timestamp',n=ndiff).values
+        
+        fig = plot_pacf(data,use_vlines=True,lags=lags)
+        
+        dir_pth = f'{figure_path}PACF/'
+        file_name = f'{dir_pth}load_{lags}lags_ndiff{ndiff}'
+        
+        self.__save_show_fig(fig, dir_pth, file_name)
+        
+
 
 ut = Utility(save=True,show=True)
-ut.demo_for_year(2018)
+
+#fig = plot_pacf(data,use_vlines=True,lags=84)
+#plt.show()
+ut.plot_load_pacf(datetime(2015,1,1),datetime(2017,12,31),ndiff=84)
+
+
+#rd = LoadReader()
+#data = rd.vals4step(de_load,step=2).interpolate_na(dim='utc_timestamp',method='linear').diff(dim='utc_timestamp',n=1).values
+#plt.plot(data)
+#plt.show()
+
+#ut.demo_for_year(2016)
 
 #sf = shp.Reader(nuts3_01res_shape)
 #records = [rec for rec in sf.shapeRecords() if rec.record['CNTR_CODE'] == 'DE']

@@ -15,22 +15,14 @@ It must be mentioned that, as the data used has been reanalized, so the expected
 
 As data parameters there are also longitude and latitude, where the longitude is chosen to be from 5.5 to 15.5 and the latitude from 47 to 55.5. As the resolution of the used grid is at 0.25°, this results in a total of 1435 grid points per timestamp. As the range of the data from \acrshort{ecmwf} extends from 2015/1/1 to 2019/3/31(TODO update), there is a total of 1551 days with each 12 timestamps due to the 2 hours frequency and thus 18612 timestamps. Considering that there is a value for each point in the grid and every timestamp, there are 26708220 values for each variable.\\
 
-In order to reduce complexity, a shapefile of the \acrshort{nuts} dataset was used. The shapefile contains all countries in the EU. The shape of germany was filtered from this data and each point in the \acrshort{ecmwf} dataset is checked wether it is within germany or not. The result can be seen in \Cref{fig:isin}.\\
+Plotting the data on a map results in a result as can be seen in \Cref{fig:0_2017010702_20190617161317} and \Cref{fig:maxvar4_maps}. In this case the temperature measured at 2 meters height is visualized.\\
 
-
-\begin{figure}[h!]%
-\centering
-\includegraphics[width=0.8\textwidth]{plots/isin}%
-\caption{2D boolean numpy.ndarray used to filter grid squares that are within germany. It was created by using a shapefile of germany (TODO insert source \url{https://ec.europa.eu/eurostat/cache/GISCO/distribution/v2/nuts/nuts-2016-files.html}) and checking for each point of the grid if it is within the shapefile. (TODO shorter explanation, put explanation in text)}%
-\label{fig:isin}%
-\end{figure}
-
-\begin{figure}[h!]%
-\centering
-\includegraphics[width=\textwidth]{plots/0_2017010702_20190617161317}%
-\caption{Map showing day with lowest temperature in germany.}%
-\label{fig:0_2017010702_20190617161317}%
-\end{figure}
+%\begin{figure}[h!]%
+%\centering
+%\includegraphics[width=\textwidth]{plots/0_2017010702_20190617161317}%
+%\caption{Map showing day with lowest temperature in germany.}%
+%\label{fig:0_2017010702_20190617161317}%
+%\end{figure}
 
 \begin{figure}[h!]%
 \centering
@@ -39,13 +31,31 @@ In order to reduce complexity, a shapefile of the \acrshort{nuts} dataset was us
 \label{fig:maxvar4_maps}%
 \end{figure}
 
+In order to reduce complexity, a shapefile of the \acrshort{nuts} dataset was used. The shapefile contains all countries in the EU. The shape of germany was filtered from this data and each point in the dataset is checked wether it is within germany or not. The result can be seen in \Cref{fig:isinDE}. The filtered map first is saved in a numpy.ndarray and then applied on the data to mask unwanted data visualized in \Cref{fig:t2m_maxvar_0_map_isin}.\\
 
+\begin{figure}[h!]%
+	\centering
+	\begin{subfigure}{.5\textwidth}
+		\centering
+		\includegraphics[width=.85\textwidth]{plots/isinDE}%
+		\label{fig:isinDE}%
+	\end{subfigure}%
+	\begin{subfigure}{.5\textwidth}
+		\centering
+		\includegraphics[width=1.1\textwidth]{plots/t2m/maxvar/0_map_isin}%
+		\label{fig:t2m_maxvar_0_map_isin}%
+	\end{subfigure}
+	\caption[2D boolean numpy.ndarray used to filter grid squares that are within germany. It was created by using a shapefile of germany and checking for each point of the grid if it is within the shapefile.]{2D boolean numpy.ndarray used to filter grid squares that are within germany. It was created by using a shapefile of germany from \tcite{eurostat} and checking for each point of the grid wether it is within the shape.}
+	\label{fig:isin_compare}
+\end{figure}
+
+The initial dataset contains a set of variables listed in \Cref{tab:wvars} where also the units, min and max are shown for each variable respectively.\\
 
 \begin{table}[h!]%
-\rowcolors{2}{gray!25}{white}
+\rowcolors{2}{white}{gray!25}
 \centering
 \footnotesize
-\begin{tabular}{llrr}
+\begin{tabularx}{\linewidth}{LLrr}
 \tablehead variable name & \tablehead units & \tablehead min & \tablehead max \\\hline
 10 metre U wind component & $m~s^{-1}$ & -18.56 & 21.92 \\
 10 metre V wind component & $m~s^{-1}$ & -21.51 & 20.00 \\
@@ -60,7 +70,7 @@ Surface sensible heat flux & $J~m^{-2}$ & -1703159.00 & 801354.00 \\
 Total cloud cover & $(0~-~1)$ & 0.00 & 1.00 \\
 Total column rain water & $kg~m^{-2}$ & 0.00 & 2.73 \\
 Total sky direct solar radiation at surface & $J~m^{-2}$ & -0.12 & 3088320.00 \\
-\end{tabular}
+\end{tabularx}
 \caption[List of exogenous weather variables used to forecast the load including min, max values from \gls{ecmwf}.]{List of exogenous weather variables used to forecast the load including min, max values from \tcite{ecmwf}.}
 \label{tab:wvars}
 \end{table}
@@ -68,15 +78,31 @@ Total sky direct solar radiation at surface & $J~m^{-2}$ & -0.12 & 3088320.00 \\
 
 \subsection{Load data}
 
+Besides weather data used to refine the forecasting results, also historic load data was needed. Therefor data has been retained from \tcite{opsdata}. \Cref{fig:t2m_mean_2015010112_2018123112_24F} shows the distribution of loads over time with one point per day at 12am utc time. The color shows the mean temperature measured at 2 meters height.\\
+
+%\begin{figure}[h!]%
+%\centering
+%\includegraphics[width=\textheight,angle=-90,origin=c]{plots/t2m_mean_2015010112_2018123112_24F}%
+%\caption{Load curve with mean of 2 meter height measured temperature in germany as color from 2015/1/1 to 2018/12/31 with one single point per day at 12am utc time respectively.}%
+%\label{fig:t2m_mean_2015010112_2018123112_24F}%
+%\end{figure}
+
 \begin{figure}[h!]%
-\centering
-\includegraphics[width=\textheight,angle=-90,origin=c]{plots/t2m_mean_2015010112_2018123112_24F}%
-\caption{Load curve with mean of 2 meter height measured temperature in germany as color from 2015/1/1 to 2018/12/31 with one single point per day at 12am utc time respectively.}%
-\label{fig:t2m_mean_2015010112_2018123112_24F}%
+	\centering
+	\begin{subfigure}{.5\textwidth}
+		\centering
+		\includegraphics[width=2.9\textwidth,angle=-90,origin=c]{plots/plot_load_time_func/t2m_mean_18A5_2017010112_2018123112_24F}%
+		\label{fig:t2m_mean_18A5_2017010112_2018123112_24F}%
+	\end{subfigure}%
+	\begin{subfigure}{.5\textwidth}
+		\centering
+		\includegraphics[width=2.9\textwidth,angle=-90,origin=c]{plots/plot_load_time_func/t2m_mean_18A5_2015010112_2016123112_24F}%
+		\label{fig:t2m_mean_18A5_2015010112_2016123112_24F}%
+	\end{subfigure}
+	\caption{Load curve with mean of 2 meter height measured temperature in germany as color from 2015/1/1 to 2018/12/31 with one single point per day at 12am utc time respectively.}
+	\label{fig:t2m_mean_18A5_twofold_24F}
 \end{figure}
 
-The load data has been retained from \tcite{opsdata}.\\
-\Cref{fig:t2m_mean_2015010112_2018123112_24F} shows the distribution of loads over time with one point per day at 12am utc time. The color shows the mean temperature measured at 2 meters height.\\
 
 %Describe the data set you are using. Use appropriate visualization (\eg graphs, statistical summaries \etc) to help the reader get to know your data set.
 
@@ -84,6 +110,8 @@ The load data has been retained from \tcite{opsdata}.\\
 
 
 \subsection{Population}
+
+For further improvement and in order to figure out important point in the grid, population data for germany has been  selected from \tcite{eurostat}.\\
 
 \begin{figure}[h!]%
 \centering

@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-from glob_vars import lon_col, lat_col, era5_path, nuts0_shape
+from glob_vars import lon_col,lat_col,era5_path,nuts0_shape,nuts0_10res_shape,data_path
 
 import os
 import re
@@ -73,7 +73,13 @@ class WeatherReader:
         """
         assert name in self.var_names, f'column {name} not found'
         
-        return self.wdata[name].reduce(func, dim=[lon_col,lat_col])
+        try:
+            contained = np.load(f'{data_path}isin.npy')
+        except:
+            print(f'isin file not found in {data_path}')
+            contained = self.check_isinDE()
+        
+        return self.wdata[name].where(contained,other=np.nan,drop=False).reduce(func, dim=[lon_col,lat_col])
     
     def get_size(self):
         """Returns shape of whole data"""
@@ -195,12 +201,11 @@ class WeatherReader:
         
         Returns
         -------
-        tuple of :
+        xarray.DataArray :
             2D data with values for variable over latitude and longitude
             long name of variable
         
-        is supposed to return a tuple of:
-        dataframe containing values of desired variable ready for plotting with imshow
+        ready for plotting with imshow
         """
         assert name in self.var_names, f'column {name} not found'
 
@@ -210,7 +215,39 @@ class WeatherReader:
         data.attrs.update({'vmin':np.floor(self.wdata[name].min().values),'vmax':np.ceil(self.wdata[name].max().values)})
         
         return data
+    
+    def vals4time_isin(self, name, datetime):
+        """Returns the values for specified variable and time filtered by wether they are within DE or not
         
+        Parameters
+        ----------
+        name     : string
+                   name of variable in nc file that should be contained in df
+        datetime : datetime.datetime
+                   the specified datetime for which the data is returned
+        
+        Returns
+        -------
+        xarray.DataArray :
+            2D data with values for variable over latitude and longitude
+            long name of variable, values not within DE are NaN
+        
+        ready for plotting with imshow
+        """
+        assert name in self.var_names, f'column {name} not found'
+        
+        try:
+            contained = np.load(f'{data_path}isin.npy')
+        except:
+            print(f'isin file not found in {data_path}')
+            contained = self.check_isinDE()
+
+        # filter data by name and time and after that apply filter to get only values within DE
+        data = self.wdata[name].sel(time=datetime).where(contained,other=np.nan,drop=False)
+        # update DataArray attributes to add min and max values for complete time
+        data.attrs.update({'vmin':np.floor(self.wdata[name].min().values),'vmax':np.ceil(self.wdata[name].max().values)})
+        
+        return data
 
     def val4postime(self, name, lon, lat, dtime):
         """Returns value for variable at geographic position at specific time
@@ -306,7 +343,7 @@ class WeatherReader:
         """
         assert name in self.var_names, f'column {name} not found'
         
-        return self.reduce_lonlat(name, np.var)
+        return self.reduce_lonlat(name, np.nanvar)
     
     def nmin_val_days(self, name, n=4):
         """Returns n min value days reduced with np.min along
@@ -319,7 +356,7 @@ class WeatherReader:
         n    : integer
                specifies number of days to return
         """
-        return self.__nmin_reduce_days(name, np.min, n)
+        return self.__nmin_reduce_days(name, np.nanmin, n)
 
     def nmax_val_days(self, name, n=4):
         """Returns n max value days reduced with np.min along
@@ -332,7 +369,7 @@ class WeatherReader:
         n    : integer
                specifies number of days to return
         """
-        return self.__nmax_reduce_days(name, np.min, n)
+        return self.__nmax_reduce_days(name, np.nanmin, n)
     
     def nminvar_val_days(self, name, n=4):
         """Returns n min value days reduced with np.var along
@@ -345,7 +382,7 @@ class WeatherReader:
         n    : integer
                specifies number of days to return
         """
-        return self.__nmin_reduce_days(name, np.var, n)
+        return self.__nmin_reduce_days(name, np.nanvar, n)
     
     def nmaxvar_val_days(self, name, n=4):
         """Returns n max value days reduced with np.var along
@@ -358,7 +395,7 @@ class WeatherReader:
         n    : integer
                specifies number of days to return
         """
-        return self.__nmax_reduce_days(name, np.var, n)
+        return self.__nmax_reduce_days(name, np.nanvar, n)
     
     def nminmean_val_days(self, name, n=4):
         """Returns n min value days reduced with np.mean along
@@ -371,7 +408,7 @@ class WeatherReader:
         n    : integer
                specifies number of days to return
         """
-        return self.__nmin_reduce_days(name, np.mean, n)
+        return self.__nmin_reduce_days(name, np.nanmean, n)
     
     def nmaxmean_val_days(self, name, n=4):
         """Returns n max value days reduced with np.mean along
@@ -384,7 +421,7 @@ class WeatherReader:
         n    : integer
                specifies number of days to return
         """
-        return self.__nmax_reduce_days(name, np.mean, n)
+        return self.__nmax_reduce_days(name, np.nanmean, n)
     
     def nminmed_val_days(self, name, n=4):
         """Returns n min value days reduced with np.median along
@@ -397,7 +434,7 @@ class WeatherReader:
         n    : integer
                specifies number of days to return
         """
-        return self.__nmin_reduce_days(name, np.median, n)
+        return self.__nmin_reduce_days(name, np.nanmedian, n)
     
     def nmaxmed_val_days(self, name, n=4):
         """Returns n max value days reduced with np.median along
@@ -410,7 +447,7 @@ class WeatherReader:
         n    : integer
                specifies number of days to return
         """
-        return self.__nmax_reduce_days(name, np.median, n)
+        return self.__nmax_reduce_days(name, np.nanmedian, n)
     
     def nminsum_val_days(self, name, n=4):
         """Returns n min value days reduced with np.sum along
@@ -423,7 +460,7 @@ class WeatherReader:
         n    : integer
                specifies number of days to return
         """
-        return self.__nmin_reduce_days(name, np.mean, n)
+        return self.__nmin_reduce_days(name, np.nanmean, n)
     
     def nmaxsum_val_days(self, name, n=4):
         """Returns n max value days reduced with np.sum along
@@ -436,10 +473,29 @@ class WeatherReader:
         n    : integer
                specifies number of days to return
         """
-        return self.__nmax_reduce_days(name, np.mean, n)
+        return self.__nmax_reduce_days(name, np.nanmean, n)
     
 
-rd = WeatherReader()
+#rd = WeatherReader()
+#from matplotlib import pyplot as plt
+#from glob_vars import bbox
+#import xarray as xr
+#eu_shape = shp.Reader(nuts0_shape)
+
+#plt.imshow(rd.check_isinDE(),extent=bbox)
+
+#for record in eu_shape.shapeRecords():
+    #if 'DE' in record.record:
+        #de_shape = record
+        #break
+#state = de_shape.shape
+#points = np.array(state.points)
+#intervals = list(state.parts) + [len(state.points)]
+#for (x, y) in zip(intervals[:-1], intervals[1:]):
+    #plt.plot(*zip(*points[x:y]), color='k', linewidth=2)
+
+#plt.show()
+
 #print(rd.nmaxvar_val_days('t2m',50)['time'].values)
 #rd.print_vars_texfmt()
 #print(rd.get_date_bounds())
