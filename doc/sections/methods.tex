@@ -2,32 +2,39 @@
 \label{ch:methods}
 
 %This chapter should introduce to the theoretical background of your thesis. Any method you use to obtain the results later should be introduced and explained. 
+In this chapter, the used forecasting methods are explained more in detail and why they were used, but also other methodological aspects of this thesis will be outlined.\\
 
-Using weather data from ECMWF Copernicus Climate Change Service (C3S).\\
-Using load data from \url{https://data.open-power-system-data.org/}.\\
-First downloaded whole Datasets from 2006-2019, but as the load for germany is properly available since 2015, now reduced dataset to 2015-2019.\\
-Also checked for non-existing values, only 2 last timestamps values for the load are missing.\\
+%Using weather data from ECMWF Copernicus Climate Change Service (C3S).\\
+%Using load data from \url{https://data.open-power-system-data.org/}.\\
+%First downloaded whole Datasets from 2006-2019, but as the load for germany is properly available since 2015, now reduced dataset to 2015-2019.\\
+%Also checked for non-existing values, only 2 last timestamps values for the load are missing.\\
 
-\section{Method 1}
+\section{Data aquisition}
 
-Maybe use Random Forests for variable selection as in Nicoles paper? \Parencite{Ludwig2015}\\
+In order to aquire the needed weather data, \gls{ecmwf}'s Python-API has been used for automated data aquisition.\\
+
+\section{ARIMA}
+
+One of the most frequently used methods for forecasting in time series forecasting is \gls{arma}, which is a combination of \gls{ar} and \gls{ma} terms. \gls{arima} is quite similar to this, but also involves a differenciation term to consider the trend of past data.\\
+
+%Maybe use Random Forests for variable selection as in Nicoles paper? \Parencite{Ludwig2015}\\
 
 %This is an example for a simple equation without equation numbering.
 %$$
 %\sum\limits_{i=1}^{n}{x_i}
 %$$
 
-You can also use equation numbering if you need to refer to an equation later \eg \Cref{eq:ex1}.
+%You can also use equation numbering if you need to refer to an equation later \eg \Cref{eq:ex1}.
 
 
-\begin{equation}
-a^2 + b^2 = c^2
-\label{eq:ex1}
-\end{equation}
-
-Additionally, simple equations can be put inline with the text, for example, $x \in X$. Remember to set all variables in math font \ie all $x$, $i$ and so on.
-
-\section{Method 2}
-
-\dots
+%\begin{equation}
+%a^2 + b^2 = c^2
+%\label{eq:ex1}
+%\end{equation}
+%
+%Additionally, simple equations can be put inline with the text, for example, $x \in X$. Remember to set all variables in math font \ie all $x$, $i$ and so on.
+%
+%\section{Method 2}
+%
+%\dots
 
