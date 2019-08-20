@@ -71,8 +71,8 @@ class Utility:
         for value,region in zip(values,self.regions):
             ax.add_patch(PolygonPatch(region.shape.__geo_interface__,fc=sm.to_rgba(value),ec='none'))
         
-        dir_pth = f'{figure_path}demo/'
-        file_name = f'{dir_pth}demo{year}_logscale'
+        dir_pth = os.path.join(figure_path,'demo')
+        file_name = os.path.join(dir_pth,f'demo{year}_logscale')
         
         self.__save_show_fig(fig, dir_pth, file_name)
     
@@ -85,9 +85,8 @@ class Utility:
         
         fig = plot_acf(data,fft=True,use_vlines=True,lags=lags)
         
-        dir_pth = f'{figure_path}ACF/'
-        file_name = f'{dir_pth}load_{lags}lags_ndiff{ndiff}_hstep{hour_steps}'
-        
+        dir_pth = os.path.join(figure_path,'ACF')
+        file_name = os.path.join(dir_pth,f'load_{lags}lags_ndiff{ndiff}_hstep{hour_steps}')
         self.__save_show_fig(fig, dir_pth, file_name)
     
     def plot_load_pacf(self,start,stop,lags=42,hour_steps=1,ndiff=0):
@@ -99,9 +98,8 @@ class Utility:
         
         fig = plot_pacf(data,use_vlines=True,lags=lags)
         
-        dir_pth = f'{figure_path}PACF/'
-        file_name = f'{dir_pth}load_{lags}lags_ndiff{ndiff}_hstep{hour_steps}'
-        
+        dir_pth = os.path.join(figure_path,'PACF')
+        file_name = os.path.join(dir_pth,f'load_{lags}lags_ndiff{ndiff}_hstep{hour_steps}')
         self.__save_show_fig(fig, dir_pth, file_name)
         
 

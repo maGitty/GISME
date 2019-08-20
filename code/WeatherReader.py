@@ -21,7 +21,7 @@ class WeatherReader:
         assert os.path.exists(era5_path), 'path to weather data does not exist'
         
         self.isin = isin
-        self.filename = f'{era5_path}*.nc'
+        self.filename = os.path.join(era5_path,'*.nc')
         with xr.open_mfdataset(self.filename) as nc_file:
             # drop times where no data is available, until now only seen at the end of the dataset
             self.wdata = nc_file #.dropna('time') # drops times with no values, carefully use, might throw away single points somewhere
@@ -76,7 +76,7 @@ class WeatherReader:
         
         if self.isin:
             try:
-                contained = np.load(f'{data_path}isin.npy')
+                contained = np.load(os.path.join(data_path,'isin.npy'))
             except:
                 print(f'isin file not found in {data_path}')
                 contained = self.check_isinDE()
@@ -183,7 +183,7 @@ class WeatherReader:
         contains = np.vectorize(lambda p: p.within(poly) or p.touches(poly))
     
         contained = contains(coords)
-        np.save(f'{data_path}isin', contained)
+        np.save(os.path.join(data_path,'isin'), contained)
         
         return contained
     
@@ -219,7 +219,7 @@ class WeatherReader:
         
         if isin:
             try:
-                contained = np.load(f'{data_path}isin.npy')
+                contained = np.load(os.path.join(data_path,'isin.npy'))
             except:
                 print(f'isin file not found in {data_path}')
                 contained = self.check_isinDE()

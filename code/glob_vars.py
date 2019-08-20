@@ -1,23 +1,24 @@
 #!/usr/bin/python3
 
 from pathlib import Path
+import os
 
 # paths
-data_path = str(Path.home()) + '/Dropbox/data/'
+data_path = os.path.join(str(Path.home()),'Dropbox','data')
 #figure_path = data_path + 'figures/'
-load_path = data_path + 'power_load/time_series_15min_singleindex_filtered.nc'
-era5_path = data_path + 'ecmwf/'
-shape_path = data_path + 'shapes/'
-nuts0_shape = shape_path + 'NUTS_RG_60M_2016_4326_LEVL_0.shp'
-nuts0_10res_shape = shape_path  + 'NUTS_RG_10M_2016_4326_LEVL_0.shp'
-nuts3_01res_shape = shape_path + 'NUTS_RG_01M_2016_4326_LEVL_3.shp'
-nuts3_10res_shape = shape_path + 'NUTS_RG_10M_2016_4326_LEVL_3.shp'
-nuts3_20res_shape = shape_path + 'NUTS_RG_20M_2016_4326_LEVL_3.shp'
-nuts3_60res_shape = shape_path + 'NUTS_RG_60M_2016_4326_LEVL_3.shp'
-demography_file = data_path + 'demo_r_pjangrp3/demo_r_pjangrp3_1_Data.csv'
+load_path = os.path.join(data_path,'power_load','time_series_15min_singleindex_filtered.nc')
+era5_path = os.path.join(data_path,'ecmwf')
+shape_path = os.path.join(data_path,'shapes')
+nuts0_shape = os.path.join(shape_path,'NUTS_RG_60M_2016_4326_LEVL_0.shp')
+nuts0_10res_shape = os.path.join(shape_path,'NUTS_RG_10M_2016_4326_LEVL_0.shp')
+nuts3_01res_shape = os.path.join(shape_path,'NUTS_RG_01M_2016_4326_LEVL_3.shp')
+nuts3_10res_shape = os.path.join(shape_path,'NUTS_RG_10M_2016_4326_LEVL_3.shp')
+nuts3_20res_shape = os.path.join(shape_path,'NUTS_RG_20M_2016_4326_LEVL_3.shp')
+nuts3_60res_shape = os.path.join(shape_path,'NUTS_RG_60M_2016_4326_LEVL_3.shp')
+demography_file = os.path.join(data_path,'demo_r_pjangrp3/demo_r_pjangrp3_1_Data.csv')
 
-thesis_path = str(Path.home()) + '/Repos/GISME/doc/'
-figure_path = thesis_path + 'plots/'
+thesis_path = os.path.join(str(Path.home()),'Repos','GISME','doc')
+figure_path = os.path.join(thesis_path,'plots')
 
 # names/labels
 era5_prefix = 'GridOneDayAhead_'

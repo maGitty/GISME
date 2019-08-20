@@ -34,9 +34,28 @@ One of the most frequently used methods for forecasting in time series forecasti
 \subsubsection{additional weather variables as exogenous inputs}
 
 \section{Feature Selection}
+\label{sec:featsel}
 
 \subsection{Principal Component Analysis}
 
+\section{Forecast Evaluation}
+\label{sec:fceval}
+
+\subsection{Root Mean Squared Error}
+
+\begin{equation}
+RMSE = \sqrt{\frac{1}{n} \sum_{i=1}^{n} (a_i-p_i)^2}
+\end{equation}
+
+With $n$ for the size, a for the actual values and p for predicted values.\\
+
+\subsection{Mean Absolute Percentage Error}
+
+\begin{equation}
+MAPE = \frac{1}{n}\times 100 \sum_{i=1}^{n} \left|\frac{a_i-p_i}{a_i}\right|
+\end{equation}
+
+With $n$ for the size, a for the actual values and p for predicted values.\\
 
 %Maybe use Random Forests for variable selection as in Nicoles paper? \Parencite{Ludwig2015}\\
 
