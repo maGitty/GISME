@@ -4,15 +4,16 @@ from glob_vars import (figure_path,lon_col,lat_col,de_load,hertz_load,amprion_lo
                        tennet_load,transnet_load,bbox,variable_dictionary,data_path,nuts3_01res_shape,nuts0_shape)
 from WeatherReader import WeatherReader
 from LoadReader import LoadReader
+from Predictions import ARMA_forecast
 
 import os
 import math
 import pandas as pd
 import numpy as np
 import shapefile as shp
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 from descartes import PolygonPatch
-from matplotlib import pyplot as plt, colors, ticker, cm, markers
+from matplotlib import pyplot as plt, colors, ticker, cm, markers,rc,rcParams
 #import seaborn as sns
 #import xarray as xr
 #from calendar import monthrange
@@ -20,6 +21,13 @@ from matplotlib import pyplot as plt, colors, ticker, cm, markers
 
 from pandas.plotting import register_matplotlib_converters
 register_matplotlib_converters()
+
+#rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
+### for Palatino and other serif fonts use:
+##rc('font',**{'family':'serif','serif':['Palatino']})
+#rc('text', usetex=True)
+#plt.rc('text', usetex=True)
+#plt.rc('font', family='serif')
 
 
 class DataPlotter:
@@ -47,12 +55,18 @@ class DataPlotter:
         None
         """
         self.fmt = fmt
-        self.wreader = WeatherReader()
-        self.lreader = LoadReader()
         self.save = save
         self.show = show
         self.shape = shape
         self.isin = isin
+        self.wreader = WeatherReader(self.isin)
+        self.lreader = LoadReader()
+        
+        # change font size depending on size of plot
+        #if self.shape is not None:
+            #rcParams.update({'font.size': 18./np.round(np.sqrt(self.shape[0]*self.shape[1]))})
+        #else:
+            #rcParams.update({'font.size': 18.})
     
     def __save_show_fig(self,fig,dir_pth,file_name):
         """TODO
@@ -72,12 +86,12 @@ class DataPlotter:
         # close figures as they won't be closed automatically by python during runtime
         plt.close(fig)
     
-    def __create_fig_map(self,ax,variable,day,norm,xlbl_true=None,ylbl_true=None):
+    def __create_ax_map(self,ax,variable,day,norm,xlbl_true=None,ylbl_true=None):
         """TODO
         
         """
         if self.isin:
-            data = self.wreader.vals4time_isin(variable,day)
+            data = self.wreader.vals4time(variable,day,isin=True)
             #img = ax.imshow(data.values, cmap='jet', extent=bbox, norm=norm)
             img = data.plot.imshow(ax=ax,cmap='jet', extent=bbox, norm=norm, add_colorbar=False)
         else:
@@ -97,14 +111,18 @@ class DataPlotter:
         points = np.array(state.points)
         intervals = list(state.parts) + [len(state.points)]
         for (x, y) in zip(intervals[:-1], intervals[1:]):
-            plt.plot(*zip(*points[x:y]), color='k', linewidth=2)
-                
+            ax.plot(*zip(*points[x:y]), color='k', linewidth=2)
+
         ax.set_title(pd.to_datetime(day).strftime("%Y/%m/%d %HH"))
         # print x and y label only if is most left/lowest plot
         if xlbl_true:
             ax.set_xlabel(lon_col)
+        else:
+            ax.set_xlabel(None)
         if ylbl_true:
             ax.set_ylabel(lat_col)
+        else:
+            ax.set_ylabel(None)
         
         # set ticks for x and y in order to display the grid
         xticks = np.linspace(bbox[0],bbox[1],(bbox[1]-bbox[0])*4+1)
@@ -163,7 +181,7 @@ class DataPlotter:
                 for ycoord in range(0,self.shape[0]):
                     ax = axs[xcoord,ycoord]
                     day = day_list.pop()
-                    self.__create_fig_map(ax, var, day,norm,xcoord==(self.shape[1]-1),ycoord==0)
+                    self.__create_ax_map(ax, var, day,norm,xcoord==(self.shape[1]-1),ycoord==0)
             cbar = fig.colorbar(smap, ticks=cbox_ticks, ax=axs.ravel().tolist())
             cbar.set_label(self.wreader.get_long_name(var))
             
@@ -175,7 +193,7 @@ class DataPlotter:
             for day_num, day in enumerate(days["time"].values):
                 fig, ax = plt.subplots()
                 
-                self.__create_fig_map(ax, var, day, norm, xlbl_true=True, ylbl_true=True)
+                self.__create_ax_map(ax, var, day, norm, xlbl_true=True, ylbl_true=True)
     
                 cbar = fig.colorbar(smap,ticks=cbox_ticks)
                 cbar.set_label(self.wreader.get_long_name(var))
@@ -398,6 +416,9 @@ class DataPlotter:
         fig,ax = plt.subplots()
         ax.imshow(contained,cmap=plt.cm.gray, extent=bbox)
         
+        ax.set_ylabel(lat_col)
+        ax.set_xlabel(lon_col)
+        
         file_name = figure_path + 'isinDE'
         self.__save_show_fig(fig, figure_path, file_name)
     
@@ -509,7 +530,37 @@ class DataPlotter:
             
         dir_pth = figure_path + 'load_plot/'
         file_name = f'{dir_pth}{"_".join([varname[:7] for varname in var])}_{aspect[0]}A{aspect[1]}_'\
-                     '{start.strftime("%Y%m%d%H")}_{stop.strftime("%Y%m%d%H")}_{freq}F'
+                     f'{start.strftime("%Y%m%d%H")}_{stop.strftime("%Y%m%d%H")}_{freq}F'
+        self.__save_show_fig(fig, dir_pth, file_name)
+        
+    def plot_arma_forecast(self,t_start,t_stop,forecast_end,p,q,hours_range=[1,6,24]):
+        """TODO
+        
+        """
+        t_range = pd.date_range(t_start,t_stop,freq='1H')
+        tstart = datetime(2015,1,1,0)
+        
+        arma = ARMA_forecast(t_start,t_stop,3,3)
+        arma.train()
+        
+        fc_end = t_stop+timedelta(weeks=1)
+        forecast1W = arma.predict_range(fc_end,hours_range)
+        data = self.lreader.vals4slice(de_load,t_stop,fc_end,step=1)
+        fc_range = pd.date_range(t_stop,fc_end,freq='1H')
+        
+        fig,ax = plt.subplots()        
+        for i,hours in enumerate(hours_range):
+            ax.plot(fc_range,forecast1W[i], label=f'{hours}H forecast')
+        ax.plot(fc_range,data, label='actual value')
+
+        ax.set_ylabel('load [MW]')
+        plt.setp(ax.get_xticklabels(), rotation=30, horizontalalignment='right')
+        
+        plt.legend()
+        plt.show()
+        
+        dir_pth = f'{figure_path}ARMAfc/'
+        file_name = f'{dir_pth}ARMA_p{p}q{q}_data{t_start.strftime("%Y%m%d%H")}to{t_stop.strftime("%Y%m%d%H")}_fcto{fc_end.strftime("%Y%m%d%H")}'
         self.__save_show_fig(fig, dir_pth, file_name)
 
 
@@ -524,11 +575,18 @@ start = pd.Timestamp(2015,1,1,12)
 stop = pd.Timestamp(2016,12,31,12)
 #start = pd.Timestamp(2017,1,1,12)
 #stop = pd.Timestamp(2018,12,31,12)
-freq = 24
+# freq = 24
 
-pl = DataPlotter(fmt,save=True,show=False,isin=True)#,shape=(2,2))
+pl = DataPlotter(fmt,save=True,show=True,isin=True)#,shape=(2,2))
 
-rd= WeatherReader()
+t_start = pd.Timestamp(2015,1,1,0)
+t_stop = pd.Timestamp(2018,1,1,0)
+
+#arima = ARIMA_forecast()
+#arima.load('/home/marcel/Dropbox/data/ARIMA_p4d0q2.pkl')
+pl.plot_arma_forecast(t_start, t_stop,t_stop+timedelta(weeks=1),4,2)
+
+# rd= WeatherReader()
 #pl.plot_load([de_load,hertz_load,amprion_load,tennet_load,transnet_load], start, stop)
 #for var in rd.get_vars():
     #for func in funcs:
@@ -536,7 +594,8 @@ rd= WeatherReader()
 
 #pl.plot_load_time_func(var, start, stop, np.mean,aspect=(18,5),skip_bottom_labels=True)
 
-pl.plot_nmax_var(var,1)
+#pl.plot_nmax_var(var,1)
+#pl.plot_nmax_var(var,4)
 #pl.plot_isin()
 #rd = WeatherReader()
 #for var in rd.get_vars():

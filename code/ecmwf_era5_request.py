@@ -75,29 +75,29 @@ def retrieve_year():
             print(f'download not available for {year} in month {month}')
       
             
-client = cdsapi.Client()
-
-years = range(2015,2020)
-months = ['01','02','03','04','05','06','07','08','09','10','11','12']
-# yms consists of a year and a list of months of one half of a year
-# because a the cdsapi refused downloading due to a size limit
-yms = []
-for year in years:
-    for month in months:
-        yms.append((str(year),month))
-yms.pop() # pop first, which is second half of 2019 for which no data exists yet      
-
-###################
-# retrieving data #
-###################
-num_threads = os.cpu_count()
-threads = []
-
-for i in range(10):
-    t = threading.Thread(target=retrieve_year)
-    t.start()
-    threads.append(t)
-
-for t in threads:
-    t.join()
-###################
+# client = cdsapi.Client()
+#
+# years = range(2015,2020)
+# months = ['01','02','03','04','05','06','07','08','09','10','11','12']
+# # yms consists of a year and a list of months of one half of a year
+# # because a the cdsapi refused downloading due to a size limit
+# yms = []
+# for year in years:
+#     for month in months:
+#         yms.append((str(year),month))
+# yms.pop() # pop first, which is second half of 2019 for which no data exists yet
+#
+# ###################
+# # retrieving data #
+# ###################
+# num_threads = os.cpu_count()
+# threads = []
+#
+# for i in range(10):
+#     t = threading.Thread(target=retrieve_year)
+#     t.start()
+#     threads.append(t)
+#
+# for t in threads:
+#     t.join()
+# ###################

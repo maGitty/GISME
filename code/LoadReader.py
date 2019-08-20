@@ -73,7 +73,7 @@ class LoadReader:
         ----------
         name   : string
                  name of the variable
-        time   : pandas.Timestamp or string
+        time   : pandas.Timestamp, string, slice or DatetimeIndex (all arguments taken by xarrays 'sel')
                  time for which value is to be returned
         
         Returns
@@ -102,7 +102,7 @@ class LoadReader:
         -------
         xarray.DataArray containing desired data with respective timestamps
         """
-        assert (name in self.var_names) and (step%2 is 0), f'column {name} not found'
+        assert (name in self.var_names), f'column {name} not found'
         
         if step is None:
             # if no step specified simply return all values between start and stop
@@ -130,7 +130,7 @@ class LoadReader:
         
     
     
-rd = LoadReader()
+# rd = LoadReader()
 
 #start = datetime(2015,1,1)
 #stop = datetime(2017,12,31)

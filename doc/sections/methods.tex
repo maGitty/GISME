@@ -9,13 +9,34 @@ In this chapter, the used forecasting methods are explained more in detail and w
 %First downloaded whole Datasets from 2006-2019, but as the load for germany is properly available since 2015, now reduced dataset to 2015-2019.\\
 %Also checked for non-existing values, only 2 last timestamps values for the load are missing.\\
 
-\section{Data aquisition}
+\section{Data acquisition}
+\label{sec:dataq}
 
-In order to aquire the needed weather data, \gls{ecmwf}'s Python-API has been used for automated data aquisition.\\
+In order to acquire the needed weather data, \gls{ecmwf}'s Python-API has been used for automated data acquisition.\\
 
-\section{ARIMA}
+\section{Forecasting methods}
+\label{sec:forecastmet}
 
-One of the most frequently used methods for forecasting in time series forecasting is \gls{arma}, which is a combination of \gls{ar} and \gls{ma} terms. \gls{arima} is quite similar to this, but also involves a differenciation term to consider the trend of past data.\\
+For time series forecasting, often used methods are e.g.\ \gls{arma} models as mentioned in \tcite{Hyndman2018}, but  also \gls{nn}, where it is common to reduce the number input variables in order to speed up computation, which is desirable for the huge amount of grid-based data that grows quadratically with size. There are also some papers that use regression models other than \gls{arma} such as \gls{lr},\gls{mlr} or \gls{svm}.\\\
+E.g.\ \tcite{Aguiar2016} uses \gls{nn} to do intra-day forecasting of solar radiation within 1-6h on Gran Canaria and, as in this thesis, grid-based data from \gls{ecmwf} is used.\\
+
+\subsection{Linear Regression}
+
+
+\subsection{ARIMA}
+
+One of the most frequently used methods for forecasting in time series forecasting is \gls{arma}, which is a combination of Autoregressive and Moving Average terms. \gls{arima} is quite similar to this, but also involves a differentiation term to consider the trend of past data.\\
+
+\subsection{ARIMAX}
+
+\subsubsection{only calendar variables as exogenous inputs}
+
+\subsubsection{additional weather variables as exogenous inputs}
+
+\section{Feature Selection}
+
+\subsection{Principal Component Analysis}
+
 
 %Maybe use Random Forests for variable selection as in Nicoles paper? \Parencite{Ludwig2015}\\
 
