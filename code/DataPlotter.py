@@ -185,8 +185,8 @@ class DataPlotter:
             cbar = fig.colorbar(smap, ticks=cbox_ticks, ax=axs.ravel().tolist())
             cbar.set_label(self.wreader.get_long_name(var))
             
-            dir_pth = f'{figure_path}{var}/bundles/'
-            file_name = f'{dir_pth}{fname}{len(days)}_maps{"_isin" if self.isin else ""}'
+            dir_pth = os.path.join(figure_path,var,'bundles')
+            file_name = os.path.join(dir_pth,f'{fname}{len(days)}_maps{"_isin" if self.isin else ""}')
             
             self.__save_show_fig(fig, dir_pth, file_name)
         else:
@@ -198,8 +198,8 @@ class DataPlotter:
                 cbar = fig.colorbar(smap,ticks=cbox_ticks)
                 cbar.set_label(self.wreader.get_long_name(var))
         
-                dir_pth = f'{figure_path}{var}/{fname}/'
-                file_name = f'{dir_pth}{day_num}_map{"_isin" if self.isin else ""}'
+                dir_pth = os.path.join(figure_path,var,fname)
+                file_name = os.path.join(dir_pth,f'{day_num}_map{"_isin" if self.isin else ""}')
                 
                 self.__save_show_fig(fig, dir_pth, file_name)
     
@@ -419,7 +419,7 @@ class DataPlotter:
         ax.set_ylabel(lat_col)
         ax.set_xlabel(lon_col)
         
-        file_name = figure_path + 'isinDE'
+        file_name = os.path.join(figure_path,'isinDE')
         self.__save_show_fig(fig, figure_path, file_name)
     
     def plot_load_time_func(self, var, start, stop, func, load_col=de_load, freq=24,aspect=(12,5),skip_bottom_labels=False):
@@ -484,8 +484,8 @@ class DataPlotter:
         else:
             ax.set_xticklabels([])
         
-        dir_pth = figure_path + 'plot_load_time_func/'
-        file_name = f'{dir_pth}{var}_{fname}_{aspect[0]}A{aspect[1]}_{start.strftime("%Y%m%d%H")}_{stop.strftime("%Y%m%d%H")}_{freq}F'
+        dir_pth = os.path.join(figure_path,'plot_load_time_func')
+        file_name = os.path.join(dir_pth,f'{var}_{fname}_{aspect[0]}A{aspect[1]}_{start.strftime("%Y%m%d%H")}_{stop.strftime("%Y%m%d%H")}_{freq}F')
         
         self.__save_show_fig(fig, dir_pth, file_name)
     
@@ -528,9 +528,9 @@ class DataPlotter:
         else:
             ax.set_xticklabels([])
             
-        dir_pth = figure_path + 'load_plot/'
-        file_name = f'{dir_pth}{"_".join([varname[:7] for varname in var])}_{aspect[0]}A{aspect[1]}_'\
-                     f'{start.strftime("%Y%m%d%H")}_{stop.strftime("%Y%m%d%H")}_{freq}F'
+        dir_pth = os.path.join(figure_path,'load_plot')
+        file_name = os.path.join(dir_pth,f'{"_".join([varname[:7] for varname in var])}_{aspect[0]}A{aspect[1]}_'\
+                     f'{start.strftime("%Y%m%d%H")}_{stop.strftime("%Y%m%d%H")}_{freq}F')
         self.__save_show_fig(fig, dir_pth, file_name)
         
     def plot_arma_forecast(self,t_start,t_stop,forecast_end,p,q,hours_range=[1,6,24]):
@@ -559,8 +559,8 @@ class DataPlotter:
         plt.legend()
         plt.show()
         
-        dir_pth = f'{figure_path}ARMAfc/'
-        file_name = f'{dir_pth}ARMA_p{p}q{q}_data{t_start.strftime("%Y%m%d%H")}to{t_stop.strftime("%Y%m%d%H")}_fcto{fc_end.strftime("%Y%m%d%H")}'
+        dir_pth = os.path.join('figure_path','ARMAfc')
+        file_name = os.path.join(dir_pth,f'ARMA_p{p}q{q}_data{t_start.strftime("%Y%m%d%H")}to{t_stop.strftime("%Y%m%d%H")}_fcto{fc_end.strftime("%Y%m%d%H")}')
         self.__save_show_fig(fig, dir_pth, file_name)
 
 

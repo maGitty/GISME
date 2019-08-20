@@ -30,6 +30,18 @@ class TSForecast:
         self.actual = actual
         self.start = tstart
         self.stop = tstop
+    
+    def mape(self):
+        """TODO
+        
+        """
+        return np.mean(np.abs((self.actual-self.forecast)/self.actual)*100)
+    
+    def rmse(self):
+        """TODO
+        
+        """
+        return np.sqrt(((self.forecast-self.actual)**2).mean())
 
 
 class ARIMA_forecast:
