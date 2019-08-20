@@ -76,31 +76,31 @@ class Utility:
         
         self.__save_show_fig(fig, dir_pth, file_name)
     
-    def plot_load_acf(self,start,stop,lags=84,ndiff=0):
+    def plot_load_acf(self,start,stop,lags=42,hour_steps=1,ndiff=0):
         """TODO
         
         """
         rd = LoadReader()
-        data = rd.vals4step(de_load,step=2).interpolate_na(dim='utc_timestamp',method='linear').diff(dim='utc_timestamp',n=ndiff).values
+        data = rd.vals4step(de_load,step=hour_steps).interpolate_na(dim='utc_timestamp',method='linear').diff(dim='utc_timestamp',n=ndiff).values
         
         fig = plot_acf(data,fft=True,use_vlines=True,lags=lags)
         
         dir_pth = f'{figure_path}ACF/'
-        file_name = f'{dir_pth}load_{lags}lags_ndiff{ndiff}'
+        file_name = f'{dir_pth}load_{lags}lags_ndiff{ndiff}_hstep{hour_steps}'
         
         self.__save_show_fig(fig, dir_pth, file_name)
     
-    def plot_load_pacf(self,start,stop,lags=84,ndiff=0):
+    def plot_load_pacf(self,start,stop,lags=42,hour_steps=1,ndiff=0):
         """TODO
         
         """
         rd = LoadReader()
-        data = rd.vals4step(de_load,step=2).interpolate_na(dim='utc_timestamp',method='linear').diff(dim='utc_timestamp',n=ndiff).values
+        data = rd.vals4step(de_load,step=hour_steps).interpolate_na(dim='utc_timestamp',method='linear').diff(dim='utc_timestamp',n=ndiff).values
         
         fig = plot_pacf(data,use_vlines=True,lags=lags)
         
         dir_pth = f'{figure_path}PACF/'
-        file_name = f'{dir_pth}load_{lags}lags_ndiff{ndiff}'
+        file_name = f'{dir_pth}load_{lags}lags_ndiff{ndiff}_hstep{hour_steps}'
         
         self.__save_show_fig(fig, dir_pth, file_name)
         
@@ -108,9 +108,8 @@ class Utility:
 
 ut = Utility(save=True,show=True)
 
-#fig = plot_pacf(data,use_vlines=True,lags=84)
-#plt.show()
-ut.plot_load_pacf(datetime(2015,1,1),datetime(2017,12,31),ndiff=84)
+hstep = 2
+ut.plot_load_acf(datetime(2015,1,1),datetime(2017,12,31),hour_steps=hstep)
 
 
 #rd = LoadReader()

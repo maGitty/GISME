@@ -11,7 +11,7 @@ from shapely.geometry import Polygon, Point
 
 class WeatherReader:
     """used to read nc files and to return xarray.DataArray containing desired data"""
-    def __init__(self):
+    def __init__(self,isin=False):
         """Set path to open files, store some information for faster response
         
         Returns
@@ -20,6 +20,7 @@ class WeatherReader:
         """
         assert os.path.exists(era5_path), 'path to weather data does not exist'
         
+        self.isin = isin
         self.filename = f'{era5_path}*.nc'
         with xr.open_mfdataset(self.filename) as nc_file:
             # drop times where no data is available, until now only seen at the end of the dataset
@@ -73,13 +74,15 @@ class WeatherReader:
         """
         assert name in self.var_names, f'column {name} not found'
         
-        try:
-            contained = np.load(f'{data_path}isin.npy')
-        except:
-            print(f'isin file not found in {data_path}')
-            contained = self.check_isinDE()
-        
-        return self.wdata[name].where(contained,other=np.nan,drop=False).reduce(func, dim=[lon_col,lat_col])
+        if self.isin:
+            try:
+                contained = np.load(f'{data_path}isin.npy')
+            except:
+                print(f'isin file not found in {data_path}')
+                contained = self.check_isinDE()
+            return self.wdata[name].where(contained,other=np.nan,drop=False).reduce(func, dim=[lon_col,lat_col])
+        else:
+            return self.wdata[name].reduce(func, dim=[lon_col,lat_col])
     
     def get_size(self):
         """Returns shape of whole data"""
@@ -189,7 +192,7 @@ class WeatherReader:
         """
         pass # TODO
     
-    def vals4time(self, name, datetime):
+    def vals4time(self, name, datetime,isin=False):
         """Returns the values for specified variable and time
         
         Parameters
@@ -198,6 +201,8 @@ class WeatherReader:
                    name of variable in nc file that should be contained in df
         datetime : datetime.datetime
                    the specified datetime for which the data is returned
+        isin     : bool
+                   wether to only get points within germany or all
         
         Returns
         -------
@@ -211,39 +216,15 @@ class WeatherReader:
 
         # filter data by name and time
         data = self.wdata[name].sel(time=datetime)
-        # update DataArray attributes to add min and max values for complete time
-        data.attrs.update({'vmin':np.floor(self.wdata[name].min().values),'vmax':np.ceil(self.wdata[name].max().values)})
         
-        return data
-    
-    def vals4time_isin(self, name, datetime):
-        """Returns the values for specified variable and time filtered by wether they are within DE or not
+        if isin:
+            try:
+                contained = np.load(f'{data_path}isin.npy')
+            except:
+                print(f'isin file not found in {data_path}')
+                contained = self.check_isinDE()
+            data = data.where(contained,other=np.nan,drop=False)
         
-        Parameters
-        ----------
-        name     : string
-                   name of variable in nc file that should be contained in df
-        datetime : datetime.datetime
-                   the specified datetime for which the data is returned
-        
-        Returns
-        -------
-        xarray.DataArray :
-            2D data with values for variable over latitude and longitude
-            long name of variable, values not within DE are NaN
-        
-        ready for plotting with imshow
-        """
-        assert name in self.var_names, f'column {name} not found'
-        
-        try:
-            contained = np.load(f'{data_path}isin.npy')
-        except:
-            print(f'isin file not found in {data_path}')
-            contained = self.check_isinDE()
-
-        # filter data by name and time and after that apply filter to get only values within DE
-        data = self.wdata[name].sel(time=datetime).where(contained,other=np.nan,drop=False)
         # update DataArray attributes to add min and max values for complete time
         data.attrs.update({'vmin':np.floor(self.wdata[name].min().values),'vmax':np.ceil(self.wdata[name].max().values)})
         

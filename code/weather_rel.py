@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
-from glob_vars import data_path
-from NC_Reader import NC_Reader
+from glob_vars import data_path,de_load
+from WeatherReader import WeatherReader
 
 import csv
 import numpy as np
@@ -70,11 +70,11 @@ def plot_temp_maxVSload_attime(hour):
     print('done')
     power_df = pd.read_csv(data_path + "power_load/time_series_15min_singleindex_filtered.csv", low_memory=False)
     power_df = power_df[power_df[de_load].notnull()]
-    power_df[time_col] = pd.to_datetime(power_df[time_col], format='%Y-%m-%dT%H:%M:%SZ')
+    power_df['time'] = pd.to_datetime(power_df['time'], format='%Y-%m-%dT%H:%M:%SZ')
     
     load_values = []
     for t in times:
-        vload = power_df.loc[power_df[time_col] == t, de_load].iloc[0]
+        vload = power_df.loc[power_df['time'] == t, de_load].iloc[0]
         load_values.append(vload)
     
     plt.plot(temp_values, load_values, 'o')
@@ -105,12 +105,12 @@ def check_temp():
 #print(drang[1])
 #print(drang[-2])
 
-time_col = 'utc_timestamp'
-de_load = 'DE_load_actual_entsoe_transparency'
-hertz_load = 'DE_50hertz_load_actual_entsoe_transparency'
-amprion_load = 'DE_amprion_load_actual_entsoe_transparency'
-tennet_load = 'DE_tennet_load_actual_entsoe_transparency'
-transnetbw_load = 'DE_transnetbw_load_actual_entsoe_transparency'
+# time_col = 'utc_timestamp'
+# de_load = 'DE_load_actual_entsoe_transparency'
+# hertz_load = 'DE_50hertz_load_actual_entsoe_transparency'
+# amprion_load = 'DE_amprion_load_actual_entsoe_transparency'
+# tennet_load = 'DE_tennet_load_actual_entsoe_transparency'
+# transnetbw_load = 'DE_transnetbw_load_actual_entsoe_transparency'
 
 #plot_temp_maxVSload_attime('12:00:00')
 #plot_temp_maxVSload_attime('18:00:00')

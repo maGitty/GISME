@@ -11,11 +11,11 @@ Of course choosing data sources as well as sorting and cleaning the data also re
 The data used in this thesis originates from \acrshort{ecmwf}, which is a research institute that produces global numerical weather predictions and other data.\\
 It is time series based and for each timestamp there is a 2-dimensional array referred to by longitude and latitude respectively.\\
 
-It must be mentioned that, as the data used has been reanalized, so the expected error is likely to be smaller than if working with real-time data.\\
+It must be mentioned that, as the data used has been reanalysed, so the expected error is likely to be smaller than if working with real-time data.\\
 
 As data parameters there are also longitude and latitude, where the longitude is chosen to be from 5.5 to 15.5 and the latitude from 47 to 55.5. As the resolution of the used grid is at 0.25°, this results in a total of 1435 grid points per timestamp. As the range of the data from \acrshort{ecmwf} extends from 2015/1/1 to 2019/3/31(TODO update), there is a total of 1551 days with each 12 timestamps due to the 2 hours frequency and thus 18612 timestamps. Considering that there is a value for each point in the grid and every timestamp, there are 26708220 values for each variable.\\
 
-Plotting the data on a map results in a result as can be seen in \Cref{fig:0_2017010702_20190617161317} and \Cref{fig:maxvar4_maps}. In this case the temperature measured at 2 meters height is visualized.\\
+Plotting the data on a map results in a result as can be seen in \Cref{fig:0_2017010702_20190617161317} and \Cref{fig:maxvar4_maps}. In this case the temperature measured at 2 meters is visualized.\\
 
 %\begin{figure}[h!]%
 %\centering
@@ -27,11 +27,11 @@ Plotting the data on a map results in a result as can be seen in \Cref{fig:0_201
 \begin{figure}[h!]%
 \centering
 \includegraphics[width=\textwidth]{plots/t2m/bundles/maxvar4_maps}%
-\caption{Map showing 4 times with highest temperature variance in germany, where top left is highest, top right second highest, bottom left third highest and bottom right fourth highest variance (TODO put this in text).}%
+\caption{Map showing 4 times with highest temperature variance in Germany, where top left is highest, top right second highest, bottom left third highest and bottom right fourth highest variance (TODO put this in text).}%
 \label{fig:maxvar4_maps}%
 \end{figure}
 
-In order to reduce complexity, a shapefile of the \acrshort{nuts} dataset was used. The shapefile contains all countries in the EU. The shape of germany was filtered from this data and each point in the dataset is checked wether it is within germany or not. The result can be seen in \Cref{fig:isinDE}. The filtered map first is saved in a numpy.ndarray and then applied on the data to mask unwanted data visualized in \Cref{fig:t2m_maxvar_0_map_isin}.\\
+In order to reduce complexity, a shapefile of the \acrshort{nuts} dataset was used. The shapefile contains all countries in the EU. The shape of Germany was filtered from this data and each point in the dataset is checked whether it is within Germany or not. The result can be seen in \Cref{fig:isinDE}. The filtered map first is saved in a numpy.ndarray and then applied on the data to mask unwanted data visualized in \Cref{fig:t2m_maxvar_0_map_isin}.\\
 
 \begin{figure}[h!]%
 	\centering
@@ -45,7 +45,8 @@ In order to reduce complexity, a shapefile of the \acrshort{nuts} dataset was us
 		\includegraphics[width=1.1\textwidth]{plots/t2m/maxvar/0_map_isin}%
 		\label{fig:t2m_maxvar_0_map_isin}%
 	\end{subfigure}
-	\caption[2D boolean numpy.ndarray used to filter grid squares that are within germany. It was created by using a shapefile of germany and checking for each point of the grid if it is within the shapefile.]{2D boolean numpy.ndarray used to filter grid squares that are within germany. It was created by using a shapefile of germany from \tcite{eurostat} and checking for each point of the grid wether it is within the shape.}
+	\caption[2D boolean numpy.ndarray (left) used to filter grid squares that are within Germany. It was created by using a shapefile of Germany and checking for each point of the grid if it is within the shapefile. When applied to the weather data, only relevant data within Germany is obtained (right).]
+	{2D boolean numpy.ndarray (left) used to filter grid squares that are within germany. It was created by using a shapefile of germany from \tcite{eurostat} and checking for each point of the grid whether it is within the shape. When applied to the weather data, only relevant data within Germany is obtained (right).}
 	\label{fig:isin_compare}
 \end{figure}
 
@@ -55,7 +56,7 @@ The initial dataset contains a set of variables listed in \Cref{tab:wvars} where
 \rowcolors{2}{white}{gray!25}
 \centering
 \footnotesize
-\begin{tabularx}{\linewidth}{LLrr}
+\begin{tabularx}{\linewidth}{Llrr}
 \tablehead variable name & \tablehead units & \tablehead min & \tablehead max \\\hline
 10 metre U wind component & $m~s^{-1}$ & -18.56 & 21.92 \\
 10 metre V wind component & $m~s^{-1}$ & -21.51 & 20.00 \\
@@ -78,7 +79,7 @@ Total sky direct solar radiation at surface & $J~m^{-2}$ & -0.12 & 3088320.00 \\
 
 \subsection{Load data}
 
-Besides weather data used to refine the forecasting results, also historic load data was needed. Therefor data has been retained from \tcite{opsdata}. \Cref{fig:t2m_mean_2015010112_2018123112_24F} shows the distribution of loads over time with one point per day at 12am utc time. The color shows the mean temperature measured at 2 meters height.\\
+Besides weather data used to refine the forecasting results, also historic load data was needed. Therefor data has been retained from \tcite{opsdata}. \Cref{fig:t2m_mean_2015010112_2018123112_24F} shows the distribution of loads over time with one point per day at 12 am UTC time. The color shows the mean temperature measured at 2 meters.\\
 
 %\begin{figure}[h!]%
 %\centering
@@ -99,7 +100,7 @@ Besides weather data used to refine the forecasting results, also historic load 
 		\includegraphics[width=2.9\textwidth,angle=-90,origin=c]{plots/plot_load_time_func/t2m_mean_18A5_2015010112_2016123112_24F}%
 		\label{fig:t2m_mean_18A5_2015010112_2016123112_24F}%
 	\end{subfigure}
-	\caption{Load curve with mean of 2 meter height measured temperature in germany as color from 2015/1/1 to 2018/12/31 with one single point per day at 12am utc time respectively.}
+	\caption{Load curve with mean of 2 meter measured temperature in Germany as color from 2015/1/1 to 2018/12/31 with one single point per day at 12am UTC time respectively.}
 	\label{fig:t2m_mean_18A5_twofold_24F}
 \end{figure}
 
@@ -116,7 +117,7 @@ For further improvement and in order to figure out important point in the grid, 
 \begin{figure}[h!]%
 \centering
 \includegraphics[width=\textwidth]{plots/demo/demo2018_logscale}%
-\caption{Population of germany for each region respectively using a log scale for better distinction.}%
+\caption{Population of Germany for each region respectively using a log scale for better distinction.}%
 \label{fig:demo2018_logscale}%
 \end{figure}
 
@@ -142,15 +143,45 @@ For further improvement and in order to figure out important point in the grid, 
 
 \subsection{Programming Language}
 
-For the programming part, Python3.6+ has been chosen, as there is a variety of libraries to process all used file formats and because it tends to be a time saving language, also for visualization.\\
+For the programming part, Python 3.6+ has been chosen, as there is a variety of libraries to process all used file formats and because it tends to be a time saving language, also for visualization.\\
 
 \subsection{Documentation}
 
 In regard to coding styles, especially when it comes to docstrings, the numpy conventions were used. The three major points for this were first, that it is a popular and often used style, then it is also a visually oriented style which means, that it is easy to read and last it is supported by several (TODO check which, sphinx?!) autodoc tools that create a HTML based documentation from existing source code with docstrings.\\
 
 
+\section{Preparation}
+
+\begin{figure}[h!]%
+	\centering
+	\begin{subfigure}{.5\textwidth}
+		\centering
+		\includegraphics[width=\textwidth]{plots/ACF/load_42lags_ndiff0_hstep1}%
+		\caption{}
+		\label{fig:acf_load_lags42}%
+	\end{subfigure}%
+	\begin{subfigure}{.5\textwidth}
+		\centering
+		\includegraphics[width=\textwidth]{plots/PACF/load_42lags_ndiff0_hstep1}%
+		\caption{}
+		\label{fig:pacf_load_lags42}%
+	\end{subfigure}
+	\caption{Autocorrelation (a) and Partial Autocorrelation (b) plots used to select the order of \gls{arma} and \gls{armax} models.}
+	\label{fig:acf_compare}
+\end{figure}
+
+
 \section{Results}
 \label{sec:results}
+
+\subsection{ARMA}
+
+\begin{figure}[h!]%
+\centering
+\includegraphics[width=\textwidth]{plots/ARMAfc/ARMA_p3q3_data2018050100to2018050200_fcto2018050900}%
+\caption{An example forecast using only load data from 2018.}%
+\label{fig:arma_fc}%
+\end{figure}
 
 Describe the results you have obtained using your methods described above. Again use proper visualization methods.
 
