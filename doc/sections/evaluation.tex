@@ -1,10 +1,13 @@
 \chapter{Evaluation}
 \label{ch:Evaluation}
 
+This chapter provides information about the input data acquired from different sources, the methods that were used to forecast electricity load and other statistical methods and also evaluates them regarding performance and the quality of the output.\\
+%In this chapter, the used methods will be evaluated and critically regarded considering their performance and the quality of their outputs.\\
+
 \section{Data}
 \label{sec:data}
 
-Of course choosing data sources as well as sorting and cleaning the data also requires a certain amount of time and effort. Thus it will be explained hereinafter how this has been done for the data used in this thesis.
+%Of course choosing data sources as well as sorting and cleaning the data also requires a certain amount of time and effort. Thus it will be explained hereinafter how this has been done for the data used in this thesis.
 
 \subsection{ECMWF}
 
@@ -45,10 +48,11 @@ In order to reduce complexity, a shapefile of the \acrshort{nuts} dataset was us
 		\includegraphics[width=1.1\textwidth]{plots/t2m/maxvar/0_map_isin}%
 		\label{fig:t2m_maxvar_0_map_isin}%
 	\end{subfigure}
-	\caption[2D boolean numpy.ndarray (left) used to filter grid squares that are within Germany. It was created by using a shapefile of Germany and checking for each point of the grid if it is within the shapefile. When applied to the weather data, only relevant data within Germany is obtained (right).]
-	{2D boolean numpy.ndarray (left) used to filter grid squares that are within germany. It was created by using a shapefile of germany from \tcite{eurostat} and checking for each point of the grid whether it is within the shape. When applied to the weather data, only relevant data within Germany is obtained (right).}
+	\caption[2D boolean numpy.ndarray (left) used to filter grid squares that are within Germany. It was created by using a shapefile of Germany from Eurostat and checking for each point of the grid if it is within the shapefile. When applied to the weather data, only relevant data within Germany is obtained (right).]
+	{2D boolean numpy.ndarray (left) used to filter grid squares that are within germany. It was created by using a shapefile of Germany from Eurostat\footnotemark and checking for each point of the grid whether it is within the shape. When applied to the weather data, only relevant data within Germany is obtained (right).}
 	\label{fig:isin_compare}
 \end{figure}
+\footnotetext{\url{https://ec.europa.eu/eurostat/de/web/gisco/geodata/reference-data/administrative-units-statistical-units/nuts}}
 
 The initial dataset contains a set of variables listed in \Cref{tab:wvars} where also the units, min and max are shown for each variable respectively.\\
 
@@ -72,14 +76,15 @@ Total cloud cover & $(0~-~1)$ & 0.00 & 1.00 \\
 Total column rain water & $kg~m^{-2}$ & 0.00 & 2.73 \\
 Total sky direct solar radiation at surface & $J~m^{-2}$ & -0.12 & 3088320.00 \\
 \end{tabularx}
-\caption[List of exogenous weather variables used to forecast the load including min, max values from \gls{ecmwf}.]{List of exogenous weather variables used to forecast the load including min, max values from \tcite{ecmwf}.}
+\caption[List of exogenous weather variables used to forecast the load including min, max values from \acrshort{ecmwf}.]{List of exogenous weather variables used to forecast the load including min, max values from \acrshort{ecmwf}\footnotemark.}
 \label{tab:wvars}
 \end{table}
+\footnotetext{\url{https://www.ecmwf.int/en/forecasts/datasets/browse-reanalysis-datasets}}
 
 
 \subsection{Load data}
 
-Besides weather data used to refine the forecasting results, also historic load data was needed. Therefor data has been retained from \tcite{opsdata}. \Cref{fig:t2m_mean_2015010112_2018123112_24F} shows the distribution of loads over time with one point per day at 12 am UTC time. The color shows the mean temperature measured at 2 meters.\\
+Besides weather data used to refine the forecasting results, also historic load data was needed. Therefore data has been retained from Open Power System Data\footnote{\url{https://data.open-power-system-data.org/time_series/}}. \Cref{fig:t2m_mean_2015010112_2018123112_24F} shows the distribution of loads over time with one point per day at 12 am UTC time. The color shows the mean temperature measured at 2 meters.\\
 
 %\begin{figure}[h!]%
 %\centering
@@ -100,7 +105,7 @@ Besides weather data used to refine the forecasting results, also historic load 
 		\includegraphics[width=2.9\textwidth,angle=-90,origin=c]{plots/plot_load_time_func/t2m_mean_18A5_2015010112_2016123112_24F}%
 		\label{fig:t2m_mean_18A5_2015010112_2016123112_24F}%
 	\end{subfigure}
-	\caption{Load curve with mean of 2 meter measured temperature in Germany as color from 2015/1/1 to 2018/12/31 with one single point per day at 12am UTC time respectively.}
+	\caption{Load curve with mean of 2 meter measured temperature in Germany as color from 2015/1/1 to 2018/12/31 with one single point per day at 12 AM UTC time respectively.}
 	\label{fig:t2m_mean_18A5_twofold_24F}
 \end{figure}
 
@@ -112,7 +117,7 @@ Besides weather data used to refine the forecasting results, also historic load 
 
 \subsection{Population}
 
-For further improvement and in order to figure out important point in the grid, population data for germany has been  selected from \tcite{eurostat}.\\
+For further improvement and in order to figure out important point in the grid, population data for Germany has been  selected from Eurostat\footnote{\url{https://ec.europa.eu/eurostat/data/database}}.\\
 
 \begin{figure}[h!]%
 \centering
@@ -166,7 +171,7 @@ In regard to coding styles, especially when it comes to docstrings, the numpy co
 		\caption{}
 		\label{fig:pacf_load_lags42}%
 	\end{subfigure}
-	\caption{Autocorrelation (a) and Partial Autocorrelation (b) plots used to select the order of \gls{arma} and \gls{armax} models.}
+	\caption{Autocorrelation (a) and Partial Autocorrelation (b) plots used to select the order of \acrshort{arma} and \acrshort{armax} models.}
 	\label{fig:acf_compare}
 \end{figure}
 
@@ -178,8 +183,8 @@ In regard to coding styles, especially when it comes to docstrings, the numpy co
 
 \begin{figure}[h!]%
 \centering
-\includegraphics[width=\textheight,angle=-90,origin=c]{plots/ARMAfc/ARMA_p4q2_data2015010100to2018050100_fcto2018050800}%
-\caption{An example forecast using only load data from 2018.}%
+\includegraphics[width=\textwidth]{plots/ARMAfc/ARMA_p1q1_data2015to2018_fcto2018}%
+\caption{An example forecast for an ARMA(1,1) using load data from 2015/1/1 to 2018/5/1 forecasting one week for each step 1, 6 and 24 hours respectively.}%
 \label{fig:arma_fc}%
 \end{figure}
 

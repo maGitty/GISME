@@ -4,14 +4,18 @@ from glob_vars import de_load,hertz_load,amprion_load,tennet_load,transnet_load,
 
 from datetime import datetime,timedelta
 from matplotlib import pyplot as plt
-from statsmodels.tsa.arima_model import ARIMA,ARIMAResults,ARMA,ARMAResults
-from statsmodels.tsa.statespace.sarimax import SARIMAX,SARIMAXResults
+from statsmodels.tsa.arima_model import ARMA,ARMAResults,_make_arma_exog
+from statsmodels.tsa.tsatools import add_trend
 from statsmodels.tools.eval_measures import aicc
 from statsmodels.regression.linear_model import OLS
 from sklearn.linear_model import LinearRegression
 import pandas as pd
 import numpy as np
+import pickle
 import sys
+import functools
+import operator
+import os
 
 from pandas.plotting import register_matplotlib_converters
 register_matplotlib_converters()
@@ -21,11 +25,12 @@ class TSForecast:
     """TODO
     
     """
-    def __init__(self,forecast,actual,tstart,tstop):
+    def __init__(self,hours_ahead,forecast,actual,tstart,tstop):
         """TODO
         
         """
-        assert len(forecast) == len(actual)
+        assert len(forecast) == len(actual), f'lengths do not equal: {len(forecast)},{len(actual)}'
+        self.hours_ahead = hours_ahead
         self.forecast = forecast
         self.actual = actual
         self.start = tstart
@@ -44,87 +49,141 @@ class TSForecast:
         return np.sqrt(((self.forecast-self.actual)**2).mean())
 
 
-class ARIMA_forecast:
+class ARMAX_forecast:
     """TODO
     
     """
-    def __init__(self,start,stop,data_column=None,p=None,d=None,q=None):
+    def __init__(self,start,stop,p=None,q=None,exog=None):
         """TODO
         
         """
+        self.load_reader = LoadReader()
         self.p = p
-        self.d = d
         self.q = q
-        self.data_column = data_column
         self.start = start
         self.stop = stop
-        self.__arima_result = None
-
-    def load(self,fname):
+        self.__armax_result = None
+        self.forecasts = []
+        self.exog = exog
+    
+    def __load_exog(self,tstart=None,tstop=None,range_start=None):
+        """TODO
+        
+        """
+        if self.exog is None:
+            return None
+        exog = []
+        date_range = pd.date_range(tstart,tstop,freq="1H")
+        if 'dayofweek' in self.exog:
+            exog.append(date_range.to_series().dt.dayofweek.values)
+        if 'data_counter' in self.exog:
+            if range_start is None:
+                exog.append(np.array(range(date_range.size)))
+            else:
+                exog.append(np.array(range(range_start,range_start+date_range.size)))
+        
+        return np.column_stack(exog)
+    
+    @staticmethod
+    def load(fname):
         """TODO
         
         """
         try:
-            self.__arima_result = ARIMAResults.load(fname)
-        except:
-            print("could not load arima")
-
+            return pickle.load(open(fname,'rb'))
+        except Exception as e:
+            print(f"an error occured:\n{e}")
+    
     def save(self):
         """TODO
         
         """
-        assert self.__arima_result is not None, "did not train arima yet"
-        
-        fname = data_path+f"ARIMA_p{self.p}d{self.d}q{self.q}.pkl"
-        self.__arima_result.save(fname)
+        fname = os.path.join(data_path,f"ARMAX_p{self.p}q{self.q}.pkl")
+        pickle.dump(self,open(fname,'wb'))
         return fname
     
     def train(self):
         """TODO
         
         """
-        load_reader = LoadReader()
         # time steps of values in hours
-        frequency = 1
-        data = load_reader.vals4slice(self.data_column,
-                                      self.start,
-                                      self.stop,
-                                      step=frequency).ffill(dim='utc_timestamp').values
+        data = self.load_reader.vals4slice(de_load,
+                                           self.start,
+                                           self.stop,
+                                           step=1).ffill(dim='utc_timestamp').values
         
         date_range = pd.date_range(self.start,
                                    self.stop,
-                                   freq=f"{frequency}H")
-        model = ARIMA(data,
-                      order=(self.p,self.d,self.q),
-                      dates=date_range)
-        self.__arima_result = model.fit(disp=5,
-                                      method='mle',
-                                      trend='nc')
+                                   freq="1H")
+        model_exog = self.__load_exog(self.start,self.stop)
+        model = ARMA(data,exog=model_exog,
+                     order=(self.p,self.q),
+                     dates=date_range)
+        self.__armax_result = model.fit(method='css-mle',
+                                        trend='c',
+                                        transparams=False,
+                                        full_output=-1)
+        self.fit_params = self.__armax_result.params
     
-    def predict(self,hours_ahead=24):
+    def predict_next(self,hours_ahead=24):
         """TODO
         
         """
-        predictions = self.__arima_result.predict(self.stop,
-                                                self.stop+timedelta(hours=hours_ahead),
-                                                dynamic=False)
+        predictions = self.__armax_result.forecast(steps=hours_ahead,
+                                                   exog=pd.date_range(self.stop+timedelta(hours=1),
+                                                                      self.stop+timedelta(hours=hours_ahead),
+                                                                      freq='1H').to_series().dt.dayofweek)[0]
         return predictions
     
-    def plot_predict(self,start,hours_ahead):
+    def predict_range(self,stop_time,hours_ahead):
         """TODO
         
         """
-        self.__arima_result.plot_predict(start,
-                                       start+timedelta(hours=hours_ahead),
-                                       dynamic=True,
-                                       plot_insample=False)
-        plt.show()
+        assert self.__armax_result is not None, "did not train arma yet"
+        max_hours = max(hours_ahead)
+        data = self.load_reader.vals4slice(de_load,self.start,self.stop,step=1)
+        out_of_sample_exog = self.__load_exog(self.stop+timedelta(hours=1),
+                                   self.stop+timedelta(hours=max_hours),len(data))
+        fc = self.__armax_result.forecast(steps=max_hours,exog=out_of_sample_exog)[0]
+        
+        forecast = [[] for hour in range(len(hours_ahead))]
+        for i,hours in enumerate(hours_ahead):
+            forecast[i].append(fc[hours-1])
+        
+        stop_counter = self.stop
+        delta1h = timedelta(hours=1)
+        while stop_counter < stop_time:
+            stop_counter+=delta1h
+            data = self.load_reader.vals4slice(de_load,self.start,stop_counter,
+                                              step=1).ffill(dim='utc_timestamp').values
+            date_range = pd.date_range(self.start,stop_counter,freq="1H")
+            model_exog = self.__load_exog(self.start,stop_counter)
+            arma = ARMA(data,exog=model_exog,
+                        order=(self.p,self.q),
+                        dates=date_range)
+            arma.method = 'css-mle'
+            if self.exog is not None:
+                arma.exog = add_trend(model_exog, trend='c', prepend=True, has_constant='raise')
+            self.__armax_result.initialize(arma,self.fit_params)
+            out_of_sample_exog = self.__load_exog(stop_counter+timedelta(hours=1),
+                                                  stop_counter+timedelta(hours=max_hours),
+                                                  len(data))
+            fc = self.__armax_result.forecast(steps=max_hours,exog=out_of_sample_exog)[0]
     
-    def aic(self):
+            for i,hours in enumerate(hours_ahead):
+                forecast[i].append(fc[hours-1])
+        
+        actual_data = self.load_reader.vals4slice(de_load,self.stop,stop_counter,step=1).ffill(dim='utc_timestamp').values
+        for i,fc in enumerate(forecast):
+            self.forecasts.append(TSForecast(hours_ahead[i],fc,actual_data,self.stop,stop_counter))
+        
+        return forecast
+    
+    def summary(self):
         """TODO
         
         """
-        print(self.__arima_result.summary())
+        print(self.__armax_result.summary())    
 
 
 class ARMA_forecast:
@@ -141,24 +200,24 @@ class ARMA_forecast:
         self.start = start
         self.stop = stop
         self.__arma_result = None
+        self.forecasts = []
 
-    def load(self,fname):
+    @staticmethod
+    def load(fname):
         """TODO
         
         """
         try:
-            self.__arma_result = ARMAResults.load(fname)
-        except:
-            print("could not load arma")
+            return pickle.load(open(fname,'rb'))
+        except Exception as e:
+            print(f"an error occured:\n{e}")
 
     def save(self):
         """TODO
         
         """
-        assert self.__arma_result is not None, "did not train arma yet"
-        
-        fname = f"{data_path}ARMA_p{self.p}q{self.q}.pkl"
-        self.__arma_result.save(fname)
+        fname = os.path.join(data_path,f"ARMA_p{self.p}q{self.q}.pkl")
+        pickle.dump(self,open(fname,'wb'))
         return fname
     
     def train(self):
@@ -179,7 +238,7 @@ class ARMA_forecast:
                       dates=date_range)
         self.__arma_result = model.fit(method='css-mle',
                                       trend='c',
-                                      transparams=True,
+                                      transparams=False,
                                       full_output=-1)
         self.fit_params = self.__arma_result.params
     
@@ -197,17 +256,14 @@ class ARMA_forecast:
         
         """
         assert self.__arma_result is not None, "did not train arma yet"
-        max_hours = max(hours_ahead) if type(hours_ahead) is list else hours_ahead
+        max_hours = max(hours_ahead)
         delta1h = timedelta(hours=1)
         forecast = [[] for hour in range(len(hours_ahead))]
         
         fc = self.__arma_result.forecast(steps=max_hours)[0]
         
-        if type(hours_ahead) is list:
-            for i,hours in enumerate(hours_ahead):
-                forecast[i].append(fc[hours-1])
-        else:
-            forecast.append(fc[hours_ahead-1])
+        for i,hours in enumerate(hours_ahead):
+            forecast[i].append(fc[hours-1])
         
         stop_counter = self.stop
         while stop_counter < stop_time:
@@ -222,11 +278,13 @@ class ARMA_forecast:
             self.__arma_result.initialize(arma, self.fit_params)
             fc = self.__arma_result.forecast(steps=max_hours)[0]
     
-            if type(hours_ahead) is list:
-                for i,hours in enumerate(hours_ahead):
-                    forecast[i].append(fc[hours-1])
-            else:
-                forecast.append(fc[hours_ahead-1])
+            for i,hours in enumerate(hours_ahead):
+                forecast[i].append(fc[hours-1])
+        
+        actual_data = self.load_reader.vals4slice(de_load,self.stop,stop_counter,step=1).ffill(dim='utc_timestamp').values
+        for i,fc in enumerate(forecast):
+            self.forecasts.append(TSForecast(hours_ahead[i],fc,actual_data,self.stop,stop_counter))
+        
         return forecast
     
     def summary(self):
@@ -235,9 +293,64 @@ class ARMA_forecast:
         """
         print(self.__arma_result.summary())
 
+def auto_arma(tstart,tstop,ar_stop,ma_stop):
+    load_reader = LoadReader()
+    data = load_reader.vals4slice(de_load,tstart,tstop,step=1).ffill(dim='utc_timestamp').values
+    date_range = pd.date_range(tstart,tstop,freq="1H")
+    
+    if not os.path.exists(os.path.join(data_path,f'tstart{tstart.year}_tstop{tstop.year}')):
+        os.mkdir(os.path.join(data_path,f'tstart{tstart.year}_tstop{tstop.year}'))
+    
+    for q in range(ma_stop):
+        for p in range(ar_stop):
+            if os.path.exists(os.path.join(data_path,f'tstart{tstart.year}_tstop{tstop.year}',f'ARMA_p{p}q{q}.pkl')):
+                break
+            start = datetime.now()
+            arma = ARMA(data,order=(p,q),dates=date_range)
+            try:
+                arma_result = arma.fit(trend='c',method='css-mle',transparams=True,full_output=-1)
+                arma_result.save(os.path.join(data_path,f'tstart{tstart.year}_tstop{tstop.year}',f'ARMA_p{p}q{q}.pkl'))
+                print(f'trained and saved arma with p={p} and q={q}, took {(datetime.now()-start).seconds}s')
+            except Exception as e:
+                print(f'could not train ARMA({p},{q}):\n{e}')
 
-#tstart = datetime(2015,1,1,0)
-#tstop = datetime(2017,12,31,23)
+def print_armas(tstart,tstop,ar_stop,ma_stop):
+    pqs = functools.reduce(operator.add,[[(x+1,x),(x,x+1),(x+1,x+1)] for x in range(8)],[])
+    
+    for q in range(ma_stop):
+        for p in range(ar_stop):
+            try:
+                arma_result = ARMAResults.load(os.path.join(data_path,f'tstart{tstart.year}_tstop{tstop.year}',f'ARMA_p{p}q{q}.pkl'))
+                print(f'({p}|{q}) -\taic:{np.round(arma_result.aic,1)}\tbic:{np.round(arma_result.bic,1)}\thqic:{np.round(arma_result.hqic,1)}\tresid:{np.array(arma_result.resid).mean().round(3)}\tloglike:{np.round(arma_result.llf,1)}')
+            except:
+                pass
+
+tstart = datetime(2017,1,1,0)
+tstop = datetime(2018,1,1,0)
+#print_armas(tstart, tstop,6,5)
+armax = ARMAX_forecast(tstart,tstop,1,1,exog=['dayofweek','data_counter'])
+armax.train()
+armax.predict_range(tstop+timedelta(weeks=1),[1,6,24])
+for fc in armax.forecasts:
+    plt.plot(fc.forecast,label=f'{fc.hours_ahead}H')
+    print(fc.mape(), fc.rmse())
+plt.plot(armax.forecasts[0].actual,label='actual')
+plt.legend()
+plt.show()
+#arma = ARMA_forecast(tstart,tstop,1,1)
+#arma.train()
+#fname = arma.save()
+#arma = ARMA_forecast.load(fname)
+#arma.predict_range(tstop+timedelta(weeks=1), [1,6,24])
+#for fc in arma.forecasts:
+    #plt.plot(fc.forecast,label=f'{fc.hours_ahead}H')
+    #print(fc.mape(), fc.rmse())
+#plt.plot(arma.forecasts[0].actual,label='actual')
+#plt.legend()
+#plt.show()
+#ar = ARMAResults.load(os.path.join(data_path,f'tstart2017_tstop2018',f'ARMA_p4q3.pkl'))
+#plt.plot(ar.resid)
+#plt.show()
 #load_reader = LoadReader()
 #data = load_reader.vals4slice(de_load,tstart,tstop,step=1).ffill(dim='utc_timestamp').values
 #date_range = pd.date_range(tstart,tstop,freq="1H")
@@ -249,6 +362,12 @@ class ARMA_forecast:
                        #method="css-mle",
                        #transparams=True,
                        #full_output=-1)
+#arma_result.save(os.path.join(data_path,'arma11.pkl'))
+#arma_result = ARMAResults.load(os.path.join(data_path,'arma11.pkl'))
+#print(arma_result.summary())
+#pickle.dump(arma_result.summary(),open(os.path.join(data_path,'arma11.pkl'),'wb'))
+#summ = pickle.load(open(os.path.join(data_path,'arma11.pkl'),'rb'))
+#print(summ)
 #fit_params = arma_result.params
 #fc = arma_result.forecast(steps=24)[0]
 #forecast1h = [fc[0]]
@@ -434,17 +553,6 @@ class LR_forecast:
 ##plt.plot(autocorr)
 
 #plt.show()
-
-
-class ARIMAX:
-    """TODO
-    
-    """
-    def __init__(self):
-        """TODO
-        
-        """
-        pass
 
 
     
