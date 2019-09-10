@@ -15,16 +15,43 @@ from calendar import monthrange
 from glob import glob
 import xarray as xr
 import pytz
-import re,os
+import re,os,operator,functools
 from shapely.geometry import Point, Polygon
+import holidays
 
-#tr = pd.date_range(datetime(2017,1,1), datetime(2018,1,1),freq='1D')
+tr = pd.date_range(datetime(2017,1,1), datetime(2018,1,1),freq='1H').to_series().dt.dayofweek.values
+print(np.vstack((tr,tr,tr)))
 #ts = pd.Timestamp(2017,1,1)
 #print(tr[0], type(tr[0]))
 #print(ts,type(ts))
 #print(ts.to_pydatetime()+timedelta(hours=2))
 
-print(os.path.join(os.path.join('path','now'),'lala',"world"))
+#de_holidays = holidays.Germany()
+#print(pd.Categorical(tr.dt.dayofweek))
+
+#from statsmodels.tsa.arima_model import ARMA,_make_arma_exog
+#pq = (1,0)
+#data = np.random.random(100) + np.arange(1,101,1)
+##data = lreader.vals4slice(de_load, start, stop).ffill(dim='utc_timestamp').values
+#armax_result = ARMA(data,order=pq,exog=np.array(range(len(data)))).fit(trend='c')
+#fit_params = armax_result.params
+#print(armax_result.k_ar,armax_result.k_trend)
+#print(np.array(range(len(data),len(data)+24)))
+#print(armax_result.model.exog[-armax_result.k_ar:,armax_result.k_trend:])
+#fc = [armax_result.forecast(steps=24,exog=np.array(range(len(data),len(data)+24)))[0][-1]]
+##print(armax_result.model.exog.shape,armax_result.k_trend,data.shape)
+#for i in range(1,24):
+    #data = np.append(data,[np.random.random()+len(data)])
+    #armax = ARMA(data,order=pq,exog=np.array(range(len(data))))
+    #_,armax.exog = _make_arma_exog(None,np.array(range(len(data))),'c')
+    #print(armax_result.k_ar,armax_result.k_trend)
+    #print(np.array(range(len(data),len(data)+24)))
+    #print(armax_result.model.exog[-armax_result.k_ar:,armax_result.k_trend:])
+    #armax.method = 'css-mle'
+    #armax_result.initialize(armax,fit_params)
+    #fc.append(armax_result.forecast(steps=24,exog=np.array(range(len(data),len(data)+24)))[0][-1])
+
+#print(fc)
 
 #aics = {(0, 0): 186714.3548858944, (0, 1): 175633.37537402584, (1, 0): 163027.38845677022, (1, 1): 157176.67343019284, (1, 2): 155342.28241170605, (1, 3): 154716.0389058001, (1, 4): 154582.13010879586, (1, 5): 154263.35948238504, (2, 0): 154249.55496882004, (2, 1): 154069.85174305786, (2, 2): 154058.3584256741, (2, 3): 154058.3887386597, (2, 4): 154043.67231602847, (2, 5): 153902.96073415436, (3, 0): 154095.59900161356, (3, 1): 154062.04068381674, (3, 2): 154059.77340719334, (3, 3): 153861.38907323967, (3, 4): 153598.73786407895, (3, 5): 153459.86752778187, (4, 0): 154052.4711471144, (4, 1): 154054.35603108935, (4, 2): 153596.55464831754, (4, 3): 153404.0479566709, (4, 4): 153404.70392228127, (4, 5): 152872.97157628342, (5, 0): 154054.13821217592, (5, 1): 153847.73179585653, (5, 2): 153815.10269696827, (5, 3): 153484.17443698866, (5, 4): 152980.68518415198, (5, 5): 153404.44066458987, (6, 0): 154012.45594892552, (6, 1): 153815.12878775626, (6, 2): 153692.1066107311, (6, 3): 153055.66460441807, (6, 4): 153438.93510605983, (6, 5): 153225.90746427735, (7, 0): 153943.14267245735, (7, 1): 153933.04093311363, (7, 2): 153929.92135428792, (7, 3): 153606.2687819614, (7, 4): 153316.87507828407, (7, 5): 152080.54380990018}
 #bics = {(0, 0): 186728.51101655973, (0, 1): 175654.60957002384, (1, 0): 163048.62265276822, (1, 1): 157204.9856915235, (1, 2): 155377.67273836938, (1, 3): 154758.50729779608, (1, 4): 154631.67656612452, (1, 5): 154319.98400504637, (2, 0): 154277.8672301507, (2, 1): 154105.2420697212, (2, 2): 154100.82681767008, (2, 3): 154107.93519598836, (2, 4): 154100.2968386898, (2, 5): 153966.66332214835, (3, 0): 154130.9893282769, (3, 1): 154104.50907581273, (3, 2): 154109.319864522, (3, 3): 153918.013595901, (3, 4): 153662.44045207294, (3, 5): 153530.64818110853, (4, 0): 154094.9395391104, (4, 1): 154103.902488418, (4, 2): 153653.17917097887, (4, 3): 153467.7505446649, (4, 4): 153475.48457560793, (4, 5): 152950.83029494275, (5, 0): 154103.68466950458, (5, 1): 153904.35631851785, (5, 2): 153878.80528496226, (5, 3): 153554.9550903153, (5, 4): 153058.5439028113, (5, 5): 153489.37744858186, (6, 0): 154069.08047158684, (6, 1): 153878.83137575025, (6, 2): 153762.88726405776, (6, 3): 153133.5233230774, (6, 4): 153523.8718900518, (6, 5): 153317.922313602, (7, 0): 154006.84526045134, (7, 1): 154003.8215864403, (7, 2): 154007.78007294724, (7, 3): 153691.2055659534, (7, 4): 153408.88992760872, (7, 5): 152179.6367245575}

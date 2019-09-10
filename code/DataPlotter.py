@@ -408,7 +408,7 @@ class DataPlotter:
         
         """
         try:
-            contained = np.load(f'{data_path}isin.npy')
+            contained = np.load(os.path.join(data_path,'isin.npy'))
         except:
             print(f'isin file not found in {data_path}')
             contained = self.wreader.check_isinDE()
@@ -533,20 +533,16 @@ class DataPlotter:
                      f'{start.strftime("%Y%m%d%H")}_{stop.strftime("%Y%m%d%H")}_{freq}F')
         self.__save_show_fig(fig, dir_pth, file_name)
         
-    def plot_arma_forecast(self,t_start,t_stop,forecast_end,p,q,hours_range=[1,6,24]):
+    def plot_arma_forecast(self,tstart,tstop,forecast_end,p,q,hours_range=[1,6,24]):
         """TODO
         
         """
-        t_range = pd.date_range(t_start,t_stop,freq='1H')
-        tstart = datetime(2015,1,1,0)
-        
-        arma = ARMA_forecast(t_start,t_stop,3,3)
+        arma = ARMA_forecast(tstart,tstop,p,q)
         arma.train()
         
-        fc_end = t_stop+timedelta(weeks=1)
-        forecast1W = arma.predict_range(fc_end,hours_range)
-        data = self.lreader.vals4slice(de_load,t_stop,fc_end,step=1)
-        fc_range = pd.date_range(t_stop,fc_end,freq='1H')
+        forecast1W = arma.predict_range(forecast_end,hours_range)
+        data = self.lreader.vals4slice(de_load,tstop,forecast_end,step=1)
+        fc_range = pd.date_range(tstop,forecast_end,freq='1H')
         
         fig,ax = plt.subplots()        
         for i,hours in enumerate(hours_range):
@@ -559,8 +555,8 @@ class DataPlotter:
         plt.legend()
         plt.show()
         
-        dir_pth = os.path.join('figure_path','ARMAfc')
-        file_name = os.path.join(dir_pth,f'ARMA_p{p}q{q}_data{t_start.strftime("%Y%m%d%H")}to{t_stop.strftime("%Y%m%d%H")}_fcto{fc_end.strftime("%Y%m%d%H")}')
+        dir_pth = os.path.join(figure_path,'ARMAfc')
+        file_name = os.path.join(dir_pth,f'ARMA_p{p}q{q}_data{tstart.year}to{tstop.year}_fcto{forecast_end.strftime("%Y%m%d%H")}')
         self.__save_show_fig(fig, dir_pth, file_name)
 
 
@@ -579,12 +575,12 @@ stop = pd.Timestamp(2016,12,31,12)
 
 pl = DataPlotter(fmt,save=True,show=True,isin=True)#,shape=(2,2))
 
-t_start = pd.Timestamp(2015,1,1,0)
+t_start = pd.Timestamp(2017,1,1,0)
 t_stop = pd.Timestamp(2018,1,1,0)
 
 #arima = ARIMA_forecast()
 #arima.load('/home/marcel/Dropbox/data/ARIMA_p4d0q2.pkl')
-pl.plot_arma_forecast(t_start, t_stop,t_stop+timedelta(weeks=1),4,2)
+pl.plot_arma_forecast(t_start, t_stop,t_stop+timedelta(weeks=2),1,0)
 
 # rd= WeatherReader()
 #pl.plot_load([de_load,hertz_load,amprion_load,tennet_load,transnet_load], start, stop)
