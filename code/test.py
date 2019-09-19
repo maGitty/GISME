@@ -19,8 +19,21 @@ import re,os,operator,functools
 from shapely.geometry import Point, Polygon
 import holidays
 
-tr = pd.date_range(datetime(2017,1,1), datetime(2018,1,1),freq='1H').to_series().dt.dayofweek.values
-print(np.vstack((tr,tr,tr)))
+tr = pd.date_range(datetime(2017,1,1), datetime(2017,2,1),freq='1D').to_series().dt.dayofweek.values
+print(tr)
+cat = np.zeros((7,tr.size))
+for i in range(7):
+    cat[i,tr==i] = 1
+print(cat)
+#cat = np.zeros((tr.size,7))
+#for i in range(7):
+    #cat[tr==i,i] = 1
+#print(cat)
+#lst = []
+#lst.extend(cat)
+#print(lst)
+
+#print(np.vstack((tr,tr,tr)))
 #ts = pd.Timestamp(2017,1,1)
 #print(tr[0], type(tr[0]))
 #print(ts,type(ts))

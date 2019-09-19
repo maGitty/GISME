@@ -1,10 +1,11 @@
 #!/usr/bin/python3
 from LoadReader import LoadReader
+from WeatherReader import WeatherReader
 from glob_vars import de_load,hertz_load,amprion_load,tennet_load,transnet_load,data_path
 
 from datetime import datetime,timedelta
 from matplotlib import pyplot as plt
-from statsmodels.tsa.arima_model import ARMA,ARMAResults,_make_arma_exog
+from statsmodels.tsa.arima_model import ARMA,ARMAResults
 from statsmodels.tsa.tsatools import add_trend
 from statsmodels.tools.eval_measures import aicc
 from statsmodels.regression.linear_model import OLS
@@ -22,177 +23,83 @@ register_matplotlib_converters()
 
 
 class TSForecast:
-    """TODO
-    
-    """
-    def __init__(self,hours_ahead,forecast,actual,tstart,tstop):
-        """TODO
+    """Used to store time series forecast"""
+    def __init__(self,hours_ahead,forecast,actual,train_start,train_stop,fc_start,fc_stop):
+        """Initializes instance
+        Parameters
+        ----------
+        hours_ahead : int
+                      specifies how many hours ahead forecast is done
+        forecast    : numpy.ndarray
+                      contains forecast data
+        actual      : numpy.ndarray
+                      contains actual data
+        tstart      : datetime.datetime
+                      forecast start time
+        tstop       : datetime.datetime
+                      forecast stop time
         
+        Returns
+        -------
+        None
         """
         assert len(forecast) == len(actual), f'lengths do not equal: {len(forecast)},{len(actual)}'
         self.hours_ahead = hours_ahead
         self.forecast = forecast
         self.actual = actual
-        self.start = tstart
-        self.stop = tstop
+        self.train_start = train_start
+        self.train_stop = train_stop
+        self.fc_start = fc_start
+        self.fc_stop = fc_stop
     
     def mape(self):
-        """TODO
-        
+        """Calculates Mean Average Percentage Error of this forecast
+        Returns
+        -------
+        Mean Average Percentage Error as float
         """
         return np.mean(np.abs((self.actual-self.forecast)/self.actual)*100)
     
     def rmse(self):
-        """TODO
-        
+        """Calculates Root Mean Square Error
+        Returns
+        -------
+        Root Mean Square Error as float
         """
         return np.sqrt(((self.forecast-self.actual)**2).mean())
-
-
-class ARMAX_forecast:
-    """TODO
-    
-    """
-    def __init__(self,start,stop,p=None,q=None,exog=None):
-        """TODO
-        
-        """
-        self.load_reader = LoadReader()
-        self.p = p
-        self.q = q
-        self.start = start
-        self.stop = stop
-        self.__armax_result = None
-        self.forecasts = []
-        self.exog = exog
-    
-    def __load_exog(self,tstart=None,tstop=None,range_start=None):
-        """TODO
-        
-        """
-        if self.exog is None:
-            return None
-        exog = []
-        date_range = pd.date_range(tstart,tstop,freq="1H")
-        if 'dayofweek' in self.exog:
-            exog.append(date_range.to_series().dt.dayofweek.values)
-        if 'data_counter' in self.exog:
-            if range_start is None:
-                exog.append(np.array(range(date_range.size)))
-            else:
-                exog.append(np.array(range(range_start,range_start+date_range.size)))
-        
-        return np.column_stack(exog)
-    
-    @staticmethod
-    def load(fname):
-        """TODO
-        
-        """
-        try:
-            return pickle.load(open(fname,'rb'))
-        except Exception as e:
-            print(f"an error occured:\n{e}")
-    
-    def save(self):
-        """TODO
-        
-        """
-        fname = os.path.join(data_path,f"ARMAX_p{self.p}q{self.q}.pkl")
-        pickle.dump(self,open(fname,'wb'))
-        return fname
-    
-    def train(self):
-        """TODO
-        
-        """
-        # time steps of values in hours
-        data = self.load_reader.vals4slice(de_load,
-                                           self.start,
-                                           self.stop,
-                                           step=1).ffill(dim='utc_timestamp').values
-        
-        date_range = pd.date_range(self.start,
-                                   self.stop,
-                                   freq="1H")
-        model_exog = self.__load_exog(self.start,self.stop)
-        model = ARMA(data,exog=model_exog,
-                     order=(self.p,self.q),
-                     dates=date_range)
-        self.__armax_result = model.fit(method='css-mle',
-                                        trend='c',
-                                        transparams=False,
-                                        full_output=-1)
-        self.fit_params = self.__armax_result.params
-    
-    def predict_next(self,hours_ahead=24):
-        """TODO
-        
-        """
-        predictions = self.__armax_result.forecast(steps=hours_ahead,
-                                                   exog=pd.date_range(self.stop+timedelta(hours=1),
-                                                                      self.stop+timedelta(hours=hours_ahead),
-                                                                      freq='1H').to_series().dt.dayofweek)[0]
-        return predictions
-    
-    def predict_range(self,stop_time,hours_ahead):
-        """TODO
-        
-        """
-        assert self.__armax_result is not None, "did not train arma yet"
-        max_hours = max(hours_ahead)
-        data = self.load_reader.vals4slice(de_load,self.start,self.stop,step=1)
-        out_of_sample_exog = self.__load_exog(self.stop+timedelta(hours=1),
-                                   self.stop+timedelta(hours=max_hours),len(data))
-        fc = self.__armax_result.forecast(steps=max_hours,exog=out_of_sample_exog)[0]
-        
-        forecast = [[] for hour in range(len(hours_ahead))]
-        for i,hours in enumerate(hours_ahead):
-            forecast[i].append(fc[hours-1])
-        
-        stop_counter = self.stop
-        delta1h = timedelta(hours=1)
-        while stop_counter < stop_time:
-            stop_counter+=delta1h
-            data = self.load_reader.vals4slice(de_load,self.start,stop_counter,
-                                              step=1).ffill(dim='utc_timestamp').values
-            date_range = pd.date_range(self.start,stop_counter,freq="1H")
-            model_exog = self.__load_exog(self.start,stop_counter)
-            arma = ARMA(data,exog=model_exog,
-                        order=(self.p,self.q),
-                        dates=date_range)
-            arma.method = 'css-mle'
-            if self.exog is not None:
-                arma.exog = add_trend(model_exog, trend='c', prepend=True, has_constant='raise')
-            self.__armax_result.initialize(arma,self.fit_params)
-            out_of_sample_exog = self.__load_exog(stop_counter+timedelta(hours=1),
-                                                  stop_counter+timedelta(hours=max_hours),
-                                                  len(data))
-            fc = self.__armax_result.forecast(steps=max_hours,exog=out_of_sample_exog)[0]
-    
-            for i,hours in enumerate(hours_ahead):
-                forecast[i].append(fc[hours-1])
-        
-        actual_data = self.load_reader.vals4slice(de_load,self.stop,stop_counter,step=1).ffill(dim='utc_timestamp').values
-        for i,fc in enumerate(forecast):
-            self.forecasts.append(TSForecast(hours_ahead[i],fc,actual_data,self.stop,stop_counter))
-        
-        return forecast
     
     def summary(self):
-        """TODO
+        """Returns a summary of this forecast
         
+        Returns
+        -------
+        A summary as string
         """
-        print(self.__armax_result.summary())    
+        sum_str = f"{self.hours_ahead} hours ahead forecast from {self.fc_start} "\
+            f"to {self.fc_stop} trained from {self.train_start} to {self.train_stop}:"\
+            f"\nmape : {np.round(self.mape(),2)} , rmse : {np.round(self.rmse(),2)}"
+        
+        return sum_str
 
 
 class ARMA_forecast:
-    """TODO
-    
-    """
+    """ARMA forecast"""
     def __init__(self,start,stop,p=None,q=None):
-        """TODO
+        """Initializes instance
+        Parameters
+        ----------
+        start : datetime.datetime
+                start time of forecast
+        stop  : datetime.datetime
+                stop time of forecast
+        p     : int
+                parameter for autoregressive part
+        q     : int
+                parameter for moving average part
         
+        Returns
+        -------
+        None
         """
         self.load_reader = LoadReader()
         self.p = p
@@ -204,25 +111,38 @@ class ARMA_forecast:
 
     @staticmethod
     def load(fname):
-        """TODO
+        """Loads ARMA_forecast instance from file name
+        Parameters
+        ----------
+        fname : string
+                path to pickled file containing instance
         
+        Returns
+        -------
+        ARMA_forecast instance if exists, raising Exception otherwise
         """
         try:
             return pickle.load(open(fname,'rb'))
         except Exception as e:
             print(f"an error occured:\n{e}")
+            raise OSError(f'file not found: {fname}')
 
     def save(self):
-        """TODO
-        
+        """Stores instance to pickle
+        Returns
+        -------
+        file name of stored instance as string
         """
         fname = os.path.join(data_path,f"ARMA_p{self.p}q{self.q}.pkl")
         pickle.dump(self,open(fname,'wb'))
         return fname
     
     def train(self):
-        """TODO
-        
+        """Fits ARMA_forecast instance with specified endogenous data
+           Needs to be called before forecasting
+        Returns
+        -------
+        None
         """
         # time steps of values in hours
         data = self.load_reader.vals4slice(de_load,
@@ -243,8 +163,15 @@ class ARMA_forecast:
         self.fit_params = self.__arma_result.params
     
     def predict_next(self,hours_ahead=24):
-        """TODO
+        """Predicts for given amount of hours from current trained point
+        Parameters
+        ----------
+        hours_ahead : int
+                      number of hours to forecast
         
+        Returns
+        -------
+        predicted values as numpy.ndarray
         """
         predictions = self.__arma_result.predict(self.stop,
                                                 self.stop+timedelta(hours=hours_ahead),
@@ -252,8 +179,17 @@ class ARMA_forecast:
         return predictions
     
     def predict_range(self,stop_time,hours_ahead):
-        """TODO
+        """Predicts from instance tstop to given stop_time for every hour with given hours_ahead
+        Parameters
+        ----------
+        stop_time   : datetime.datetime
+                      time of last forecast
+        hours_ahead : list of int
+                      time steps to forecast
         
+        Returns
+        -------
+        list of forecasts for each number in hours_ahead respectively as list
         """
         assert self.__arma_result is not None, "did not train arma yet"
         max_hours = max(hours_ahead)
@@ -283,36 +219,240 @@ class ARMA_forecast:
         
         actual_data = self.load_reader.vals4slice(de_load,self.stop,stop_counter,step=1).ffill(dim='utc_timestamp').values
         for i,fc in enumerate(forecast):
-            self.forecasts.append(TSForecast(hours_ahead[i],fc,actual_data,self.stop,stop_counter))
+            self.forecasts.append(TSForecast(hours_ahead[i],fc,actual_data,self.start,self.stop,self.stop,stop_counter))
         
         return forecast
     
     def summary(self):
-        """TODO
-        
+        """Prints summary
+        Returns
+        -------
+        None
         """
         print(self.__arma_result.summary())
 
-def auto_arma(tstart,tstop,ar_stop,ma_stop):
-    load_reader = LoadReader()
-    data = load_reader.vals4slice(de_load,tstart,tstop,step=1).ffill(dim='utc_timestamp').values
-    date_range = pd.date_range(tstart,tstop,freq="1H")
+
+class ARMAX_forecast:
+    """ARMAX forecast"""
+    def __init__(self,start,stop,p=None,q=None,exog=None):
+        """Initializes instance
+        Parameters
+        ----------
+        start : datetime.datetime
+                start time of forecast
+        stop  : datetime.datetime
+                stop time of forecast
+        p     : int
+                parameter for autoregressive part
+        q     : int
+                parameter for moving average part
+        exog  : list of strings
+                used exogenous variables
+        
+        Returns
+        -------
+        None
+        """
+        self.load_reader = LoadReader()
+        self.weather_reader = WeatherReader()
+        self.p = p
+        self.q = q
+        self.start = start
+        self.stop = stop
+        self.__armax_result = None
+        self.forecasts = []
+        self.exog = exog
+        self.method = 'css-mle'
     
-    if not os.path.exists(os.path.join(data_path,f'tstart{tstart.year}_tstop{tstop.year}')):
-        os.mkdir(os.path.join(data_path,f'tstart{tstart.year}_tstop{tstop.year}'))
+    def __load_exog(self,tstart=None,tstop=None,range_start=None):
+        """loads exogenous variables as numpy.ndarray based on self.exog
+           possible choices:
+             - 'dayofweek'    : number of week day
+             - 'data_counter' : counting data points beginning from 0
+        
+        Parameters
+        ----------
+        tstart      : datetime.datetime
+                      start time
+        tstop       : datetime.datetime
+                      stop time
+        range_start : int
+                      if existing, specifies start point of data_counter
+              
+        Returns
+        -------
+        numpy.ndarray of exogenous data
+        """
+        if self.exog is None:
+            return None
+        exog = []
+        date_range = pd.date_range(tstart,tstop,freq="1H")
+        if 'dayofweek' in self.exog:
+            dow = date_range.to_series().dt.dayofweek.values
+            # extend exog by 7 dummy arrays, each for one weekday
+            cat = np.zeros((7,dow.size))
+            for i in range(7):
+                cat[i,dow==i] = 1
+            exog.extend(cat)
+        if 'data_counter' in self.exog:
+            if range_start is None:
+                exog.append(np.array(range(date_range.size)))
+            else:
+                exog.append(np.array(range(range_start,range_start+date_range.size)))
+        if 'hour' in self.exog:
+            exog.append(date_range.to_series().dt.hour.values)
+        if 't2m_max' in self.exog:
+            exog.append(self.weather_reader.max_slice('t2m',tstart,tstop))
+        if 't2m_mean' in self.exog:
+            exog.append(self.weather_reader.mean_slice('t2m',tstart,tstop))
+        
+        return np.column_stack(exog)
     
-    for q in range(ma_stop):
-        for p in range(ar_stop):
-            if os.path.exists(os.path.join(data_path,f'tstart{tstart.year}_tstop{tstop.year}',f'ARMA_p{p}q{q}.pkl')):
-                break
-            start = datetime.now()
-            arma = ARMA(data,order=(p,q),dates=date_range)
-            try:
-                arma_result = arma.fit(trend='c',method='css-mle',transparams=True,full_output=-1)
-                arma_result.save(os.path.join(data_path,f'tstart{tstart.year}_tstop{tstop.year}',f'ARMA_p{p}q{q}.pkl'))
-                print(f'trained and saved arma with p={p} and q={q}, took {(datetime.now()-start).seconds}s')
-            except Exception as e:
-                print(f'could not train ARMA({p},{q}):\n{e}')
+    @staticmethod
+    def load(fname):
+        """Loads ARMAX_forecast instance from file name
+        Parameters
+        ----------
+        fname : string
+                path to pickled file containing instance
+        
+        Returns
+        -------
+        ARMAX_forecast instance if exists, raising Exception otherwise
+        """
+        try:
+            return pickle.load(open(fname,'rb'))
+        except Exception as e:
+            print(f"An error occured:\n{e}")
+            raise OSError(f'file not found: {fname}')
+    
+    def save(self):
+        """Stores instance to pickle
+        Returns
+        -------
+        file name of stored instance as string
+        """
+        fname = os.path.join(data_path,f"ARMAX_p{self.p}q{self.q}.pkl")
+        pickle.dump(self,open(fname,'wb'))
+        return fname
+    
+    def train(self):
+        """Fits ARMAX_forecast instance with specified endogenous and exogenous data
+           Needs to be called before forecasting
+        Returns
+        -------
+        None
+        """
+        data = self.load_reader.vals4slice(de_load,
+                                           self.start,
+                                           self.stop,
+                                           step=1).ffill(dim='utc_timestamp').values
+        model_exog = self.__load_exog(self.start,self.stop)
+        arma = ARMA(data,exog=model_exog,
+                     order=(self.p,self.q))
+        self.__armax_result = arma.fit(method=self.method,
+                                        trend='nc',
+                                        transparams=False,
+                                        full_output=-1)
+        self.fit_params = self.__armax_result.params
+    
+    def predict_next(self,hours_ahead=24):
+        """Predicts for given amount of hours from current trained point
+        Parameters
+        ----------
+        hours_ahead : int
+                      number of hours to forecast
+        
+        Returns
+        -------
+        predicted values as numpy.ndarray
+        """
+        predictions = self.__armax_result.forecast(steps=hours_ahead,
+                                                   exog=pd.date_range(self.stop+timedelta(hours=1),
+                                                                      self.stop+timedelta(hours=hours_ahead),
+                                                                      freq='1H').to_series().dt.dayofweek)[0]
+        return predictions
+    
+    def predict_range(self,stop_time,hours_ahead):
+        """Predicts from instance tstop to given stop_time for every hour with given hours_ahead
+        Parameters
+        ----------
+        stop_time   : datetime.datetime
+                      time of last forecast
+        hours_ahead : list of int
+                      time steps to forecast
+        
+        Returns
+        -------
+        list of forecasts for each number in hours_ahead respectively as list
+        """
+        assert self.__armax_result is not None, "did not train arma yet"
+        max_hours = max(hours_ahead)
+        data = self.load_reader.vals4slice(de_load,self.start,self.stop,step=1)
+        out_of_sample_exog = self.__load_exog(self.stop+timedelta(hours=1),
+                                   self.stop+timedelta(hours=max_hours),len(data))
+        fc = self.__armax_result.forecast(steps=max_hours,exog=out_of_sample_exog)[0]
+        
+        forecast = [[] for hour in range(len(hours_ahead))]
+        for i,hours in enumerate(hours_ahead):
+            forecast[i].append(fc[hours-1])
+        
+        stop_counter = self.stop
+        delta1h = timedelta(hours=1)
+        while stop_counter < stop_time:
+            stop_counter+=delta1h
+            data = self.load_reader.vals4slice(de_load,self.start,stop_counter,
+                                              step=1).ffill(dim='utc_timestamp').values
+            model_exog = self.__load_exog(self.start,stop_counter)
+            arma = ARMA(data,exog=model_exog,
+                        order=(self.p,self.q))
+            arma.method = self.method
+            #if self.exog is not None: # needed if constant is included -> did result in higher error
+                #arma.exog = add_trend(model_exog, trend='c', prepend=True, has_constant='raise')
+            self.__armax_result.initialize(arma,self.fit_params)
+            out_of_sample_exog = self.__load_exog(stop_counter+delta1h,
+                                                  stop_counter+timedelta(hours=max_hours),
+                                                  len(data))
+            fc = self.__armax_result.forecast(steps=max_hours,exog=out_of_sample_exog)[0]
+    
+            for i,hours in enumerate(hours_ahead):
+                forecast[i].append(fc[hours-1])
+        
+        actual_data = self.load_reader.vals4slice(de_load,self.stop,stop_counter,step=1).ffill(dim='utc_timestamp').values
+        for i,fc in enumerate(forecast):
+            self.forecasts.append(TSForecast(hours_ahead[i],fc,actual_data,self.start,self.stop,self.stop,stop_counter))
+        
+        return forecast
+    
+    def summary(self):
+        """Prints summary
+        Returns
+        -------
+        None
+        """
+        print(self.__armax_result.summary())
+
+
+#def auto_arma(tstart,tstop,ar_stop,ma_stop):
+    #load_reader = LoadReader()
+    #data = load_reader.vals4slice(de_load,tstart,tstop,step=1).ffill(dim='utc_timestamp').values
+    #date_range = pd.date_range(tstart,tstop,freq="1H")
+    
+    #if not os.path.exists(os.path.join(data_path,f'tstart{tstart.year}_tstop{tstop.year}')):
+        #os.mkdir(os.path.join(data_path,f'tstart{tstart.year}_tstop{tstop.year}'))
+    
+    #for q in range(ma_stop):
+        #for p in range(ar_stop):
+            #if os.path.exists(os.path.join(data_path,f'tstart{tstart.year}_tstop{tstop.year}',f'ARMA_p{p}q{q}.pkl')):
+                #break
+            #start = datetime.now()
+            #arma = ARMA(data,order=(p,q),dates=date_range)
+            #try:
+                #arma_result = arma.fit(trend='c',method='css-mle',transparams=True,full_output=-1)
+                #arma_result.save(os.path.join(data_path,f'tstart{tstart.year}_tstop{tstop.year}',f'ARMA_p{p}q{q}.pkl'))
+                #print(f'trained and saved arma with p={p} and q={q}, took {(datetime.now()-start).seconds}s')
+            #except Exception as e:
+                #print(f'could not train ARMA({p},{q}):\n{e}')
 
 def print_armas(tstart,tstop,ar_stop,ma_stop):
     pqs = functools.reduce(operator.add,[[(x+1,x),(x,x+1),(x+1,x+1)] for x in range(8)],[])
@@ -325,18 +465,20 @@ def print_armas(tstart,tstop,ar_stop,ma_stop):
             except:
                 pass
 
-tstart = datetime(2017,1,1,0)
-tstop = datetime(2018,1,1,0)
-#print_armas(tstart, tstop,6,5)
-armax = ARMAX_forecast(tstart,tstop,1,1,exog=['dayofweek','data_counter'])
-armax.train()
-armax.predict_range(tstop+timedelta(weeks=1),[1,6,24])
-for fc in armax.forecasts:
-    plt.plot(fc.forecast,label=f'{fc.hours_ahead}H')
-    print(fc.mape(), fc.rmse())
-plt.plot(armax.forecasts[0].actual,label='actual')
-plt.legend()
-plt.show()
+#tstart = datetime(2017,1,1,0)
+#tstop = datetime(2018,1,1,0)
+##print_armas(tstart, tstop,6,5)
+#armax = ARMAX_forecast(tstart,tstop,1,0,exog=['dayofweek'])
+#armax.train()
+#armax.summary()
+#armax.predict_range(tstop+timedelta(weeks=1),[1,6,24])
+#for fc in armax.forecasts:
+    #plt.plot(fc.forecast,label=f'{fc.hours_ahead}H')
+    #print(fc.mape(), fc.rmse())
+#plt.plot(armax.forecasts[0].actual,label='actual')
+#plt.legend()
+#plt.show()
+
 #arma = ARMA_forecast(tstart,tstop,1,1)
 #arma.train()
 #fname = arma.save()

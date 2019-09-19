@@ -12,32 +12,40 @@ In this chapter, the used forecasting methods are explained further and why they
 \section{Data acquisition}
 \label{sec:dataq}
 
-In order to acquire the needed weather data, \gls{ecmwf}'s Python-API has been used for automated data acquisition.\\
+In order to acquire the needed weather data, \gls{ecmwf}'s Python-API is used for automated data acquisition. The API has been extended by some functionality recently and allows to download the data with different extensions. The chosen extension is .nc, because Python's xarray library allows performant access to these files.\\
 
 \section{Forecasting methods}
 \label{sec:forecastmet}
 
-For time series forecasting, often used methods are e.g.\ \gls{arma} models as mentioned in \tcite{Hyndman2018}, but  also \gls{nn}, where it is common to reduce the number input variables in order to speed up computation, which is desirable for the huge amount of grid-based data that grows quadratically with size. There are also some papers that use regression models other than \gls{arma} such as \gls{lr},\gls{mlr} or \gls{svm}.\\\
-E.g.\ \tcite{Aguiar2016} uses \gls{nn} to do intra-day forecasting of solar radiation within 1-6h on Gran Canaria and, as in this thesis, grid-based data from \gls{ecmwf} is used.\\
+For time series forecasting, often used methods are \eg \gls{arma} models as mentioned in \tcite{Hyndman2018}, but  also \gls{nn}, where it is common to reduce the number of input variables in order to speed up computation, which is desirable for the huge amount of grid-based data that grows quadratically with size. There are also some papers that use regression models other than \gls{arma} such as \gls{lr}, \gls{mlr} or \gls{svm}.\\
+\tcite{Aguiar2016} applies \gls{nn} to do intra-day solar radiation forecasting with a forecasting horizon of 1-6 hours on Gran Canaria and, as in this thesis, grid-based data from \gls{ecmwf} is used.\\
 
-\subsection{Linear Regression}
-
-
+%\subsection{Linear Regression}
 \subsection{ARMA}
 
-One of the most frequently used methods for forecasting in time series forecasting is \gls{arma}, which is a combination of Autoregressive and Moving Average terms. \gls{arima} is quite similar to this, but also involves a differentiation term to consider the trend of past data.\\
+One of the most frequently used methods for forecasting in time series forecasting is \gls{arma}, which is a combination of \gls{ar} and \gls{ma} terms. \gls{arima} is quite similar to this, but involves an additional differentiation term to consider the trend of past data. The formal description of an \gls{arma} is given as follows:\\
 
 \begin{equation}
 y_t = c+\epsilon_t+\sum_{i=1}^{p}a_iy_{t-i}+\sum_{j=1}^{q}b_j\epsilon_{t-j}
+\label{eq:arma}
 \end{equation}
 
-With $c$ as a constant, $\epsilon_t$ as noise terms, $p$ as size of the \gls{ar} part, $q$ as size of the \gls{ma} part, $a$ and $b$ for the \gls{ar} and \gls{ma} coefficients respectively and $y_t$ as the predicted value.\\
+With $c$ as a constant, $\epsilon_t$ as noise terms with respect to time $t$, $p$ as size of the \gls{ar} part, $q$ as size of the \gls{ma} part, $a$ and $b$ for the \gls{ar} and \gls{ma} coefficients respectively and $y_t$ as the predicted value.\\
 
 \subsection{ARMAX}
 
-\subsubsection{only calendar variables as exogenous inputs}
+Another similar method is \gls{armax}, which includes an additional term for exogenous variables. This term can be used to include relations to external factors that do not depend on the endogenous data. The formal description is given by:\\
 
-\subsubsection{additional weather variables as exogenous inputs}
+\begin{equation}
+y_t = c+\epsilon_t+\sum_{i=1}^{p}a_iy_{t-i}+\sum_{j=1}^{q}b_j\epsilon_{t-j}+\sum_{k=1}^{n}c_kx_k
+\label{eq:armax}
+\end{equation}
+
+Which almost equals to \Cref{eq:arma} for the \gls{arma}. There is an additional term for $n$ included exogenous variables $x$ with $c$ as the respective coefficients.
+
+%\subsubsection{only calendar variables as exogenous inputs}
+%
+%\subsubsection{additional weather variables as exogenous inputs}
 
 \section{Feature Selection}
 \label{sec:featsel}
@@ -51,6 +59,7 @@ With $c$ as a constant, $\epsilon_t$ as noise terms, $p$ as size of the \gls{ar}
 
 \begin{equation}
 RMSE = \sqrt{\frac{1}{n} \sum_{i=1}^{n} (a_i-p_i)^2}
+\label{eq:rmse}
 \end{equation}
 
 With $n$ for the size, a for the actual values and p for predicted values.\\
@@ -59,6 +68,7 @@ With $n$ for the size, a for the actual values and p for predicted values.\\
 
 \begin{equation}
 MAPE = \frac{1}{n}\times 100 \sum_{i=1}^{n} \left|\frac{a_i-p_i}{a_i}\right|
+\label{eq:mape}
 \end{equation}
 
 With $n$ for the size, a for the actual values and p for predicted values.\\

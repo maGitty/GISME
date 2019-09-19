@@ -10,9 +10,9 @@ from datetime import datetime, timedelta, time
 from shapely.geometry import Polygon, Point
 
 class WeatherReader:
-    """used to read nc files and to return xarray.DataArray containing desired data"""
+    """Used to read weather nc files and to return xarray.DataArray containing desired data"""
     def __init__(self,isin=False):
-        """Set path to open files, store some information for faster response
+        """Initializes instance, set path to open files, store some information for faster response
         
         Returns
         -------
@@ -83,6 +83,23 @@ class WeatherReader:
             return self.wdata[name].where(contained,other=np.nan,drop=False).reduce(func, dim=[lon_col,lat_col])
         else:
             return self.wdata[name].reduce(func, dim=[lon_col,lat_col])
+    
+    def reduce_lonlat_slice(self, name, func,start,stop):
+        """Return data for specified variable after filtering by time slice
+           and applying function to reduce along longitude and latitude axes
+        """
+        assert name in self.var_names, f'column {name} not found'
+        
+        data = self.wdata[name].sel(time=slice(start,stop))
+        
+        if self.isin:
+            try:
+                contained = np.load(os.path.join(data_path,'isin.npy'))
+            except:
+                print(f'isin file not found in {data_path}')
+                contained = self.check_isinDE()
+            data =  data.where(contained,other=np.nan,drop=False)
+        return data.reduce(func, dim=[lon_col,lat_col])
     
     def get_size(self):
         """Returns shape of whole data"""
@@ -308,7 +325,15 @@ class WeatherReader:
         except:
             raise Exception(f'coordinates not within bbox? lat:{latitude}')
         return data, long_name
+
+    def max_slice(self,name,start,stop):
+        """TODO"""
+        return self.reduce_lonlat_slice(name,np.nanmax,start,stop)
     
+    def mean_slice(self,name,start,stop):
+        """TODO"""
+        return self.reduce_lonlat_slice(name,np.nanmean,start,stop)
+        
     def var_over_time(self, name):
         """Returns variance over time reduced along longitude
            and latitude dimensions and drops NA values
