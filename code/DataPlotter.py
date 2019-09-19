@@ -4,7 +4,7 @@ from glob_vars import (figure_path,lon_col,lat_col,de_load,hertz_load,amprion_lo
                        tennet_load,transnet_load,bbox,variable_dictionary,data_path,nuts3_01res_shape,nuts0_shape)
 from WeatherReader import WeatherReader
 from LoadReader import LoadReader
-from Predictions import ARMA_forecast
+from Predictions import ARMA_forecast,ARMAX_forecast
 
 import os
 import math
@@ -559,6 +559,33 @@ class DataPlotter:
         file_name = os.path.join(dir_pth,f'ARMA_p{p}q{q}_data{tstart.year}to{tstop.year}_fcto{forecast_end.strftime("%Y%m%d%H")}')
         self.__save_show_fig(fig, dir_pth, file_name)
 
+    def plot_armax_forecast(self,tstart,tstop,forecast_end,p,q,exog=None,hours_range=[1,6,24]):
+        """TODO
+        
+        """
+        armax = ARMAX_forecast(tstart,tstop,p,q,exog=exog)
+        armax.train()
+        armax.summary()
+        
+        forecast1W = armax.predict_range(forecast_end,hours_range)
+        data = self.lreader.vals4slice(de_load,tstop,forecast_end,step=1)
+        fc_range = pd.date_range(tstop,forecast_end,freq='1H')
+        
+        fig,ax = plt.subplots()
+        for i,hours in enumerate(hours_range):
+            ax.plot(fc_range,forecast1W[i], label=f'{hours}H forecast')
+            print(armax.forecasts[i].summary())
+        ax.plot(fc_range,data, label='actual value')
+
+        ax.set_ylabel('load [MW]')
+        plt.setp(ax.get_xticklabels(), rotation=30, horizontalalignment='right')
+        
+        plt.legend()
+        plt.show()
+        
+        dir_pth = os.path.join(figure_path,'ARMAXfc')
+        file_name = os.path.join(dir_pth,f'ARMAX_p{p}q{q}_data{tstart.year}to{tstop.year}_fcto{forecast_end.strftime("%Y%m%d%H")}{"" if exog is None else "_" + "_".join(exog)}')
+        self.__save_show_fig(fig, dir_pth, file_name)
 
 fmt='pdf'
 var='t2m'
@@ -576,11 +603,14 @@ stop = pd.Timestamp(2016,12,31,12)
 pl = DataPlotter(fmt,save=True,show=True,isin=True)#,shape=(2,2))
 
 t_start = pd.Timestamp(2017,1,1,0)
-t_stop = pd.Timestamp(2018,1,1,0)
+t_stop = pd.Timestamp(2018,2,1,0)
 
 #arima = ARIMA_forecast()
 #arima.load('/home/marcel/Dropbox/data/ARIMA_p4d0q2.pkl')
-pl.plot_arma_forecast(t_start, t_stop,t_stop+timedelta(weeks=2),1,0)
+pl.plot_armax_forecast(t_start, t_stop,t_stop+timedelta(weeks=1),1,0)
+pl.plot_armax_forecast(t_start, t_stop,t_stop+timedelta(weeks=1),1,0,exog=['dayofweek'])
+#pl.plot_armax_forecast(t_start, t_stop,t_stop+timedelta(weeks=1),1,0,exog=['t2m_mean'])
+#pl.plot_armax_forecast(t_start, t_stop,t_stop+timedelta(weeks=1),1,0,exog=['dayofweek','t2m_mean'])
 
 # rd= WeatherReader()
 #pl.plot_load([de_load,hertz_load,amprion_load,tennet_load,transnet_load], start, stop)
