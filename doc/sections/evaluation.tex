@@ -18,7 +18,7 @@ It must be mentioned that, as the data used has been reanalysed, so the expected
 
 As data parameters there are also longitude and latitude, where the longitude is chosen to be from 5.5 to 15.5 and the latitude from 47 to 55.5. As the resolution of the used grid is at 0.25°, this results in a total of 1435 grid points per timestamp. As the range of the data from \acrshort{ecmwf} extends from 2015/1/1 to 2019/3/31(TODO update), there is a total of 1551 days with each 12 timestamps due to the 2 hours frequency and thus 18612 timestamps. Considering that there is a value for each point in the grid and every timestamp, there are 26708220 values for each variable.\\
 
-Plotting the data on a map results in a result as can be seen in \Cref{fig:0_2017010702_20190617161317} and \Cref{fig:maxvar4_maps}. In this case the temperature measured at 2 meters is visualized.\\
+Plotting the data on a map results in a result as can be seen in \Cref{fig:maxvar4_maps} and \Cref{fig:isin_compare}. In this case the temperature measured at 2 metres is visualized.\\
 
 %\begin{figure}[h!]%
 %\centering
@@ -30,7 +30,7 @@ Plotting the data on a map results in a result as can be seen in \Cref{fig:0_201
 \begin{figure}[h!]%
 \centering
 \includegraphics[width=\textwidth]{plots/t2m/bundles/maxvar4_maps}%
-\caption{Map showing 4 times with highest temperature variance in Germany, where top left is highest, top right second highest, bottom left third highest and bottom right fourth highest variance (TODO put this in text).}%
+\caption{Four maps showing the four times with the highest two metre temperature variance in Germany, where top left is the highest, top right the second highest, bottom left the third highest and bottom right the fourth highest variance.}%
 \label{fig:maxvar4_maps}%
 \end{figure}
 
@@ -84,12 +84,12 @@ Total sky direct solar radiation at surface & $J~m^{-2}$ & -0.12 & 3088320.00 \\
 
 \subsection{Load data}
 
-Besides weather data used to refine the forecasting results, also historic load data was needed. Therefore data has been retained from Open Power System Data\footnote{\url{https://data.open-power-system-data.org/time_series/}}. \Cref{fig:t2m_mean_2015010112_2018123112_24F} shows the distribution of loads over time with one point per day at 12 am UTC time. The color shows the mean temperature measured at 2 meters.\\
+Besides weather data used to refine the forecasting results, also historic load data was needed. Therefore data has been retained from Open Power System Data\footnote{\url{https://data.open-power-system-data.org/time_series/}}. \Cref{fig:t2m_mean_2015010112_2018123112_24F} shows the distribution of loads over time with one point per day at 12 am UTC time. The color shows the mean temperature measured at 2 metres.\\
 
 %\begin{figure}[h!]%
 %\centering
 %\includegraphics[width=\textheight,angle=-90,origin=c]{plots/t2m_mean_2015010112_2018123112_24F}%
-%\caption{Load curve with mean of 2 meter height measured temperature in germany as color from 2015/1/1 to 2018/12/31 with one single point per day at 12am utc time respectively.}%
+%\caption{Load curve with mean of 2 metre height measured temperature in germany as color from 2015/1/1 to 2018/12/31 with one single point per day at 12am utc time respectively.}%
 %\label{fig:t2m_mean_2015010112_2018123112_24F}%
 %\end{figure}
 
@@ -105,7 +105,7 @@ Besides weather data used to refine the forecasting results, also historic load 
 		\includegraphics[width=2.9\textwidth,angle=-90,origin=c]{plots/plot_load_time_func/t2m_mean_18A5_2015010112_2016123112_24F}%
 		\label{fig:t2m_mean_18A5_2015010112_2016123112_24F}%
 	\end{subfigure}
-	\caption{Load curve with mean of 2 meter measured temperature in Germany as color from 2015/1/1 to 2018/12/31 with one single point per day at 12 AM UTC time respectively.}
+	\caption{Load curve with mean of 2 metre measured temperature in Germany as color from 2015/1/1 to 2018/12/31 with one single point per day at 12 AM UTC time respectively.}
 	\label{fig:t2m_mean_18A5_twofold_24F}
 \end{figure}
 

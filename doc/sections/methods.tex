@@ -2,7 +2,8 @@
 \label{ch:methods}
 
 %This chapter should introduce to the theoretical background of your thesis. Any method you use to obtain the results later should be introduced and explained. 
-In this chapter, the used forecasting methods are explained further and why they were used, but also other methodological aspects of this thesis will be outlined.\\
+This chapter introduces the methods that are applied in this thesis. After explaining the process of data acquisition, the used forecasting methods are explained further. Finally, there are some points about feature selection and also about used error measures.
+%In this chapter, the used forecasting methods are explained and why they were used. After that, other methodological aspects of this thesis will be outlined.\\
 
 %Using weather data from ECMWF Copernicus Climate Change Service (C3S).\\
 %Using load data from \url{https://data.open-power-system-data.org/}.\\
@@ -14,16 +15,17 @@ In this chapter, the used forecasting methods are explained further and why they
 
 In order to acquire the needed weather data, \gls{ecmwf}'s Python-API is used for automated data acquisition. The API has been extended by some functionality recently and allows to download the data with different extensions. The chosen extension is .nc, because Python's xarray library allows performant access to these files.\\
 
+The used load data has been downloaded from Open Power System Data\footnote{\url{https://data.open-power-system-data.org/time_series/}}. As the format of the downloaded data is .csv, it has also been converted to .nc to obtain performant and uniform access to all data.\\
+
 \section{Forecasting methods}
 \label{sec:forecastmet}
 
-For time series forecasting, often used methods are \eg \gls{arma} models as mentioned in \tcite{Hyndman2018}, but  also \gls{nn}, where it is common to reduce the number of input variables in order to speed up computation, which is desirable for the huge amount of grid-based data that grows quadratically with size. There are also some papers that use regression models other than \gls{arma} such as \gls{lr}, \gls{mlr} or \gls{svm}.\\
-\tcite{Aguiar2016} applies \gls{nn} to do intra-day solar radiation forecasting with a forecasting horizon of 1-6 hours on Gran Canaria and, as in this thesis, grid-based data from \gls{ecmwf} is used.\\
+For time series forecasting, often used methods are \eg \gls{arma} models as mentioned in Forecasting: Principles and Practice\footnote{\url{https://otexts.com/fpp2}}.%, but  also \gls{nn}, where it is common to reduce the number of input variables in order to speed up computation, which is desirable for the huge amount of grid-based data that grows quadratically with size. There are also some papers that use regression models other than \gls{arma} such as \gls{lr}, \gls{mlr} or \gls{svm}. \tcite{Aguiar2016} applies \gls{nn} to do intra-day solar radiation forecasting with a forecasting horizon of 1-6 hours on Gran Canaria and, as in this thesis, grid-based data from \gls{ecmwf} is used.\\
 
 %\subsection{Linear Regression}
 \subsection{ARMA}
 
-One of the most frequently used methods for forecasting in time series forecasting is \gls{arma}, which is a combination of \gls{ar} and \gls{ma} terms. \gls{arima} is quite similar to this, but involves an additional differentiation term to consider the trend of past data. The formal description of an \gls{arma} is given as follows:\\
+One of the most frequently used methods for forecasting in time series forecasting is \gls{arma}, which is a combination of \gls{ar} and \gls{ma} terms. \gls{arima} is quite similar to this, but involves an additional differentiation term to consider the trend of past data. The formal description of an \gls{arma} is given by:\\
 
 \begin{equation}
 y_t = c+\epsilon_t+\sum_{i=1}^{p}a_iy_{t-i}+\sum_{j=1}^{q}b_j\epsilon_{t-j}
@@ -34,7 +36,7 @@ With $c$ as a constant, $\epsilon_t$ as noise terms with respect to time $t$, $p
 
 \subsection{ARMAX}
 
-Another similar method is \gls{armax}, which includes an additional term for exogenous variables. This term can be used to include relations to external factors that do not depend on the endogenous data. The formal description is given by:\\
+Another similar method is \gls{armax}, which includes an additional term for exogenous variables. This term can be used to include relations to external factors that do not depend on the endogenous data. It is formally described as\\
 
 \begin{equation}
 y_t = c+\epsilon_t+\sum_{i=1}^{p}a_iy_{t-i}+\sum_{j=1}^{q}b_j\epsilon_{t-j}+\sum_{k=1}^{n}c_kx_k
@@ -50,12 +52,24 @@ Which almost equals to \Cref{eq:arma} for the \gls{arma}. There is an additional
 \section{Feature Selection}
 \label{sec:featsel}
 
-\subsection{Principal Component Analysis}
+Because the used weather data is grid-based, there are 2 more dimensions as usual. This is why feature selection here is much more important to have a reasonable computation time. In the following, the used methods for feature selection will be presented.\\
+
+\subsection{Naive approach}
+
+The first, naive techniques that were used in order to filter the huge amount of grid-based weather data were simple functions to reduce the two-dimensional such as the maximum or mean over the whole grid for each step respectively.\\
+
+TODO(will be extended after feature selection has been implemented)\\
+
+%\subsection{Principal Component Analysis}
 
 \section{Forecast Evaluation}
 \label{sec:fceval}
 
+In order to estimate whether the used model performs well, it is important to apply suitable metrics to evaluate the results. In the following, the used metrics are introduced.\\
+
 \subsection{Root Mean Squared Error}
+
+The \gls{rmse} is an often used, scale-dependent accuracy measure that is used to calculate the root of the squared mean of the differences between the forecast and the actual values. It is described by:\\
 
 \begin{equation}
 RMSE = \sqrt{\frac{1}{n} \sum_{i=1}^{n} (a_i-p_i)^2}
@@ -65,6 +79,8 @@ RMSE = \sqrt{\frac{1}{n} \sum_{i=1}^{n} (a_i-p_i)^2}
 With $n$ for the size, a for the actual values and p for predicted values.\\
 
 \subsection{Mean Absolute Percentage Error}
+
+The \gls{mape} is a relative measure of prediction accuracy. It is multiplied by 100 which makes it a percentage error. The equation for the \gls{mape} is\\
 
 \begin{equation}
 MAPE = \frac{1}{n}\times 100 \sum_{i=1}^{n} \left|\frac{a_i-p_i}{a_i}\right|
