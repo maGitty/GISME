@@ -1,8 +1,11 @@
 #!/usr/bin/python3
-from glob_vars import lon_col,lat_col,era5_path,nuts0_shape,nuts0_10res_shape,data_path
+from glob_vars import (lon_col,lat_col,era5_path,nuts0_shape,
+                       nuts0_10res_shape,data_path,demography_file,
+                       nuts3_01res_shape,isin_path)
 
 import os
 import re
+import pandas as pd
 import numpy as np
 import xarray as xr
 import shapefile as shp
@@ -204,10 +207,41 @@ class WeatherReader:
         
         return contained
     
-    def check_isinRegion(self):
+    def check_isinRegion(self,region_id):
         """TODO
         """
-        pass # TODO
+        demo_df = pd.read_csv(demography_file,encoding='latin1',index_col='GEO')
+        demo_df['Value'] = demo_df['Value'].map(lambda val: pd.NaT if val == ':' else float(val.replace(',','')))
+        demo_df = demo_df[demo_df['TIME']==2017]
+        demo_df = demo_df[[len(reg)==5 for reg in demo_df.index]]
+        demo_df.sort_values('Value', axis=0, ascending=False, inplace=True, kind="quicksort", na_position="last")
+        with shp.Reader(nuts3_01res_shape) as nuts3_sf:
+            regions = [rec for rec in nuts3_sf.shapeRecords() if rec.record['CNTR_CODE'] == 'DE']
+            
+        for reg in regions:
+            if reg.record.NUTS_ID == region_id:
+                region = reg
+                region_poly = Polygon(reg.shape.points)
+        region_poly = Polygon(region.shape.points)        
+        
+        lons = self.get_coords()[lon_col].values
+        lats = self.get_coords()[lat_col].values
+        coords = np.empty((len(lats),len(lons)),np.dtype(Point))
+    
+        for y in range(len(lats)):
+            for x in range(len(lons)):
+                lo = lons[x]
+                la = lats[y]
+                coords[y,x] = Point(lo,la)
+    
+        contains = np.vectorize(lambda p: p.within(region_poly) or p.touches(region_poly))
+        contained = contains(coords)
+        if not os.path.exists(isin_path):
+            os.mkdir(isin_path)
+            reg_name = region.record.NUTS_NAME.strip("\000")
+        np.save(os.path.join(isin_path,f'isin{reg_name}_{region_id}'), contained)
+    
+        return contained
     
     def vals4time(self, name, datetime,isin=False):
         """Returns the values for specified variable and time
@@ -333,6 +367,10 @@ class WeatherReader:
     def mean_slice(self,name,start,stop):
         """TODO"""
         return self.reduce_lonlat_slice(name,np.nanmean,start,stop)
+    
+    def flattened_slice(self, name, start, stop):
+        """TODO"""
+        return self.wdata[name].sel(time=slice(start,stop)).stack(loc=(lon_col,lat_col)).transpose().values
         
     def var_over_time(self, name):
         """Returns variance over time reduced along longitude
@@ -483,8 +521,11 @@ class WeatherReader:
     
 
 #rd = WeatherReader()
-#from matplotlib import pyplot as plt
+#from matplotlib import pyplot as plt,cm
 #from glob_vars import bbox
+#plt.imshow(rd.check_isinRegion('DE600'),extent=bbox,cmap=cm.Greys)
+#plt.show()
+
 #import xarray as xr
 #eu_shape = shp.Reader(nuts0_shape)
 

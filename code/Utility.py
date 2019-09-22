@@ -46,7 +46,7 @@ class Utility:
             plt.show()
         plt.close(fig)
     
-    def demo_for_year(self,year):
+    def demo4year(self,year):
         """TODO
         
         """

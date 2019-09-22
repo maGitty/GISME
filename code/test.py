@@ -1,4 +1,7 @@
-from glob_vars import data_path, load_path, era5_path, lon_col, lat_col, bbox, de_load,variable_dictionary,nuts3_01res_shape
+from glob_vars import (data_path,load_path,era5_path,
+                       lon_col,lat_col, bbox,de_load,
+                       variable_dictionary,nuts3_01res_shape,
+                       nuts0_shape,demography_file)
 from WeatherReader import WeatherReader
 from LoadReader import LoadReader
 
@@ -19,12 +22,92 @@ import re,os,operator,functools
 from shapely.geometry import Point, Polygon
 import holidays
 
-tr = pd.date_range(datetime(2017,1,1), datetime(2017,2,1),freq='1D').to_series().dt.dayofweek.values
-print(tr)
-cat = np.zeros((7,tr.size))
-for i in range(7):
-    cat[i,tr==i] = 1
-print(cat)
+#tr = pd.date_range(datetime(2017,1,1), datetime(2017,2,1),freq='1D').to_series().dt.dayofweek.values
+#print(tr)
+#cat = np.zeros((7,tr.size))
+#for i in range(7):
+    #cat[i,tr==i] = 1
+#print(cat)
+
+demo_df = pd.read_csv(demography_file,encoding='latin1',index_col='GEO')
+demo_df['Value'] = demo_df['Value'].map(lambda val: pd.NaT if val == ':' else float(val.replace(',','')))
+demo_df = demo_df[demo_df['TIME']==2017]
+demo_df = demo_df[[len(reg)==5 for reg in demo_df.index]]
+demo_df.sort_values('Value', axis=0, ascending=False, inplace=True, kind="quicksort", na_position="last")
+with shp.Reader(nuts3_01res_shape) as nuts3_sf:
+    regions = [rec for rec in nuts3_sf.shapeRecords() if rec.record['CNTR_CODE'] == 'DE']
+
+def get_region(geo):
+    for reg in regions:
+        if reg.record.NUTS_ID == geo:
+            return reg
+        
+def plot_shape(shape_id):
+    region = get_region(shape_id).shape
+    points = np.array(region.points)
+    intervals = list(region.parts) + [len(region.points)]
+    for (x, y) in zip(intervals[:-1], intervals[1:]):
+        plt.plot(*zip(*points[x:y]), color='k', linewidth=2)
+    plt.show()
+
+plot_shape('DE300')
+
+#print(demo_df)
+#print(dir(demo_df))
+#print(dir(regions[0].record))
+##print(regions[0].record.NUTS_NAME.strip('\000'),regions[0].record.NUTS_ID)
+
+#for i in range(10):
+    #print(get_region(demo_df.iloc[i].name).record.NUTS_NAME.strip('\000'))
+
+def isin_map():
+    start = datetime(2017,1,1)
+    stop = datetime(2017,1,2)
+    wr = WeatherReader()
+    
+    contained = np.load(os.path.join(data_path,'isin.npy'))
+    
+    fig,ax = plt.subplots()
+    ax.imshow(contained,cmap=plt.cm.Greens, extent=bbox)
+    
+    #read shapefile
+    eu_shape = shp.Reader(nuts0_shape)
+    for record in eu_shape.shapeRecords():
+        if 'DE' in record.record:
+            de_shape = record
+            break
+    
+    # concatenate points so that single lines can be drawn
+    state = de_shape.shape
+    points = np.array(state.points)
+    intervals = list(state.parts) + [len(state.points)]
+    for (x, y) in zip(intervals[:-1], intervals[1:]):
+        ax.plot(*zip(*points[x:y]), color='k', linewidth=2)
+    
+    ax.set_ylabel(lat_col)
+    ax.set_xlabel(lon_col)
+    
+    plt.show()
+
+#print(wr.flattened_slice('t2m',start,stop).shape)
+
+def data_csv_timet2mload():
+    wr = WeatherReader()
+    lr = LoadReader()
+    
+    start = datetime(2015,1,1)
+    stop = datetime(2018,12,31)
+    
+    dr = pd.date_range(start,stop,freq='1H').to_series().to_xarray().values
+    tmean = wr.mean_slice('t2m',start,stop).values
+    load = lr.vals4slice(de_load,start,stop,step=1).values
+    
+    pd.DataFrame({'t2m mean': tmean, 'load' : load},
+                 dr).to_csv(os.path.join(data_path,'Dataframe_time_t2mmean_load.csv'),
+                            index_label='time')
+    #print(xr.Dataset({'time' : dr, 't2m mean' : tmean, 'load' : demand}))#.to_dataframe().to_csv(os.path.join(data_path,'Dataframe_time_t2mmean_load.csv')))
+
+
 #cat = np.zeros((tr.size,7))
 #for i in range(7):
     #cat[tr==i,i] = 1

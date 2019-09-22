@@ -269,6 +269,21 @@ class ARMAX_forecast:
            possible choices:
              - 'dayofweek'    : number of week day
              - 'data_counter' : counting data points beginning from 0
+             - 't2m_max'      : maximum of 2 metre temperature for each step
+             - 't2m_mean'     : mean of 2 metre temperature for each step
+             - 't2m_all'      : every grid point of 2 metre temperature as single exogenous variable
+             - 'u10_all'      : every grid point of 10 metre U wind component as single exogenous variable
+             - 'v10_all'      : every grid point of 10 metre V wind component as single exogenous variable
+             - 'lai_hv_all'   : every grid point of high vegetation leaf area index as single exogenous variable
+             - 'lai_lv_all'   : every grid point of low vegetation leaf area index as single exogenous variable
+             - 'lcc_all'      : every grid point of low cloud cover as single exogenous variable
+             - 'stl1_all'     : every grid point of soil temperature level 1 as single exogenous variable
+             - 'slhf_all'     : every grid point of surface latent heat flux as single exogenous variable
+             - 'str_all'      : every grid point of surface net thermal radiation as single exogenous variable
+             - 'sshf_all'     : every grid point of surface sensible heat flux as single exogenous variable
+             - 'tcc_all'      : every grid point of total cloud cover as single exogenous variable
+             - 'tcrw_all'     : every grid point of total column rain water as single exogenous variable
+             - 'fdir_all'     : every grid point of total sky direct solar radiation at surface as single exogenous variable
         
         Parameters
         ----------
@@ -305,6 +320,32 @@ class ARMAX_forecast:
             exog.append(self.weather_reader.max_slice('t2m',tstart,tstop))
         if 't2m_mean' in self.exog:
             exog.append(self.weather_reader.mean_slice('t2m',tstart,tstop))
+        if 't2m_all' in self.exog:
+            exog.extend(self.weather_reader.flattened_slice('t2m',tstart,tstop))
+        if 'u10_all' in self.exog:
+            exog.extend(self.weather_reader.flattened_slice('u10',tstart,tstop))
+        if 'v10_all' in self.exog:
+            exog.extend(self.weather_reader.flattened_slice('v10',tstart,tstop))
+        if 'lai_hv_all' in self.exog:
+            exog.extend(self.weather_reader.flattened_slice('lai_hv',tstart,tstop))
+        if 'lai_lv_all' in self.exog:
+            exog.extend(self.weather_reader.flattened_slice('lai_lv',tstart,tstop))
+        if 'lcc_all' in self.exog:
+            exog.extend(self.weather_reader.flattened_slice('lcc',tstart,tstop))
+        if 'stl1_all' in self.exog:
+            exog.extend(self.weather_reader.flattened_slice('stl1',tstart,tstop))
+        if 'slhf_all' in self.exog:
+            exog.extend(self.weather_reader.flattened_slice('slhf',tstart,tstop))
+        if 'str_all' in self.exog:
+            exog.extend(self.weather_reader.flattened_slice('str',tstart,tstop))
+        if 'sshf_all' in self.exog:
+            exog.extend(self.weather_reader.flattened_slice('sshf',tstart,tstop))
+        if 'tcc_all' in self.exog:
+            exog.extend(self.weather_reader.flattened_slice('tcc',tstart,tstop))
+        if 'tcrw_all' in self.exog:
+            exog.extend(self.weather_reader.flattened_slice('tcrw',tstart,tstop))
+        if 'fdir_all' in self.exog:
+            exog.extend(self.weather_reader.flattened_slice('fdir',tstart,tstop))
         
         return np.column_stack(exog)
     
