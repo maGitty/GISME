@@ -390,7 +390,12 @@ class ARMAX_forecast:
         -------
         file name of stored instance as string
         """
-        fname = os.path.join(data_path,f"ARMAX_p{self.p}q{self.q}.pkl")
+        dir_pth = os.path.join(data_path,'ARMAX')
+        if not os.path.exists(dir_pth):
+            os.mkdir(dir_pth)
+        fname = os.path.join(data_path,'ARMAX',f'start{self.start.strftime("%Y%m%d%H")}_stop'\
+                             f'{self.stop.strftime("%Y%m%d%H")}_p{self.p}q{self.q}{"" if self.exog is None else "_"+"_".join(self.exog)}.pkl')
+        log.info(f'saving arma as {fname}')
         pickle.dump(self,open(fname,'wb'))
         return fname
     
