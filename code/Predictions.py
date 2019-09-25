@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 from LoadReader import LoadReader
 from WeatherReader import WeatherReader
-from glob_vars import de_load,hertz_load,amprion_load,tennet_load,transnet_load,data_path
+from glob_vars import de_load,hertz_load,amprion_load,tennet_load,transnet_load,data_path,log
 
 from datetime import datetime,timedelta
 from matplotlib import pyplot as plt
@@ -51,6 +51,18 @@ class TSForecast:
         self.train_stop = train_stop
         self.fc_start = fc_start
         self.fc_stop = fc_stop
+    
+    def __str__(self):
+        """Returns a summary of this forecast
+        
+        Returns
+        -------
+        A summary as string
+        """
+        sum_str = f"{self.hours_ahead} hours ahead forecast from {self.fc_start} "\
+            f"to {self.fc_stop} trained from {self.train_start} to {self.train_stop}:"\
+            f"\nmape : {np.round(self.mape(),2)} , rmse : {np.round(self.rmse(),2)}"
+        return sum_str
     
     def mape(self):
         """Calculates Mean Average Percentage Error of this forecast
@@ -124,7 +136,7 @@ class ARMA_forecast:
         try:
             return pickle.load(open(fname,'rb'))
         except Exception as e:
-            print(f"an error occured:\n{e}")
+            log.exception(f"an error occured:\n{e}")
             raise OSError(f'file not found: {fname}')
 
     def save(self):
@@ -229,7 +241,7 @@ class ARMA_forecast:
         -------
         None
         """
-        print(self.__arma_result.summary())
+        log.info(f'\n{self.__arma_result.summary()}')
 
 
 class ARMAX_forecast:
@@ -302,13 +314,18 @@ class ARMAX_forecast:
             return None
         exog = []
         date_range = pd.date_range(tstart,tstop,freq="1H")
+        dow = date_range.to_series().dt.dayofweek.values
         if 'dayofweek' in self.exog:
-            dow = date_range.to_series().dt.dayofweek.values
             # extend exog by 7 dummy arrays, each for one weekday
             cat = np.zeros((7,dow.size))
             for i in range(7):
                 cat[i,dow==i] = 1
             exog.extend(cat)
+        if 'weekend' in self.exog:
+            wend = np.zeros((dow.size))
+            wend[dow==5] = 1
+            wend[dow==6] = 1
+            exog.append(wend)
         if 'data_counter' in self.exog:
             if range_start is None:
                 exog.append(np.array(range(date_range.size)))
@@ -364,7 +381,7 @@ class ARMAX_forecast:
         try:
             return pickle.load(open(fname,'rb'))
         except Exception as e:
-            print(f"An error occured:\n{e}")
+            log.exception(f"An error occured:\n{e}")
             raise OSError(f'file not found: {fname}')
     
     def save(self):
@@ -380,14 +397,14 @@ class ARMAX_forecast:
     def train(self):
         """Fits ARMAX_forecast instance with specified endogenous and exogenous data
            Needs to be called before forecasting
-        Returns
+        Returnsobject
         -------
         None
         """
         data = self.load_reader.vals4slice(de_load,
                                            self.start,
                                            self.stop,
-                                           step=1).ffill(dim='utc_timestamp').values
+                                           step=1).values
         model_exog = self.__load_exog(self.start,self.stop)
         arma = ARMA(data,exog=model_exog,
                      order=(self.p,self.q))
@@ -430,8 +447,9 @@ class ARMAX_forecast:
         assert self.__armax_result is not None, "did not train arma yet"
         max_hours = max(hours_ahead)
         data = self.load_reader.vals4slice(de_load,self.start,self.stop,step=1)
-        out_of_sample_exog = self.__load_exog(self.stop+timedelta(hours=1),
-                                   self.stop+timedelta(hours=max_hours),len(data))
+        delta1h = timedelta(hours=1)
+        out_of_sample_exog = self.__load_exog(self.stop+delta1h,
+                                              self.stop+timedelta(hours=max_hours),len(data))
         fc = self.__armax_result.forecast(steps=max_hours,exog=out_of_sample_exog)[0]
         
         forecast = [[] for hour in range(len(hours_ahead))]
@@ -439,7 +457,6 @@ class ARMAX_forecast:
             forecast[i].append(fc[hours-1])
         
         stop_counter = self.stop
-        delta1h = timedelta(hours=1)
         while stop_counter < stop_time:
             stop_counter+=delta1h
             data = self.load_reader.vals4slice(de_load,self.start,stop_counter,
@@ -471,7 +488,7 @@ class ARMAX_forecast:
         -------
         None
         """
-        print(self.__armax_result.summary())
+        log.info(f'\n{self.__armax_result.summary()}')
 
 
 #def auto_arma(tstart,tstop,ar_stop,ma_stop):
@@ -502,7 +519,7 @@ def print_armas(tstart,tstop,ar_stop,ma_stop):
         for p in range(ar_stop):
             try:
                 arma_result = ARMAResults.load(os.path.join(data_path,f'tstart{tstart.year}_tstop{tstop.year}',f'ARMA_p{p}q{q}.pkl'))
-                print(f'({p}|{q}) -\taic:{np.round(arma_result.aic,1)}\tbic:{np.round(arma_result.bic,1)}\thqic:{np.round(arma_result.hqic,1)}\tresid:{np.array(arma_result.resid).mean().round(3)}\tloglike:{np.round(arma_result.llf,1)}')
+                log.info(f'({p}|{q}) -\taic:{np.round(arma_result.aic,1)}\tbic:{np.round(arma_result.bic,1)}\thqic:{np.round(arma_result.hqic,1)}\tresid:{np.array(arma_result.resid).mean().round(3)}\tloglike:{np.round(arma_result.llf,1)}')
             except:
                 pass
 
@@ -633,8 +650,8 @@ class LR_forecast:
         
         """
         p = self.__lr_result.predict()
-        print(len(p))
-        print(p)
+        log.info(len(p))
+        log.info(p)
 
 
 #arma = ARMAResults.load('/home/marcel/Dropbox/data/ARMA_c_p2q2.pkl')
