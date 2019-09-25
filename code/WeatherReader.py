@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 from glob_vars import (lon_col,lat_col,era5_path,nuts0_shape,
                        nuts0_10res_shape,data_path,demography_file,
-                       nuts3_01res_shape,isin_path)
+                       nuts3_01res_shape,isin_path,log)
 
 import os
 import re
@@ -25,7 +25,7 @@ class WeatherReader:
         
         self.isin = isin
         self.filename = os.path.join(era5_path,'*.nc')
-        with xr.open_mfdataset(self.filename) as nc_file:
+        with xr.open_mfdataset(self.filename,combine='nested') as nc_file:
             # drop times where no data is available, until now only seen at the end of the dataset
             self.wdata = nc_file #.dropna('time') # drops times with no values, carefully use, might throw away single points somewhere
         
@@ -81,7 +81,7 @@ class WeatherReader:
             try:
                 contained = np.load(os.path.join(data_path,'isin.npy'))
             except:
-                print(f'isin file not found in {data_path}')
+                log.info(f'isin file not found in {data_path}')
                 contained = self.check_isinDE()
             return self.wdata[name].where(contained,other=np.nan,drop=False).reduce(func, dim=[lon_col,lat_col])
         else:
@@ -99,7 +99,7 @@ class WeatherReader:
             try:
                 contained = np.load(os.path.join(data_path,'isin.npy'))
             except:
-                print(f'isin file not found in {data_path}')
+                log.info(f'isin file not found in {data_path}')
                 contained = self.check_isinDE()
             data =  data.where(contained,other=np.nan,drop=False)
         return data.reduce(func, dim=[lon_col,lat_col])
@@ -208,38 +208,56 @@ class WeatherReader:
         return contained
     
     def check_isinRegion(self,region_id):
-        """TODO
+        """Computes which points are within specified region
+        
+        Parameters
+        ----------
+        region_id : string
+                    id of a region
+        
+        Returns
+        -------
+        2D numpy.ndarray containing booleans specifying wether point lies within region or not
         """
+        # read demo file
         demo_df = pd.read_csv(demography_file,encoding='latin1',index_col='GEO')
+        # clean population data
         demo_df['Value'] = demo_df['Value'].map(lambda val: pd.NaT if val == ':' else float(val.replace(',','')))
-        demo_df = demo_df[demo_df['TIME']==2017]
+        # filter by any year, as regions don't actually move, right?
+        demo_df = demo_df[demo_df['TIME']==2018]
+        # filter all regions with an id of length 5 all others are countries etc
         demo_df = demo_df[[len(reg)==5 for reg in demo_df.index]]
-        demo_df.sort_values('Value', axis=0, ascending=False, inplace=True, kind="quicksort", na_position="last")
+        ## sort # not needed for this
+        #demo_df.sort_values('Value', axis=0, ascending=False, inplace=True, kind="quicksort", na_position="last")
+        # load shapes and mapping of ids to region names
         with shp.Reader(nuts3_01res_shape) as nuts3_sf:
             regions = [rec for rec in nuts3_sf.shapeRecords() if rec.record['CNTR_CODE'] == 'DE']
-            
-        for reg in regions:
-            if reg.record.NUTS_ID == region_id:
-                region = reg
-                region_poly = Polygon(reg.shape.points)
-        region_poly = Polygon(region.shape.points)        
-        
+        region_poly = None
+        # try to find desired region
+        for region in regions:
+            if region.record.NUTS_ID == region_id:
+                # convert region shape to polygon for plotting
+                region_poly = Polygon(region.shape.points)
+                region_name = region.record.NUTS_NAME.strip("\000")
+        if region_poly is None:
+            raise Exception(f'region not found: {region_id}')
+        # create 2D numpy.ndarray of points to ease vectorized computation 
         lons = self.get_coords()[lon_col].values
         lats = self.get_coords()[lat_col].values
         coords = np.empty((len(lats),len(lons)),np.dtype(Point))
-    
         for y in range(len(lats)):
             for x in range(len(lons)):
                 lo = lons[x]
                 la = lats[y]
                 coords[y,x] = Point(lo,la)
-    
-        contains = np.vectorize(lambda p: p.within(region_poly) or p.touches(region_poly))
+        # checks for each point wether it is within the polygon of the desired region
+        contains = np.vectorize(lambda point: point.within(region_poly) or point.touches(region_poly))
         contained = contains(coords)
         if not os.path.exists(isin_path):
             os.mkdir(isin_path)
-            reg_name = region.record.NUTS_NAME.strip("\000")
-        np.save(os.path.join(isin_path,f'isin{reg_name}_{region_id}'), contained)
+        filename = os.path.join(isin_path,f'isin{region_name}_{region_id}')
+        log.info(f'isin saved as {filename}')
+        np.save(filename, contained)
     
         return contained
     
@@ -272,7 +290,7 @@ class WeatherReader:
             try:
                 contained = np.load(os.path.join(data_path,'isin.npy'))
             except:
-                print(f'isin file not found in {data_path}')
+                log.info(f'isin file not found in {data_path}')
                 contained = self.check_isinDE()
             data = data.where(contained,other=np.nan,drop=False)
         
@@ -289,9 +307,9 @@ class WeatherReader:
         name  : string
                 name of the variable
         lon   : numeric
-                the geographic longitude
+                the geographic longitude check getLon() for valid values
         lat   : numeric
-                the geographic latitude
+                the geographic latitude check getLat() for valid values
         dtime : datetime.datetime
                 the specified datetime for which the data is returned
         
@@ -316,13 +334,14 @@ class WeatherReader:
         name      : string
                     name of the variable
         longitude : numeric
-                    the geographic longitude
+                    the geographic longitude check getLon() for valid values
         daytime   : datetime.datetime
                     the specified daytime for which the data is returned
         
         Returns
         -------
-        values for specified variable and longitude along latitude and daytime averaged over all days
+        values for specified variable and longitude averaged along latitude and daytime
+        over all days as xarray.DataArray and the variables long name
         """
         assert name in self.var_names, f'column {name} not found'
 
@@ -342,13 +361,14 @@ class WeatherReader:
         name     : string
                    name of the variable
         latitude : numeric
-                   the geographic latitude
+                   the geographic latitude check getLat() for valid values
         daytime  : datetime.datetime
                    the specified daytime for which the data is returned
         
         Returns
         -------
-        values for specified variable and latitude along longitude and daytime averaged over all days
+        values for specified variable and latitude averaged along longitude and daytime
+        over all days as xarray.DataArray and the variables long name
         """
         assert name in self.var_names, f'column {name} not found'
 
@@ -361,15 +381,62 @@ class WeatherReader:
         return data, long_name
 
     def max_slice(self,name,start,stop):
-        """TODO"""
+        """Return values for specified variable with one value per step
+           from start to stop reduced by max
+        
+        Parameters
+        ----------
+        name  : string
+                name of the variable
+        start : datetime.datetime
+                start time
+        stop  : datetime.datetime
+                stop time
+        
+        Returns
+        -------
+        xarray.DataArray of specified variable reduced over longitude and latitude by max
+        """
         return self.reduce_lonlat_slice(name,np.nanmax,start,stop)
     
     def mean_slice(self,name,start,stop):
-        """TODO"""
+        """Return values for specified variable with one value per step
+           from start to stop reduced by mean
+        
+        Parameters
+        ----------
+        name  : string
+                name of the variable
+        start : datetime.datetime
+                start time
+        stop  : datetime.datetime
+                stop time
+        
+        Returns
+        -------
+        xarray.DataArray of specified variable reduced over longitude and latitude by mean
+        """
         return self.reduce_lonlat_slice(name,np.nanmean,start,stop)
     
     def flattened_slice(self, name, start, stop):
-        """TODO"""
+        """Return values for specified variable from start to stop
+           flattened by concatenating time steps of all grid points,
+           so for a grid of size (x,y) with n steps, a numpy.ndarray
+           with shape (x*y, n) will be returned
+        
+        Parameters
+        ----------
+        name  : string
+                name of the variable
+        start : datetime.datetime
+                start time
+        stop  : datetime.datetime
+                stop time
+        
+        Returns
+        -------
+        xarray.DataArray of specified variable reduced over longitude and latitude by mean
+        """
         return self.wdata[name].sel(time=slice(start,stop)).stack(loc=(lon_col,lat_col)).transpose().values
         
     def var_over_time(self, name):
@@ -383,7 +450,7 @@ class WeatherReader:
         
         Returns
         -------
-        array for variable for each day reduced over longitude and latitude
+        xarray.DataArray for variable for each day reduced over longitude and latitude
         """
         assert name in self.var_names, f'column {name} not found'
         

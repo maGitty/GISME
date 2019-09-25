@@ -2,6 +2,14 @@
 
 from pathlib import Path
 import os
+import logging
+
+log = logging.getLogger('GISME')
+log.setLevel(logging.INFO)
+handler = logging.StreamHandler()
+handler.setFormatter(logging.Formatter(fmt='%(asctime)s - %(levelname)s %(message)s',
+                                       datefmt='%Y-%d-%m %H:%M:%S'))
+log.addHandler(handler)
 
 # paths
 data_path = os.path.join(str(Path.home()),'Dropbox','data')

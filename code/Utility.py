@@ -1,4 +1,4 @@
-from glob_vars import demography_file,lon_col,lat_col,nuts3_01res_shape,figure_path,de_load
+from glob_vars import demography_file,lon_col,lat_col,nuts3_01res_shape,figure_path,de_load,log
 from LoadReader import LoadReader
 
 import os
@@ -34,7 +34,7 @@ class Utility:
         
         """
         if self.save:
-            print(f'saving plot in {file_name}')
+            log.debug(f'saving plot in {file_name}')
             if not os.path.exists(dir_pth):
                 os.makedirs(dir_pth)
             if type(self.fmt) is list:

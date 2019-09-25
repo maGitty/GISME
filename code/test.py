@@ -1,7 +1,7 @@
 from glob_vars import (data_path,load_path,era5_path,
                        lon_col,lat_col, bbox,de_load,
                        variable_dictionary,nuts3_01res_shape,
-                       nuts0_shape,demography_file)
+                       nuts0_shape,demography_file,log)
 from WeatherReader import WeatherReader
 from LoadReader import LoadReader
 
@@ -29,28 +29,57 @@ import holidays
     #cat[i,tr==i] = 1
 #print(cat)
 
-demo_df = pd.read_csv(demography_file,encoding='latin1',index_col='GEO')
-demo_df['Value'] = demo_df['Value'].map(lambda val: pd.NaT if val == ':' else float(val.replace(',','')))
-demo_df = demo_df[demo_df['TIME']==2017]
-demo_df = demo_df[[len(reg)==5 for reg in demo_df.index]]
-demo_df.sort_values('Value', axis=0, ascending=False, inplace=True, kind="quicksort", na_position="last")
-with shp.Reader(nuts3_01res_shape) as nuts3_sf:
-    regions = [rec for rec in nuts3_sf.shapeRecords() if rec.record['CNTR_CODE'] == 'DE']
-
-def get_region(geo):
-    for reg in regions:
-        if reg.record.NUTS_ID == geo:
-            return reg
-        
-def plot_shape(shape_id):
-    region = get_region(shape_id).shape
-    points = np.array(region.points)
-    intervals = list(region.parts) + [len(region.points)]
-    for (x, y) in zip(intervals[:-1], intervals[1:]):
-        plt.plot(*zip(*points[x:y]), color='k', linewidth=2)
+def plot_corr_t2mmean_load():
+    wr = WeatherReader()
+    lr = LoadReader()
+    
+    start = datetime(2015,1,1)
+    stop = datetime(2018,12,31)
+    
+    t2mmean = wr.mean_slice('t2m',start,stop)
+    load_data = lr.vals4slice(de_load, start, stop, step=1)
+    
+    plt.scatter(t2mmean,load_data,s=1)
+    plt.ylabel(de_load)
+    plt.xlabel('2 meter temperature')
     plt.show()
 
-plot_shape('DE300')
+plot_corr_t2mmean_load()
+
+## read demo file
+#demo_df = pd.read_csv(demography_file,encoding='latin1',index_col='GEO')
+## clean population data
+#demo_df['Value'] = demo_df['Value'].map(lambda val: pd.NaT if val == ':' else float(val.replace(',','')))
+## filter by any year, as regions don't actually move, right?
+#demo_df = demo_df[demo_df['TIME']==2018]
+## filter all regions with an id of length 5 all others are countries etc
+#demo_df = demo_df[[len(reg)==5 for reg in demo_df.index]]
+## sort 
+#demo_df.sort_values('Value', axis=0, ascending=False, inplace=True, kind="quicksort", na_position="last")
+#print(demo_df.head(n=50))
+
+#demo_df = pd.read_csv(demography_file,encoding='latin1',index_col='GEO')
+#demo_df['Value'] = demo_df['Value'].map(lambda val: pd.NaT if val == ':' else float(val.replace(',','')))
+#demo_df = demo_df[demo_df['TIME']==2017]
+#demo_df = demo_df[[len(reg)==5 for reg in demo_df.index]]
+#demo_df.sort_values('Value', axis=0, ascending=False, inplace=True, kind="quicksort", na_position="last")
+#with shp.Reader(nuts3_01res_shape) as nuts3_sf:
+    #regions = [rec for rec in nuts3_sf.shapeRecords() if rec.record['CNTR_CODE'] == 'DE']
+
+#def get_region(geo):
+    #for reg in regions:
+        #if reg.record.NUTS_ID == geo:
+            #return reg
+        
+#def plot_shape(shape_id):
+    #region = get_region(shape_id).shape
+    #points = np.array(region.points)
+    #intervals = list(region.parts) + [len(region.points)]
+    #for (x, y) in zip(intervals[:-1], intervals[1:]):
+        #plt.plot(*zip(*points[x:y]), color='k', linewidth=2)
+    #plt.show()
+
+#plot_shape('DE300')
 
 #print(demo_df)
 #print(dir(demo_df))
