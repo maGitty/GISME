@@ -25,7 +25,7 @@ class WeatherReader:
         
         self.isin = isin
         self.filename = os.path.join(era5_path,'*.nc')
-        with xr.open_mfdataset(self.filename,combine='nested') as nc_file:
+        with xr.open_mfdataset(self.filename) as nc_file:
             # drop times where no data is available, until now only seen at the end of the dataset
             self.wdata = nc_file #.dropna('time') # drops times with no values, carefully use, might throw away single points somewhere
         

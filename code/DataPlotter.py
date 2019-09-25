@@ -570,6 +570,10 @@ class DataPlotter:
         """
         arma = ARMA_forecast(tstart,tstop,p,q)
         arma.train()
+        arma.summary()
+        
+        if save_arma:
+            arma.save()
         
         forecast1W = arma.predict_range(forecast_end,hours_range)
         data = self.lreader.vals4slice(de_load,tstop,forecast_end,step=1)
@@ -597,7 +601,6 @@ class DataPlotter:
         armax.summary()
         
         if save_armax:
-            dir_pth = 
             armax.save()
         
         forecast1W = armax.predict_range(forecast_end,hours_range)
