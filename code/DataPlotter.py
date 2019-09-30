@@ -1,8 +1,20 @@
 #!/usr/bin/python3
 
+"""
+This module is supposed to take care of visualizational
+concerns especially if it is about plotting data
+"""
+
+__author__ = "Marcel Herm"
+__credits__ = ["Marcel Herm","Nicole Ludwig","Marian Turowski"]
+__license__ = "MIT"
+__version__ = "0.0.1"
+__maintainer__ = "Marcel Herm"
+__status__ = "Production"
+
 from glob_vars import (figure_path,lon_col,lat_col,de_load,hertz_load,amprion_load,
                        tennet_load,transnet_load,bbox,variable_dictionary,data_path,
-                       nuts3_01res_shape,nuts0_shape,isin_path,log)
+                       nuts3_01res_shape,nuts0_shape,isin_path,log,demography_file)
 from WeatherReader import WeatherReader
 from LoadReader import LoadReader
 from Predictions import ARMA_forecast,ARMAX_forecast
@@ -14,11 +26,8 @@ import numpy as np
 import shapefile as shp
 from datetime import datetime,time,timedelta
 from descartes import PolygonPatch
+from statsmodels.graphics.tsaplots import plot_acf,plot_pacf
 from matplotlib import pyplot as plt,colors,ticker,cm,markers,rc,rcParams
-#import seaborn as sns
-#import xarray as xr
-#from calendar import monthrange
-#from cartopy import crs as ccrs,feature as cfeat
 
 from pandas.plotting import register_matplotlib_converters
 register_matplotlib_converters()
@@ -70,8 +79,20 @@ class DataPlotter:
             #rcParams.update({'font.size': 18.})
     
     def __save_show_fig(self,fig,dir_pth,file_name):
-        """TODO
+        """Save and show the passed figure if specified and finally close it
         
+        Parameters
+        ----------
+        fig       : matplotlib.figure.Figure
+                    the created figure
+        dir_pth   : string
+                    the path to the directory to save to
+        file_name : string
+                    the file name to save to
+        
+        Returns
+        -------
+        None
         """
         if self.save:
             log.info(f'saving plot in {file_name}')
@@ -87,16 +108,34 @@ class DataPlotter:
         # close figures as they won't be closed automatically by python during runtime
         plt.close(fig)
     
-    def __create_ax_map(self,ax,variable,day,norm,xlbl_true=None,ylbl_true=None):
-        """TODO
+    def __create_ax_map(self,ax,variable,time,norm,xlbl_true=None,ylbl_true=None):
+        """Plot a map of germany on the given axis
         
+        Parameters
+        ----------
+        ax        : matplotlib.axes.Axes
+                    the axis used to plot
+        variable  : string
+                    the name of the weather variable
+        time      : datetime.datetime
+                    the time for which to plot the variable
+        norm      : matplotlib.colors.BoundaryNorm
+                    the norm for color distribution
+        xlbl_true : bool
+                    wether to plot a label for the x-axis or not
+        ylbl_true : bool
+                    wether to plot a label for the y-axis or not
+        
+        Returns
+        -------
+        None
         """
         if self.isin:
-            data = self.wreader.vals4time(variable,day,isin=True)
+            data = self.wreader.vals4time(variable,time,isin=True)
             #img = ax.imshow(data.values,cmap='jet',extent=bbox,norm=norm)
             img = data.plot.imshow(ax=ax,cmap='jet',extent=bbox,norm=norm,add_colorbar=False)
         else:
-            data = self.wreader.vals4time(variable,day)
+            data = self.wreader.vals4time(variable,time)
             img = ax.imshow(data.values,cmap='jet',extent=bbox,interpolation='bilinear',norm=norm)
             #img = data.plot.imshow(ax=ax,cmap='jet',extent=bbox,interpolation='bilinear',norm=norm,add_colorbar=False)
         
@@ -114,7 +153,7 @@ class DataPlotter:
         for (x,y) in zip(intervals[:-1],intervals[1:]):
             ax.plot(*zip(*points[x:y]),color='k',linewidth=2)
 
-        ax.set_title(pd.to_datetime(day).strftime("%Y/%m/%d %HH"))
+        ax.set_title(pd.to_datetime(time).strftime("%Y/%m/%d %HH"))
         # print x and y label only if is most left/lowest plot
         if xlbl_true:
             ax.set_xlabel(lon_col)
@@ -407,6 +446,9 @@ class DataPlotter:
     def plot_isin(self):
         """Plot map showing which grid points are within germany
         
+        Returns
+        -------
+        None
         """
         try:
             contained = np.load(os.path.join(data_path,'isin.npy'))
@@ -426,17 +468,14 @@ class DataPlotter:
     def plot_isinRegion(self,region_id):
         """Plot map showing which grid points are within specified region
         
+        Returns
+        -------
+        None
         """
         with shp.Reader(nuts3_01res_shape) as nuts3_sf:
             regions = [rec for rec in nuts3_sf.shapeRecords() if rec.record['CNTR_CODE'] == 'DE']
-        region_poly = None
-        # try to find desired region
-        for region in regions:
-            if region.record.NUTS_ID == region_id:
-                # convert region shape to polygon for plotting
-                region_name = region.record.NUTS_NAME.strip("\000")        
         try:
-            contained = np.load(os.path.join(isin_path,f'isin{region_name}_{region_id}.npy'))
+            contained = np.load(os.path.join(isin_path,f'isin{region_id}.npy'))
         except:
             log.info(f'isin file not found in {isin_path} for region {region_id}')
             contained = self.wreader.check_isinRegion(region_id)
@@ -449,6 +488,80 @@ class DataPlotter:
         
         file_name = os.path.join(figure_path,f'isin{region_name}_{region_id}')
         self.__save_show_fig(fig,figure_path,file_name)
+    
+
+    def plot_demo4year(self,year):
+        """Plot a map of germany showing regional population data on NUTS 3 level
+        
+        Parameters
+        ----------
+        year : int
+               name of variable
+        
+        Returns
+        -------
+        None
+        """
+        assert (year>=2015 and year<=2018),"demography data only existing from 2015 to 2018"
+        demo_df = pd.read_csv(demography_file,encoding='latin1',index_col='GEO')
+        demo_df['Value'] = demo_df['Value'].map(lambda val: pd.NaT if val == ':' else float(val.replace(',','')))        
+        df = demo_df[demo_df['TIME'] == year]
+        with shp.Reader(nuts3_01res_shape) as nuts3_sf:
+            regions = [rec for rec in nuts3_sf.shapeRecords() if rec.record['CNTR_CODE'] == 'DE']        
+        values = np.array([df.loc[region.record['NUTS_ID'],:]['Value'] for region in regions]) / 1000
+        _min = values.min()
+        _max = values.max()
+        
+        fig,ax = plt.subplots()
+        plt.xlim([5.5,15.5])
+        plt.ylim([47,55.5])
+        ax.set_xlabel(lon_col)
+        ax.set_ylabel(lat_col)
+        
+        # for logarithmic colorbar
+        cbox_bound = np.exp(np.linspace(np.log(_min),np.log(_max),256))
+        norm = colors.BoundaryNorm(cbox_bound, ncolors=256)
+        sm = cm.ScalarMappable(norm=norm,cmap=cm.get_cmap('jet'))
+        cbar = plt.colorbar(sm)
+        cbar.set_label('inhabitants (in 1k)')
+        
+        for value,region in zip(values,self.regions):
+            ax.add_patch(PolygonPatch(region.shape.__geo_interface__,fc=sm.to_rgba(value),ec='none'))
+        
+        dir_pth = os.path.join(figure_path,'demo')
+        file_name = os.path.join(dir_pth,f'demo{year}_logscale')
+        
+        self.__save_show_fig(fig, dir_pth, file_name)
+    
+    def plot_load_acf(self,start,stop,lags=42,hour_steps=1,ndiff=0):
+        """Plot autocorrelation plot of load data within given time range
+           and given lags, hour steps and number of differneces
+        
+        Returns
+        -------
+        None
+        """
+        data = self.lreader.vals4step(de_load,step=hour_steps).interpolate_na(dim='utc_timestamp',method='linear')\
+                   .diff(dim='utc_timestamp',n=ndiff).values
+        fig = plot_acf(data,fft=True,use_vlines=True,lags=lags)
+        dir_pth = os.path.join(figure_path,'ACF')
+        file_name = os.path.join(dir_pth,f'load_{lags}lags_ndiff{ndiff}_hstep{hour_steps}')
+        self.__save_show_fig(fig, dir_pth, file_name)
+    
+    def plot_load_pacf(self,start,stop,lags=42,hour_steps=1,ndiff=0):
+        """Plot partial autocorrelation plot of load data within given time
+           range and given lags, hour steps and number of differneces
+        
+        Returns
+        -------
+        None
+        """
+        data = self.lreader.vals4step(de_load,step=hour_steps).interpolate_na(dim='utc_timestamp',method='linear')\
+                   .diff(dim='utc_timestamp',n=ndiff).values
+        fig = plot_pacf(data,use_vlines=True,lags=lags)
+        dir_pth = os.path.join(figure_path,'PACF')
+        file_name = os.path.join(dir_pth,f'load_{lags}lags_ndiff{ndiff}_hstep{hour_steps}')
+        self.__save_show_fig(fig, dir_pth, file_name)
     
     def plot_load_time_func(self,var,start,stop,func,load_col=de_load,freq=24,aspect=(12,5),skip_bottom_labels=False):
         """Plot/save function of load and date with variable
@@ -565,8 +678,28 @@ class DataPlotter:
         self.__save_show_fig(fig,dir_pth,file_name)
         
     def plot_arma_forecast(self,tstart,tstop,forecast_end,p,q,hours_range=[1,6,24],save_arma=False):
-        """TODO
+        """Plot an ARMA forecast for given parameters
         
+        Parameters
+        ----------
+        tstart       : datetime.datetime
+                       start time
+        tstop        : datetime.datetime
+                       stop time
+        forecast_end : datetime.datetime
+                       stop time of forecast (=tstop + forecast length)
+        p            : integer
+                       specifies number of AR coefficients
+        q            : integer
+                       specifies number of MA coefficients
+        hours_range  : list of integers
+                       specifies list of hours to forecast
+        save_arma    : bool
+                       specifies whether to save the arma or not
+        
+        Returns
+        -------
+        None
         """
         arma = ARMA_forecast(tstart,tstop,p,q)
         arma.train()
@@ -593,8 +726,30 @@ class DataPlotter:
         self.__save_show_fig(fig,dir_pth,file_name)
 
     def plot_armax_forecast(self,tstart,tstop,forecast_end,p,q,exog=None,hours_range=[1,6,24],save_armax=False):
-        """TODO
+        """Plot an ARMAX forecast for the given parameters
         
+        Parameters
+        ----------
+        tstart       : datetime.datetime
+                       start time
+        tstop        : datetime.datetime
+                       stop time
+        forecast_end : datetime.datetime
+                       stop time of forecast (=tstop + forecast length)
+        p            : integer
+                       specifies number of AR coefficients
+        q            : integer
+                       specifies number of MA coefficients
+        exog         : list of strings
+                       specifies the variables to include as exogenous variables
+        hours_range  : list of integers
+                       specifies list of hours to forecast
+        save_armax   : bool
+                       specifies whether to save the armax or not
+        
+        Returns
+        -------
+        None
         """
         armax = ARMAX_forecast(tstart,tstop,p,q,exog=exog)
         armax.train()

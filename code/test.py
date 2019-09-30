@@ -1,9 +1,23 @@
+#!/usr/bin/python3
+
+"""TODO
+
+"""
+
+__author__ = "Marcel Herm"
+__credits__ = ["Marcel Herm","Nicole Ludwig","Marian Turowski"]
+__license__ = "MIT"
+__version__ = "0.0.1"
+__maintainer__ = "Marcel Herm"
+__status__ = "Production"
+
 from glob_vars import (data_path,load_path,era5_path,
                        lon_col,lat_col, bbox,de_load,
                        variable_dictionary,nuts3_01res_shape,
-                       nuts0_shape,demography_file,log)
+                       nuts0_shape,demography_file,log,isin_path)
 from WeatherReader import WeatherReader
 from LoadReader import LoadReader
+from Predictions import ARMAX_forecast
 
 from netCDF4 import Dataset, num2date
 from matplotlib import pyplot as plt
@@ -22,12 +36,40 @@ import re,os,operator,functools
 from shapely.geometry import Point, Polygon
 import holidays
 
-#tr = pd.date_range(datetime(2017,1,1), datetime(2017,2,1),freq='1D').to_series().dt.dayofweek.values
-#print(tr)
-#cat = np.zeros((7,tr.size))
-#for i in range(7):
-    #cat[i,tr==i] = 1
-#print(cat)
+print(np.arange(5.5,15.6,.25))
+
+#start = datetime(2017,1,1)
+#last_date = datetime(2018,12,31)
+#lr = LoadReader()
+#wr = WeatherReader()
+#date_range = pd.date_range(start,last_date,freq='1H')
+#load_data = lr.vals4slice(de_load,start,last_date,step=1).values
+##load_data = xr.DataArray(lr.vals4slice(de_load,start,last_date,step=1).values, dims={'time' : date_range})
+##load_data = xr.DataArray(load_data,coords=[date_range],dims=['time'])
+#data = pd.DataFrame(data={'load' : load_data},index=date_range)
+#dow = date_range.to_series().dt.dayofweek.values
+##dow = xr.DataArray(np.stack({'load':load_data,'dayofweek':dow}),coords=[date_range],dims=['time'])
+
+##print(dow)
+##load_data.merge(xr.Dataset(dow,coords={'time' : date_range}))
+#data['Monday'] = (dow == 0).astype(int)
+#data['Tuesday'] = (dow == 1).astype(int)
+#data['Wednesday'] = (dow == 2).astype(int)
+#data['Thursday'] = (dow == 3).astype(int)
+#data['Friday'] = (dow == 4).astype(int)
+#data['Saturday'] = (dow == 5).astype(int)
+#data['Sunday'] = (dow == 6).astype(int)
+#print(data[datetime(2017,1,1):datetime(2017,1,2)].values.transpose())
+#fdirs = wr.flattened_slice('t2m',start,last_date)
+
+#data.append(pd.DataFrame(fdirs))
+#for i, fdir in enumerate(fdirs):
+    #data[f'fdir{i}'] = fdir
+
+#print(data[datetime(2017,2,1):datetime(2017,3,1)]['load'].values)
+#print(data.values.T.shape)
+#print(data)
+
 
 def plot_corr_t2mmean_load():
     wr = WeatherReader()
@@ -44,19 +86,57 @@ def plot_corr_t2mmean_load():
     plt.xlabel('2 meter temperature')
     plt.show()
 
-plot_corr_t2mmean_load()
+#plot_corr_t2mmean_load()
 
-## read demo file
-#demo_df = pd.read_csv(demography_file,encoding='latin1',index_col='GEO')
-## clean population data
-#demo_df['Value'] = demo_df['Value'].map(lambda val: pd.NaT if val == ':' else float(val.replace(',','')))
-## filter by any year, as regions don't actually move, right?
-#demo_df = demo_df[demo_df['TIME']==2018]
-## filter all regions with an id of length 5 all others are countries etc
-#demo_df = demo_df[[len(reg)==5 for reg in demo_df.index]]
-## sort 
-#demo_df.sort_values('Value', axis=0, ascending=False, inplace=True, kind="quicksort", na_position="last")
-#print(demo_df.head(n=50))
+def top10demo_fc():
+    # read demo file
+    demo_df = pd.read_csv(demography_file,encoding='latin1',index_col='GEO')
+    # clean population data
+    demo_df['Value'] = demo_df['Value'].map(lambda val: pd.NaT if val == ':' else float(val.replace(',','')))
+    # filter by any year, as regions don't actually move, right?
+    demo_df = demo_df[demo_df['TIME']==2018]
+    # filter all regions with an id of length 5 all others are countries etc
+    demo_df = demo_df[[len(reg)==5 for reg in demo_df.index]]
+    # sort 
+    demo_df.sort_values('Value', axis=0, ascending=False, inplace=True, kind="quicksort", na_position="last")
+    
+    log.info(demo_df.size)
+    wr = WeatherReader()
+    lr = LoadReader()
+    #allor = wr.check_isinRegion(demo_df.index[0])
+    ##allor = np.bitwise_or(allor,wr.check_isinRegion(demo_df.index[1]))
+    #for i in range(1,10):
+        #reg = wr.check_isinRegion(demo_df.index[i])
+        #allor = np.bitwise_or(allor,reg)
+    #for i in demo_df.index:
+        #if not os.path.exists(os.path.join(isin_path,f'isin{i}.npy')):
+            #reg = wr.check_isinRegion(i)
+            #if reg is not None:
+                #allor = np.bitwise_or(allor,wr.check_isinRegion(i))
+    start = datetime(2017,1,1)
+    stop = datetime(2017,12,31)
+    armax = ARMAX_forecast(start, stop, p=1, q=0)
+    armax.train()
+    armax.summary()
+    
+    end = stop+timedelta(weeks=1)
+    forecast1W = armax.predict_range(end,[1,6,24])
+    data = lr.vals4slice(de_load,stop,end,step=1)
+    fc_range = pd.date_range(stop,end,freq='1H')
+    
+    fig,ax = plt.subplots()
+    for i,hours in enumerate([1,6,24]):
+        ax.plot(fc_range,forecast1W[i],label=f'{hours}H forecast')
+        log.info(armax.forecasts[i])
+    ax.plot(fc_range,data,label='actual value')
+    ax.set_ylabel('load [MW]')
+    plt.setp(ax.get_xticklabels(),rotation=30,horizontalalignment='right')
+    plt.legend()
+    plt.show()
+
+#print(allor)
+#plt.imshow(allor)
+#plt.show()
 
 #demo_df = pd.read_csv(demography_file,encoding='latin1',index_col='GEO')
 #demo_df['Value'] = demo_df['Value'].map(lambda val: pd.NaT if val == ':' else float(val.replace(',','')))

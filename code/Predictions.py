@@ -1,7 +1,20 @@
 #!/usr/bin/python3
+
+"""
+In this module, the different methods for forecasting are implemented
+"""
+
+__author__ = "Marcel Herm"
+__credits__ = ["Marcel Herm","Nicole Ludwig","Marian Turowski"]
+__license__ = "MIT"
+__version__ = "0.0.1"
+__maintainer__ = "Marcel Herm"
+__status__ = "Production"
+
 from LoadReader import LoadReader
 from WeatherReader import WeatherReader
-from glob_vars import de_load,hertz_load,amprion_load,tennet_load,transnet_load,data_path,log
+from glob_vars import (de_load,hertz_load,amprion_load,tennet_load,transnet_load,
+                       data_path,log,demography_file,isin_path)
 
 from datetime import datetime,timedelta
 from matplotlib import pyplot as plt
@@ -275,9 +288,88 @@ class ARMAX_forecast:
         self.forecasts = []
         self.exog = exog
         self.method = 'css-mle'
+        self.__load_data()
+        
+    def __load_data(self):
+        """Loads data including exogenous variables as pandas.DataFrame based on self.exog
+           possible choices for exogenous variables:
+             - 'dayofweek'    : week day (one dummy per day)
+             - 'weekend'      : dummy for wether it is weekend or not (1 or 0)
+             - 'data_counter' : counting data points beginning from 0
+             - 't2m_max'      : maximum of 2 metre temperature for each step
+             - 't2m_mean'     : mean of 2 metre temperature for each step
+             - 't2m_all'      : every grid point of 2 metre temperature as single exogenous variable
+             - 'u10_all'      : every grid point of 10 metre U wind component as single exogenous variable
+             - 'v10_all'      : every grid point of 10 metre V wind component as single exogenous variable
+             - 'lai_hv_all'   : every grid point of high vegetation leaf area index as single exogenous variable
+             - 'lai_lv_all'   : every grid point of low vegetation leaf area index as single exogenous variable
+             - 'lcc_all'      : every grid point of low cloud cover as single exogenous variable
+             - 'stl1_all'     : every grid point of soil temperature level 1 as single exogenous variable
+             - 'slhf_all'     : every grid point of surface latent heat flux as single exogenous variable
+             - 'str_all'      : every grid point of surface net thermal radiation as single exogenous variable
+             - 'sshf_all'     : every grid point of surface sensible heat flux as single exogenous variable
+             - 'tcc_all'      : every grid point of total cloud cover as single exogenous variable
+             - 'tcrw_all'     : every grid point of total column rain water as single exogenous variable
+             - 'fdir_all'     : every grid point of total sky direct solar radiation at surface as single exogenous variable
+             """
+        last_date = datetime(2018,12,31)
+        
+        load_data = self.load_reader.vals4slice(de_load,self.start,last_date,step=1)
+        date_range = pd.date_range(self.start,last_date,freq='1H')
+        self.load_data = pd.DataFrame(data={'load' : load_data},index=date_range)
+        self.data = pd.DataFrame(data=[],index=date_range)
+        
+        if self.exog is None:
+            return
+        
+        dow = date_range.to_series().dt.dayofweek.values
+        if 'dayofweek' in self.exog:
+            self.data['Monday'] = (dow == 0).astype(int)
+            self.data['Tuesday'] = (dow == 1).astype(int)
+            self.data['Wednesday'] = (dow == 2).astype(int)
+            self.data['Thursday'] = (dow == 3).astype(int)
+            self.data['Friday'] = (dow == 4).astype(int)
+            self.data['Saturday'] = (dow == 5).astype(int)
+            self.data['Sunday'] = (dow == 6).astype(int)
+        if 'weekend' in self.exog:
+            self.data['weekend'] = np.bitwise_or((dow==5),(dow==6))
+        if 'data_counter' in self.exog:
+            self.data['data_counter'] = range(len(load_data))
+        if 't2m_max' in self.exog:
+            self.data['t2m_max'] = self.weather_reader.max_slice('t2m',self.start,last_date)
+        if 't2m_mean' in self.exog:
+            self.data['t2m_mean'] = self.weather_reader.mean_slice('t2m',self.start,last_date)
+        if 't2m_all' in self.exog:
+            for i,t2m in self.weather_reader.flattened_slice('t2m',self.start,last_date):
+                self.data[f't2m{i}'] = t2m
+            #data['t2m_all'] = self.weather_reader.flattened_slice('t2m',self.start,last_date)
+        if 'u10_all' in self.exog:
+            self.data['u10_all'] = self.weather_reader.flattened_slice('u10',self.start,last_date)
+        if 'v10_all' in self.exog:
+            self.data['v10_all'] = self.weather_reader.flattened_slice('v10',self.start,last_date)
+        if 'lai_hv_all' in self.exog:
+            self.data['lai_hv_all'] = self.weather_reader.flattened_slice('lai_hv',self.start,last_date)
+        if 'lai_lv_all' in self.exog:
+            self.data['lai_lv_all'] = self.weather_reader.flattened_slice('lai_lv',self.start,last_date)
+        if 'lcc_all' in self.exog:
+            self.data['lcc_all'] = self.weather_reader.flattened_slice('lcc',self.start,last_date)
+        if 'stl1_all' in self.exog:
+            self.data['stl1_all'] = self.weather_reader.flattened_slice('stl1',self.start,last_date)
+        if 'slhf_all' in self.exog:
+            self.data['slhf_all'] = self.weather_reader.flattened_slice('slhf',self.start,last_date)
+        if 'str_all' in self.exog:
+            self.data['str_all'] = self.weather_reader.flattened_slice('str',self.start,last_date)
+        if 'sshf_all' in self.exog:
+            self.data['sshf_all'] = self.weather_reader.flattened_slice('sshf',self.start,last_date)
+        if 'tcc_all' in self.exog:
+            self.data['tcc_all'] = self.weather_reader.flattened_slice('tcc',self.start,last_date)
+        if 'tcrw_all' in self.exog:
+            self.data['tcrw_all'] = self.weather_reader.flattened_slice('tcrw',self.start,last_date)
+        if 'fdir_all' in self.exog:
+            self.data['fdir_all'] = self.weather_reader.flattened_slice('fdir',self.start,last_date)
     
-    def __load_exog(self,tstart=None,tstop=None,range_start=None):
-        """loads exogenous variables as numpy.ndarray based on self.exog
+    def __load_exog(self,tstart,tstop):
+        """Loads exogenous variables as numpy.ndarray based on self.exog
            possible choices:
              - 'dayofweek'    : number of week day
              - 'data_counter' : counting data points beginning from 0
@@ -311,60 +403,80 @@ class ARMAX_forecast:
         numpy.ndarray of exogenous data
         """
         if self.exog is None:
-            return None
-        exog = []
-        date_range = pd.date_range(tstart,tstop,freq="1H")
-        dow = date_range.to_series().dt.dayofweek.values
-        if 'dayofweek' in self.exog:
-            # extend exog by 7 dummy arrays, each for one weekday
-            cat = np.zeros((7,dow.size))
-            for i in range(7):
-                cat[i,dow==i] = 1
-            exog.extend(cat)
-        if 'weekend' in self.exog:
-            wend = np.zeros((dow.size))
-            wend[dow==5] = 1
-            wend[dow==6] = 1
-            exog.append(wend)
-        if 'data_counter' in self.exog:
-            if range_start is None:
-                exog.append(np.array(range(date_range.size)))
-            else:
-                exog.append(np.array(range(range_start,range_start+date_range.size)))
-        if 'hour' in self.exog:
-            exog.append(date_range.to_series().dt.hour.values)
-        if 't2m_max' in self.exog:
-            exog.append(self.weather_reader.max_slice('t2m',tstart,tstop))
-        if 't2m_mean' in self.exog:
-            exog.append(self.weather_reader.mean_slice('t2m',tstart,tstop))
-        if 't2m_all' in self.exog:
-            exog.extend(self.weather_reader.flattened_slice('t2m',tstart,tstop))
-        if 'u10_all' in self.exog:
-            exog.extend(self.weather_reader.flattened_slice('u10',tstart,tstop))
-        if 'v10_all' in self.exog:
-            exog.extend(self.weather_reader.flattened_slice('v10',tstart,tstop))
-        if 'lai_hv_all' in self.exog:
-            exog.extend(self.weather_reader.flattened_slice('lai_hv',tstart,tstop))
-        if 'lai_lv_all' in self.exog:
-            exog.extend(self.weather_reader.flattened_slice('lai_lv',tstart,tstop))
-        if 'lcc_all' in self.exog:
-            exog.extend(self.weather_reader.flattened_slice('lcc',tstart,tstop))
-        if 'stl1_all' in self.exog:
-            exog.extend(self.weather_reader.flattened_slice('stl1',tstart,tstop))
-        if 'slhf_all' in self.exog:
-            exog.extend(self.weather_reader.flattened_slice('slhf',tstart,tstop))
-        if 'str_all' in self.exog:
-            exog.extend(self.weather_reader.flattened_slice('str',tstart,tstop))
-        if 'sshf_all' in self.exog:
-            exog.extend(self.weather_reader.flattened_slice('sshf',tstart,tstop))
-        if 'tcc_all' in self.exog:
-            exog.extend(self.weather_reader.flattened_slice('tcc',tstart,tstop))
-        if 'tcrw_all' in self.exog:
-            exog.extend(self.weather_reader.flattened_slice('tcrw',tstart,tstop))
-        if 'fdir_all' in self.exog:
-            exog.extend(self.weather_reader.flattened_slice('fdir',tstart,tstop))
+            return
+        return self.data[tstart:tstop].values
+
+        ## read demo file
+        #demo_df = pd.read_csv(demography_file,encoding='latin1',index_col='GEO')
+        ## clean population data
+        #demo_df['Value'] = demo_df['Value'].map(lambda val: pd.NaT if val == ':' else float(val.replace(',','')))
+        ## filter by any year, as regions don't actually move, right?
+        #demo_df = demo_df[demo_df['TIME']==2018]
+        ## filter all regions with an id of length 5 all others are countries etc
+        #demo_df = demo_df[[len(reg)==5 for reg in demo_df.index]]
+        ## sort 
+        #demo_df.sort_values('Value', axis=0, ascending=False, inplace=True, kind="quicksort", na_position="last")
         
-        return np.column_stack(exog)
+        #allor = np.load(os.path.join(isin_path,f'isin{demo_df.index[0]}.npy'))
+        #for i in range(1,9):
+            #reg = np.load(os.path.join(isin_path,f'isin{demo_df.index[i]}.npy'))
+            #allor = np.bitwise_or(allor,reg)
+        #mapexog = self.weather_reader.isin_sliceMap('t2m',tstart,tstop,allor)
+        
+        #return mapexog
+        
+        #if self.exog is None:
+            #return None
+        #date_range = pd.date_range(tstart,tstop,freq="1H")
+        #dow = date_range.to_series().dt.dayofweek.values
+        #if 'dayofweek' in self.exog:
+            ## extend exog by 7 dummy arrays, each for one weekday
+            #cat = np.zeros((7,dow.size))
+            #for i in range(7):
+                #cat[i,dow==i] = 1
+            #exog.extend(cat)
+        #if 'weekend' in self.exog:
+            #wend = np.zeros((dow.size))
+            #wend[dow==5] = 1
+            #wend[dow==6] = 1
+            #exog.append(wend)
+        #if 'data_counter' in self.exog:
+            #if range_start is None:
+                #exog.append(np.array(range(date_range.size)))
+            #else:
+                #exog.append(np.array(range(range_start,range_start+date_range.size)))
+        #if 't2m_max' in self.exog:
+            #exog.append(self.weather_reader.max_slice('t2m',tstart,tstop))
+        #if 't2m_mean' in self.exog:
+            #exog.append(self.weather_reader.mean_slice('t2m',tstart,tstop))
+        #if 't2m_all' in self.exog:
+            #exog.extend(self.weather_reader.flattened_slice('t2m',tstart,tstop))
+        #if 'u10_all' in self.exog:
+            #exog.extend(self.weather_reader.flattened_slice('u10',tstart,tstop))
+        #if 'v10_all' in self.exog:
+            #exog.extend(self.weather_reader.flattened_slice('v10',tstart,tstop))
+        #if 'lai_hv_all' in self.exog:
+            #exog.extend(self.weather_reader.flattened_slice('lai_hv',tstart,tstop))
+        #if 'lai_lv_all' in self.exog:
+            #exog.extend(self.weather_reader.flattened_slice('lai_lv',tstart,tstop))
+        #if 'lcc_all' in self.exog:
+            #exog.extend(self.weather_reader.flattened_slice('lcc',tstart,tstop))
+        #if 'stl1_all' in self.exog:
+            #exog.extend(self.weather_reader.flattened_slice('stl1',tstart,tstop))
+        #if 'slhf_all' in self.exog:
+            #exog.extend(self.weather_reader.flattened_slice('slhf',tstart,tstop))
+        #if 'str_all' in self.exog:
+            #exog.extend(self.weather_reader.flattened_slice('str',tstart,tstop))
+        #if 'sshf_all' in self.exog:
+            #exog.extend(self.weather_reader.flattened_slice('sshf',tstart,tstop))
+        #if 'tcc_all' in self.exog:
+            #exog.extend(self.weather_reader.flattened_slice('tcc',tstart,tstop))
+        #if 'tcrw_all' in self.exog:
+            #exog.extend(self.weather_reader.flattened_slice('tcrw',tstart,tstop))
+        #if 'fdir_all' in self.exog:
+            #exog.extend(self.weather_reader.flattened_slice('fdir',tstart,tstop))
+        
+        #return np.column_stack(exog)
     
     @staticmethod
     def load(fname):
@@ -394,7 +506,8 @@ class ARMAX_forecast:
         if not os.path.exists(dir_pth):
             os.mkdir(dir_pth)
         fname = os.path.join(data_path,'ARMAX',f'start{self.start.strftime("%Y%m%d%H")}_stop'\
-                             f'{self.stop.strftime("%Y%m%d%H")}_p{self.p}q{self.q}{"" if self.exog is None else "_"+"_".join(self.exog)}.pkl')
+                             f'{self.stop.strftime("%Y%m%d%H")}_p{self.p}q{self.q}'\
+                             '{"" if self.exog is None else "_"+"_".join(self.exog)}.pkl')
         log.info(f'saving arma as {fname}')
         pickle.dump(self,open(fname,'wb'))
         return fname
@@ -406,10 +519,7 @@ class ARMAX_forecast:
         -------
         None
         """
-        data = self.load_reader.vals4slice(de_load,
-                                           self.start,
-                                           self.stop,
-                                           step=1).values
+        data = self.load_data[self.start:self.stop].values
         model_exog = self.__load_exog(self.start,self.stop)
         arma = ARMA(data,exog=model_exog,
                      order=(self.p,self.q))
@@ -418,6 +528,7 @@ class ARMAX_forecast:
                                         transparams=False,
                                         full_output=-1)
         self.fit_params = self.__armax_result.params
+        print(self.fit_params)
     
     def predict_next(self,hours_ahead=24):
         """Predicts for given amount of hours from current trained point
@@ -454,7 +565,7 @@ class ARMAX_forecast:
         data = self.load_reader.vals4slice(de_load,self.start,self.stop,step=1)
         delta1h = timedelta(hours=1)
         out_of_sample_exog = self.__load_exog(self.stop+delta1h,
-                                              self.stop+timedelta(hours=max_hours),len(data))
+                                              self.stop+timedelta(hours=max_hours))
         fc = self.__armax_result.forecast(steps=max_hours,exog=out_of_sample_exog)[0]
         
         forecast = [[] for hour in range(len(hours_ahead))]
@@ -474,8 +585,7 @@ class ARMAX_forecast:
                 #arma.exog = add_trend(model_exog, trend='c', prepend=True, has_constant='raise')
             self.__armax_result.initialize(arma,self.fit_params)
             out_of_sample_exog = self.__load_exog(stop_counter+delta1h,
-                                                  stop_counter+timedelta(hours=max_hours),
-                                                  len(data))
+                                                  stop_counter+timedelta(hours=max_hours))
             fc = self.__armax_result.forecast(steps=max_hours,exog=out_of_sample_exog)[0]
     
             for i,hours in enumerate(hours_ahead):
@@ -495,6 +605,12 @@ class ARMAX_forecast:
         """
         log.info(f'\n{self.__armax_result.summary()}')
 
+#armax = ARMAX_forecast(datetime(2017,1,1),datetime(2017,12,31),1,0)
+#print(armax.data)
+#armax.train()
+#print(armax.predict_range(datetime(2018,1,7),[1,6]))
+#for fc in armax.forecasts:
+    #print(fc)
 
 #def auto_arma(tstart,tstop,ar_stop,ma_stop):
     #load_reader = LoadReader()
@@ -524,7 +640,9 @@ def print_armas(tstart,tstop,ar_stop,ma_stop):
         for p in range(ar_stop):
             try:
                 arma_result = ARMAResults.load(os.path.join(data_path,f'tstart{tstart.year}_tstop{tstop.year}',f'ARMA_p{p}q{q}.pkl'))
-                log.info(f'({p}|{q}) -\taic:{np.round(arma_result.aic,1)}\tbic:{np.round(arma_result.bic,1)}\thqic:{np.round(arma_result.hqic,1)}\tresid:{np.array(arma_result.resid).mean().round(3)}\tloglike:{np.round(arma_result.llf,1)}')
+                log.info(f'({p}|{q}) -\taic:{np.round(arma_result.aic,1)}\tbic:{np.round(arma_result.bic,1)}'\
+                         f'\thqic:{np.round(arma_result.hqic,1)}\tresid:{np.array(arma_result.resid).mean().round(3)}'\
+                         f'\tloglike:{np.round(arma_result.llf,1)}')
             except:
                 pass
 
