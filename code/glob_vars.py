@@ -1,5 +1,20 @@
 #!/usr/bin/python3
 
+"""
+This module provides variables for other modules, especially:
+  - a logger
+  - data paths in a multiplatform manner
+  - paths to specific files in a multiplatform manner
+  - often used strings
+"""
+
+__author__ = "Marcel Herm"
+__credits__ = ["Marcel Herm","Nicole Ludwig","Marian Turowski"]
+__license__ = "MIT"
+__version__ = "0.0.1"
+__maintainer__ = "Marcel Herm"
+__status__ = "Production"
+
 from pathlib import Path
 import os
 import logging

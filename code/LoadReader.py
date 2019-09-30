@@ -1,5 +1,16 @@
 #!/usr/bin/python3
 
+"""
+This module provides access to the used load data
+"""
+
+__author__ = "Marcel Herm"
+__credits__ = ["Marcel Herm","Nicole Ludwig","Marian Turowski"]
+__license__ = "MIT"
+__version__ = "0.0.1"
+__maintainer__ = "Marcel Herm"
+__status__ = "Production"
+
 from glob_vars import load_path, cest_col,utc_col, de_load, hasMWlbl
 
 import os

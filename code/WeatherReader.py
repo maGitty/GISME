@@ -1,7 +1,21 @@
 #!/usr/bin/python3
+
+"""
+This module provides access to the used weather data as well as
+several functions to filter,reduce or reorganize the data
+"""
+
+__author__ = "Marcel Herm"
+__credits__ = ["Marcel Herm","Nicole Ludwig","Marian Turowski"]
+__license__ = "MIT"
+__version__ = "0.0.1"
+__maintainer__ = "Marcel Herm"
+__status__ = "Production"
+
 from glob_vars import (lon_col,lat_col,era5_path,nuts0_shape,
                        nuts0_10res_shape,data_path,demography_file,
                        nuts3_01res_shape,isin_path,log)
+from Utility import Utility
 
 import os
 import re
@@ -10,7 +24,6 @@ import numpy as np
 import xarray as xr
 import shapefile as shp
 from datetime import datetime, timedelta, time
-from shapely.geometry import Polygon, Point
 
 class WeatherReader:
     """Used to read weather nc files and to return xarray.DataArray containing desired data"""
@@ -24,6 +37,7 @@ class WeatherReader:
         assert os.path.exists(era5_path), 'path to weather data does not exist'
         
         self.isin = isin
+        self.util = Utility(False,False)
         self.filename = os.path.join(era5_path,'*.nc')
         with xr.open_mfdataset(self.filename) as nc_file:
             # drop times where no data is available, until now only seen at the end of the dataset
@@ -82,7 +96,7 @@ class WeatherReader:
                 contained = np.load(os.path.join(data_path,'isin.npy'))
             except:
                 log.info(f'isin file not found in {data_path}')
-                contained = self.check_isinDE()
+                contained = self.util.check_isinDE()
             return self.wdata[name].where(contained,other=np.nan,drop=False).reduce(func, dim=[lon_col,lat_col])
         else:
             return self.wdata[name].reduce(func, dim=[lon_col,lat_col])
@@ -100,7 +114,7 @@ class WeatherReader:
                 contained = np.load(os.path.join(data_path,'isin.npy'))
             except:
                 log.info(f'isin file not found in {data_path}')
-                contained = self.check_isinDE()
+                contained = self.util.check_isinDE()
             data =  data.where(contained,other=np.nan,drop=False)
         return data.reduce(func, dim=[lon_col,lat_col])
     
@@ -173,94 +187,6 @@ class WeatherReader:
                   f'{variable.values.min().round(2):.2f} & '
                   f'{variable.values.max().round(2):.2f} \\\\')
     
-    def check_isinDE(self):
-        """Used to check which points of dataset are within germany
-        
-        Returns
-        -------
-        2D numpy.ndarray containing booleans wether point lies within germany or not
-        """
-        lons = self.get_coords()[lon_col].values
-        lats = self.get_coords()[lat_col].values
-        
-        eu_shape = shp.Reader(nuts0_shape)
-        
-        for record in eu_shape.shapeRecords():
-            if 'DE' in record.record:
-                de_shape = record
-                break
-        
-        poly = Polygon(de_shape.shape.points)
-        
-        coords = np.empty((len(lats),len(lons)),np.dtype(Point))
-    
-        for y in range(len(lats)):
-            for x in range(len(lons)):
-                lo = lons[x]
-                la = lats[y]
-                coords[y,x] = Point(lo,la)
-    
-        contains = np.vectorize(lambda p: p.within(poly) or p.touches(poly))
-    
-        contained = contains(coords)
-        np.save(os.path.join(data_path,'isin'), contained)
-        
-        return contained
-    
-    def check_isinRegion(self,region_id):
-        """Computes which points are within specified region
-        
-        Parameters
-        ----------
-        region_id : string
-                    id of a region
-        
-        Returns
-        -------
-        2D numpy.ndarray containing booleans specifying wether point lies within region or not
-        """
-        # read demo file
-        demo_df = pd.read_csv(demography_file,encoding='latin1',index_col='GEO')
-        # clean population data
-        demo_df['Value'] = demo_df['Value'].map(lambda val: pd.NaT if val == ':' else float(val.replace(',','')))
-        # filter by any year, as regions don't actually move, right?
-        demo_df = demo_df[demo_df['TIME']==2018]
-        # filter all regions with an id of length 5 all others are countries etc
-        demo_df = demo_df[[len(reg)==5 for reg in demo_df.index]]
-        ## sort # not needed for this
-        #demo_df.sort_values('Value', axis=0, ascending=False, inplace=True, kind="quicksort", na_position="last")
-        # load shapes and mapping of ids to region names
-        with shp.Reader(nuts3_01res_shape) as nuts3_sf:
-            regions = [rec for rec in nuts3_sf.shapeRecords() if rec.record['CNTR_CODE'] == 'DE']
-        region_poly = None
-        # try to find desired region
-        for region in regions:
-            if region.record.NUTS_ID == region_id:
-                # convert region shape to polygon for plotting
-                region_poly = Polygon(region.shape.points)
-                region_name = region.record.NUTS_NAME.strip("\000")
-        if region_poly is None:
-            raise Exception(f'region not found: {region_id}')
-        # create 2D numpy.ndarray of points to ease vectorized computation 
-        lons = self.get_coords()[lon_col].values
-        lats = self.get_coords()[lat_col].values
-        coords = np.empty((len(lats),len(lons)),np.dtype(Point))
-        for y in range(len(lats)):
-            for x in range(len(lons)):
-                lo = lons[x]
-                la = lats[y]
-                coords[y,x] = Point(lo,la)
-        # checks for each point wether it is within the polygon of the desired region
-        contains = np.vectorize(lambda point: point.within(region_poly) or point.touches(region_poly))
-        contained = contains(coords)
-        if not os.path.exists(isin_path):
-            os.mkdir(isin_path)
-        filename = os.path.join(isin_path,f'isin{region_name}_{region_id}')
-        log.info(f'isin saved as {filename}')
-        np.save(filename, contained)
-    
-        return contained
-    
     def vals4time(self, name, datetime,isin=False):
         """Returns the values for specified variable and time
         
@@ -291,7 +217,7 @@ class WeatherReader:
                 contained = np.load(os.path.join(data_path,'isin.npy'))
             except:
                 log.info(f'isin file not found in {data_path}')
-                contained = self.check_isinDE()
+                contained = self.util.check_isinDE()
             data = data.where(contained,other=np.nan,drop=False)
         
         # update DataArray attributes to add min and max values for complete time
@@ -437,7 +363,32 @@ class WeatherReader:
         -------
         xarray.DataArray of specified variable reduced over longitude and latitude by mean
         """
-        return self.wdata[name].sel(time=slice(start,stop)).stack(loc=(lon_col,lat_col)).transpose().values
+        return self.wdata[name].sel(time=slice(start,stop)).stack(loc=(lon_col,lat_col)).transpose()
+    
+    def isin_sliceDE(self,name,start,stop):
+        """TODO"""
+        try:
+            contained = np.load(os.path.join(data_path,'isin.npy'))
+        except:
+            log.info(f'isin file not found in {data_path}')
+            contained = self.util.check_isinDE()
+        return self.wdata[name].sel(time=slice(start,stop)).where(contained,other=np.nan,drop=False)\
+                   .stack(loc=(lon_col,lat_col)).dropna('loc').transpose().values
+    
+    def isin_sliceRegion(self,name,start,stop,region_id):
+        """TODO"""
+        try:
+            contained = np.load(os.path.join(data_path,'isin.npy'))
+        except:
+            log.info(f'isin file not found in {data_path}')
+            contained = self.util.check_isinRegion(region_id)
+        return self.wdata[name].sel(time=slice(start,stop)).where(contained,other=np.nan,drop=False)\
+                .stack(loc=(lon_col,lat_col)).dropna('loc').transpose().values
+    
+    def isin_sliceMap(self,name,start,stop,mp):
+        """TODO"""
+        return self.wdata[name].sel(time=slice(start,stop)).where(mp,other=np.nan,drop=False)\
+                   .stack(loc=(lon_col,lat_col)).dropna('loc').values
         
     def var_over_time(self, name):
         """Returns variance over time reduced along longitude
@@ -586,37 +537,4 @@ class WeatherReader:
         """
         return self.__nmax_reduce_days(name, np.nanmean, n)
     
-
-#rd = WeatherReader()
-#from matplotlib import pyplot as plt,cm
-#from glob_vars import bbox
-#plt.imshow(rd.check_isinRegion('DE600'),extent=bbox,cmap=cm.Greys)
-#plt.show()
-
-#import xarray as xr
-#eu_shape = shp.Reader(nuts0_shape)
-
-#plt.imshow(rd.check_isinDE(),extent=bbox)
-
-#for record in eu_shape.shapeRecords():
-    #if 'DE' in record.record:
-        #de_shape = record
-        #break
-#state = de_shape.shape
-#points = np.array(state.points)
-#intervals = list(state.parts) + [len(state.points)]
-#for (x, y) in zip(intervals[:-1], intervals[1:]):
-    #plt.plot(*zip(*points[x:y]), color='k', linewidth=2)
-
-#plt.show()
-
-#print(rd.nmaxvar_val_days('t2m',50)['time'].values)
-#rd.print_vars_texfmt()
-#print(rd.get_date_bounds())
-#rd.vals4time('t2m',datetime(2018,4,1,6))
-#print(rd.val4postime('t2m', 10, 50, datetime(2017,1,1,12)))
-#print(rd.vals4lat_daytime('t2m', 50, time(12)))
-#print(rd.vals4time('t2m', datetime(2017,1,1,12)))
-#lons = rd.get_coords()[lon].values
-#lats = rd.get_coords()[lat].values
 
