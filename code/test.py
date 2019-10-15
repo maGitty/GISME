@@ -17,7 +17,7 @@ from glob_vars import (data_path,load_path,era5_path,
                        nuts0_shape,demography_file,log,isin_path)
 from WeatherReader import WeatherReader
 from LoadReader import LoadReader
-from Predictions import ARMAX_forecast
+from Predictions import ARMAX_forecast,TSForecast
 
 from netCDF4 import Dataset, num2date
 from matplotlib import pyplot as plt
@@ -35,8 +35,145 @@ import pytz
 import re,os,operator,functools
 from shapely.geometry import Point, Polygon
 import holidays
+from statsmodels.tsa.arima_model import ARMA
 
-print(np.arange(5.5,15.6,.25))
+
+def mape(actual,forecast):
+    return np.mean(np.abs((actual-forecast)/actual)*100)
+
+def rmse(actual,forecast):
+    return np.sqrt(((forecast-actual)**2).mean())
+
+
+lr = LoadReader()
+wr = WeatherReader()
+delta1h = timedelta(hours=1)
+start = datetime(2015,1,1,0)
+stop = datetime(2017,12,31,23)
+last_date = datetime(2018,12,31,23)
+#TODO manual forecast
+date_range = pd.date_range(start,last_date,freq='1H')
+load_data = pd.DataFrame(data={'load' : lr.vals4slice(de_load,start,last_date,step=1)},
+                         index=date_range)
+
+dow = date_range.to_series().dt.dayofweek.values
+exog = pd.DataFrame(data=[],index=date_range)
+exog['weekend'] = np.bitwise_or(dow==5,dow==6).astype(int)
+exog['t2m_mean'] = wr.mean_slice('t2m',start,last_date)
+
+start_time = datetime.now()
+log.info(f'starting training and forecast: {start_time}')
+
+p=1
+q=0
+armax = ARMA(endog=load_data[start:stop].values,
+             exog =exog[start+delta1h:stop+delta1h].values,
+             order=(p,q))
+armax_result = armax.fit(method='css',
+                         #solver='cg',
+                         trend='nc',
+                         transparams=False,
+                         full_output=-1,
+                         disp=0)
+fit_params = armax_result.params
+log.info(f'fit parameters: {fit_params}\n{armax_result.summary()}')
+
+fc_load = load_data[stop:last_date-delta1h].values[:,0]*fit_params[-1]
+fc_exog = np.divide(exog[stop+delta1h:last_date].values.transpose(),fc_load).transpose()
+fc_exog = np.dot(fc_exog,fit_params[:-1])
+forecast = pd.DataFrame(data={'fc':fc_load+fc_exog if 'fc_exog' in locals() else fc_load},
+                       index=pd.date_range(stop,last_date-delta1h,freq='1H'))
+
+print(f'mape: {mape(load_data[stop:last_date-delta1h].values,forecast.values)}')
+print(f'rmse: {rmse(load_data[stop:last_date-delta1h].values,forecast.values)}')
+
+fc = TSForecast(1,forecast.values,
+                load_data[stop+delta1h:last_date].values,
+                start,stop,stop+delta1h,last_date)
+print(f'TSForecast: {fc}')
+
+plt.plot(fc.actual,label='actual')
+plt.plot(fc.forecast,label='1H forecast')
+plt.legend()
+plt.show()
+
+
+def rolling_reestimation_fc():
+    lr = LoadReader()
+    wr = WeatherReader()
+    delta1h = timedelta(hours=1)
+    pq=(1,0)
+    start = datetime(2015,1,1)
+    stop = datetime(2017,12,31)
+    last_date = datetime(2018,12,31)    
+    load_data = lr.vals4slice(de_load,start,last_date,step=1)
+    date_range = pd.date_range(start,last_date,freq='1H')
+    load_data = pd.DataFrame(data={'load' : load_data},index=date_range)
+    
+    dow = date_range.to_series().dt.dayofweek.values
+    t2m_mean = wr.mean_slice('t2m',start,last_date)
+    exog = pd.DataFrame(data={
+                              't2m_mean':t2m_mean,
+                              #'weekend':np.bitwise_or(dow==5,dow==6).astype(int)
+                              },
+                        index=date_range)
+    
+    start_time = datetime.now()
+    log.info(f'starting training and forecast: {start_time}')
+    
+    armax = ARMA(endog=load_data[start:stop].values,
+                 exog =exog[start:stop].values,
+                 order=pq)
+    
+    armax_result = armax.fit(method='css',
+                             solver='cg',
+                             trend='nc',
+                             transparams=True,
+                             full_output=-1,
+                             disp=0,
+                             maxiter=200)
+    fit_params = armax_result.params
+    
+    df = pd.DataFrame(data=np.array([load_data[start:stop].values[:-1][:,0],
+                                     armax_result.fittedvalues]).transpose(),
+                      columns=['load','fc'],
+                      index=pd.date_range(start,stop,freq='1H')[:-1])
+    print(f'mape: {mape(df["load"],df["fc"])}')
+    print(f'rmse: {rmse(df["load"],df["fc"])}')
+    plt.plot(df['load'][:300],label='actual')
+    plt.plot(df['fc'][:300],label='fc')
+    plt.legend()
+    plt.show()
+    
+    fc = []
+    fc.append(armax_result.forecast(steps=24,
+                                    exog=exog[stop+delta1h:stop+timedelta(hours=24)]
+                                    )[0][-1])
+    
+    stop_date = stop
+    while stop_date < last_date-timedelta(hours=24):
+        stop_date += delta1h
+        armax = ARMA(endog=load_data[start:stop_date].values,
+                     exog =exog[start:stop_date].values,
+                     order=pq)
+        armax_result = armax.fit(method='css',
+                                 solver='cg',
+                                 start_params=fit_params,
+                                 trend='nc',
+                                 transparams=True,
+                                 full_output=-1,
+                                 disp=0,
+                                 maxiter=200)
+        fc.append(armax_result.forecast(steps=24,
+                                        exog=exog[stop_date+delta1h:stop_date+timedelta(hours=24)]
+                                        )[0][-1])
+        if stop_date.hour == 23:
+            print(f'fc done for {stop_date.date()}')
+    log.info(f'finished training and forecast, took {(datetime.now()-start_time).seconds}s')
+    plt.plot(load_data[stop+timedelta(hours=24):last_date].index,load_data[stop+timedelta(hours=24):last_date].values,label='actual')
+    plt.plot(load_data[stop+timedelta(hours=24):last_date].index,fc,label='24H forecast')
+    plt.legend()
+    plt.show()
 
 #start = datetime(2017,1,1)
 #last_date = datetime(2018,12,31)
@@ -169,36 +306,6 @@ def top10demo_fc():
 #for i in range(10):
     #print(get_region(demo_df.iloc[i].name).record.NUTS_NAME.strip('\000'))
 
-def isin_map():
-    start = datetime(2017,1,1)
-    stop = datetime(2017,1,2)
-    wr = WeatherReader()
-    
-    contained = np.load(os.path.join(data_path,'isin.npy'))
-    
-    fig,ax = plt.subplots()
-    ax.imshow(contained,cmap=plt.cm.Greens, extent=bbox)
-    
-    #read shapefile
-    eu_shape = shp.Reader(nuts0_shape)
-    for record in eu_shape.shapeRecords():
-        if 'DE' in record.record:
-            de_shape = record
-            break
-    
-    # concatenate points so that single lines can be drawn
-    state = de_shape.shape
-    points = np.array(state.points)
-    intervals = list(state.parts) + [len(state.points)]
-    for (x, y) in zip(intervals[:-1], intervals[1:]):
-        ax.plot(*zip(*points[x:y]), color='k', linewidth=2)
-    
-    ax.set_ylabel(lat_col)
-    ax.set_xlabel(lon_col)
-    
-    plt.show()
-
-#print(wr.flattened_slice('t2m',start,stop).shape)
 
 def data_csv_timet2mload():
     wr = WeatherReader()
@@ -258,10 +365,6 @@ def data_csv_timet2mload():
 
 #print(fc)
 
-#aics = {(0, 0): 186714.3548858944, (0, 1): 175633.37537402584, (1, 0): 163027.38845677022, (1, 1): 157176.67343019284, (1, 2): 155342.28241170605, (1, 3): 154716.0389058001, (1, 4): 154582.13010879586, (1, 5): 154263.35948238504, (2, 0): 154249.55496882004, (2, 1): 154069.85174305786, (2, 2): 154058.3584256741, (2, 3): 154058.3887386597, (2, 4): 154043.67231602847, (2, 5): 153902.96073415436, (3, 0): 154095.59900161356, (3, 1): 154062.04068381674, (3, 2): 154059.77340719334, (3, 3): 153861.38907323967, (3, 4): 153598.73786407895, (3, 5): 153459.86752778187, (4, 0): 154052.4711471144, (4, 1): 154054.35603108935, (4, 2): 153596.55464831754, (4, 3): 153404.0479566709, (4, 4): 153404.70392228127, (4, 5): 152872.97157628342, (5, 0): 154054.13821217592, (5, 1): 153847.73179585653, (5, 2): 153815.10269696827, (5, 3): 153484.17443698866, (5, 4): 152980.68518415198, (5, 5): 153404.44066458987, (6, 0): 154012.45594892552, (6, 1): 153815.12878775626, (6, 2): 153692.1066107311, (6, 3): 153055.66460441807, (6, 4): 153438.93510605983, (6, 5): 153225.90746427735, (7, 0): 153943.14267245735, (7, 1): 153933.04093311363, (7, 2): 153929.92135428792, (7, 3): 153606.2687819614, (7, 4): 153316.87507828407, (7, 5): 152080.54380990018}
-#bics = {(0, 0): 186728.51101655973, (0, 1): 175654.60957002384, (1, 0): 163048.62265276822, (1, 1): 157204.9856915235, (1, 2): 155377.67273836938, (1, 3): 154758.50729779608, (1, 4): 154631.67656612452, (1, 5): 154319.98400504637, (2, 0): 154277.8672301507, (2, 1): 154105.2420697212, (2, 2): 154100.82681767008, (2, 3): 154107.93519598836, (2, 4): 154100.2968386898, (2, 5): 153966.66332214835, (3, 0): 154130.9893282769, (3, 1): 154104.50907581273, (3, 2): 154109.319864522, (3, 3): 153918.013595901, (3, 4): 153662.44045207294, (3, 5): 153530.64818110853, (4, 0): 154094.9395391104, (4, 1): 154103.902488418, (4, 2): 153653.17917097887, (4, 3): 153467.7505446649, (4, 4): 153475.48457560793, (4, 5): 152950.83029494275, (5, 0): 154103.68466950458, (5, 1): 153904.35631851785, (5, 2): 153878.80528496226, (5, 3): 153554.9550903153, (5, 4): 153058.5439028113, (5, 5): 153489.37744858186, (6, 0): 154069.08047158684, (6, 1): 153878.83137575025, (6, 2): 153762.88726405776, (6, 3): 153133.5233230774, (6, 4): 153523.8718900518, (6, 5): 153317.922313602, (7, 0): 154006.84526045134, (7, 1): 154003.8215864403, (7, 2): 154007.78007294724, (7, 3): 153691.2055659534, (7, 4): 153408.88992760872, (7, 5): 152179.6367245575}
-#hqics = {(0, 0): 186719.17833029767, (0, 1): 175640.61054063076, (1, 0): 163034.62362337514, (1, 1): 157186.3203189994, (1, 2): 155354.34102271427, (1, 3): 154730.50923900993, (1, 4): 154599.01216420735, (1, 5): 154282.6532599982, (2, 0): 154259.2018576266, (2, 1): 154081.9103540661, (2, 2): 154072.82875888393, (2, 3): 154075.2707940712, (2, 4): 154062.96609364162, (2, 5): 153924.66623396915, (3, 0): 154107.65761262178, (3, 1): 154076.51101702658, (3, 2): 154076.65546260483, (3, 3): 153880.6828508528, (3, 4): 153620.44336389375, (3, 5): 153483.98474979828, (4, 0): 154066.94148032425, (4, 1): 154071.23808650085, (4, 2): 153615.8484259307, (4, 3): 153425.7534564857, (4, 4): 153428.8211442977, (4, 5): 152899.5005205015, (5, 0): 154071.02026758742, (5, 1): 153867.02557346967, (5, 2): 153836.80819678307, (5, 3): 153508.29165900507, (5, 4): 153007.21412837005, (5, 5): 153433.3813310096, (6, 0): 154031.74972653866, (6, 1): 153836.83428757105, (6, 2): 153716.22383274752, (6, 3): 153082.19354863613, (6, 4): 153467.87577247954, (6, 5): 153257.2598528987, (7, 0): 153964.84817227215, (7, 1): 153957.15815513005, (7, 2): 153956.45029850598, (7, 3): 153635.20944838112, (7, 4): 153348.2274669054, (7, 5): 152114.30792072316}
-
 #from operator import add,itemgetter
 #sums = []
 #for (aic,bic,hqic) in zip(aics.items(),bics.items(),hqics.items()):
@@ -273,8 +376,6 @@ def data_csv_timet2mload():
 #aics = zip(aics.keys,aics.values)
 #bics = zip(bics.keys,bics.values)
 #hqics = zip(hqics.keys,hqics.values)
-
-    
 
 def containsReg():
     wr = WeatherReader()
@@ -306,105 +407,6 @@ def containsReg():
     plt.show()
     #np.save(f'{data_path}isin', contained)
 
-
-# contained = np.load(f'{data_path}isin.npy')
-#
-# wr = WeatherReader()
-# plt.imshow(wr.vals4time('t2m', datetime(2017,1,1,12)).where(contained).values)
-# plt.show()
-
-#sf = shp.Reader('/home/marcel/Dropbox/data/shapes/NUTS_RG_60M_2016_4326_LEVL_3.shp/NUTS_RG_60M_2016_4326_LEVL_3.shp')
-#print(sf.fields)
-#print(sf.shapeRecords()[52].record['NUTS_NAME'].strip('\000'))
-
-#df = pd.read_csv('/home/marcel/Dropbox/data/demo_r_d3dens/demo_r_d3dens_1_Data.csv',encoding='latin1')
-#print(df.columns)
-#print(df[df['GEO'] == sf.shapeRecords()[52].record['NUTS_NAME'].strip('\000')]['Value'])
-
-#records = [rec for rec in sf.shapeRecords() if rec.record['CNTR_CODE'] == 'DE']
-
-#for record in records:
-    #shape = record.shape
-    #points = np.array(shape.points)
-    #intervals = list(shape.parts) + [len(shape.points)]
-    #for (x, y) in zip(intervals[:-1], intervals[1:]):
-        #plt.plot(*zip(*points[x:y]), color='k', linewidth=.4) 
-#plt.show()
-
-
-#rd = NC_Reader()
-#t2ms = rd.vals4time('t2m', datetime(2017,1,1,12))[0].flatten()
-#tccs = rd.vals4time('tcc', datetime(2017,1,1,12))[0].flatten()
-#plt.scatter(tccs,t2ms,s=2)
-#plt.show()
-
-#sf = shp.Reader('/home/marcel/Dropbox/data/shapes/DEU_adm1.shp').shapes()
-#print(len(sf))
-
-#for shape in sf:
-    #points = np.array(shape.points)
-    #intervals = list(shape.parts) + [len(shape.points)]
-    
-    #for (x, y) in zip(intervals[:-1], intervals[1:]):
-        #plt.plot(*zip(*points[x:y]), color='k', linewidth=.4)    
-
-#plt.show()
-#start = pd.Timestamp(datetime(2016,1,1,0),tz='utc')
-#stop = pd.Timestamp(datetime(2017,12,31,18),tz='utc')
-
-##with xr.open_dataset(load_path) as lf:
-    ##print(lf[de_load].sel(utc_timestamp=pd.date_range(start,stop,freq='6H')))
-    ##print(lf[de_load].sel(utc_timestamp=time(12)))
-#ld = LoadReader()
-#print(ld.vals4slice(de_load, start, stop))
-
-#with xr.open_mfdataset(f'{era5_path}*.nc') as nc:
-    #print(nc['time'].values)
-
-
-def isinDE():
-    # TODO try again on faster pc
-    rd = WeatherReader()
-    lons = rd.get_coords()[lon_col].values
-    lats = rd.get_coords()[lat_col].values
-    #coords = [[x,y] for x in lons for y in lats]
-    slctr =  [[]]
-    sf = shp.Reader('/home/marcel/Dropbox/data/shapes/NUTS_RG_60M_2016_4326_LEVL_0.shp')
-    for record in sf.shapeRecords():
-        if 'DE' in record.record:
-            de_shape = record.shape
-    
-    poly = Polygon(de_shape.points)
-    print(len(lons),len(lats))
-    coords = np.empty((len(lats),len(lons)),np.dtype(Point))
-    
-    print(np.dtype(Point))
-    
-    
-    for y in range(len(lats)):
-        for x in range(len(lons)):
-            lo = lons[x]
-            la = lats[y]
-            coords[y,x] = Point(lo,la)
-
-    contains = np.vectorize(lambda p: p.within(poly) or p.touches(poly))
-    
-    contained = contains(coords)
-    print(contained)
-    np.save(f'{data_path}isin', contained)
-    return contained
-
-#print(len(pd.date_range(datetime(2015,1,1),datetime(2019,3,31),freq='1D')))
-
-#contained = isinDE()
-
-#contained = np.load(f'{data_path}isin.npy')
-
-#print(np.unique(contained, return_counts=True), contained.size)
-#print(type(contained))
-
-#plt.imshow(contained,cmap=plt.cm.gray, extent=bbox)#,interpolation='bilinear')
-#plt.show()
 
 def plt2d():
     rd = WeatherReader()
@@ -479,190 +481,3 @@ def plot3dim():
     cbar.ax.set_ylabel('DE_load_actual_entsoe_transparency (MW)', rotation=-90, va="bottom")
     
     plt.show()
-
-#plot3dim()
-
-#sf = shp.Reader('/home/marcel/Dropbox/data/shapes/NUTS_RG_60M_2016_4326_LEVL_0.shp/NUTS_RG_60M_2016_4326_LEVL_0.shp')
-#print(sf)
-#for shape in sf.shapeRecords():
-    #if 'DE' in shape.record:
-        #print(dir(shape.shape))
-        #print(shape.shape.parts, shape.shape.bbox)
-        #x = [i[0] for i in shape.shape.points[:]]
-        #y = [i[1] for i in shape.shape.points[:]]
-        #plt.plot(x,y)
-#plt.show()
-    
-#print(xr.merge(map(lambda x: xr.open_dataset(x, decode_times=True), glob(f'{era5_path}*.nc'))))
-
-#ncf = xr.open_dataset(ex_pth, decode_times=True)
-#ncf1 = xr.open_dataset(ex1_pth, decode_times=True)
-#print(xr.merge([ncf,ncf1]))
-
-def xpl():
-    ex_pth = glob(f'{era5_path}*.nc')[0]
-    ex1_pth = glob(f'{era5_path}*.nc')[1]
-    
-    ncf = xr.open_dataset(ex_pth, decode_times=True)
-    #tm = ncf['time']
-    
-    # TODO like this change time to pseudo timezone, but contains no information about
-    # timezone, otherwise xarray wouldn't recognize datetime64 type
-    # take first and last date to get a range and convert to local time, then remove timezone information
-    aware = pd.date_range(ncf['time'].values[0], ncf['time'].values[-1], freq='6H', tz='UTC').tz_convert('Europe/Berlin').tz_localize(None)
-    print(aware)
-    ncf['time'] = aware
-    print(ncf['time'])
-    #print(ncf)
-    #print(ncf.variables['time'].values[0] + np.timedelta64(1,'W'))
-    #print(pytz.timezone('Europe/Berlin'))
-
-def plottest():
-    nc_pth = f'{data_path}../../download.nc'
-    nc_file = Dataset(nc_pth, 'r')
-    print(nc_file.variables['t2m'].shape)
-    print(num2date(nc_file.variables['time'][742], nc_file.variables['time'].units))
-    ind = nc_file.variables['latitude'][:]
-    cols = nc_file.variables['longitude'][:]
-    
-    print(nc_file.variables['t2m'][:].count())
-    print(cols.min(), cols.max(), ind.min(), ind.max())
-    
-    df = pd.DataFrame(nc_file.variables['t2m'][:][742], index=ind, columns=cols).apply(lambda x: x-273.15)
-    
-    plt.imshow(df, cmap='jet', extent=(cols.min(), cols.max(), ind.min(), ind.max()), interpolation='bilinear')
-    
-    plt.colorbar()
-    plt.show()
-    
-    nc_file.close()    
-
-#times = nc_file.variables['time']
-#h = nc_file.variables['t2m']
-#print(h[:,0])
-#jd = num2date(times[:], times.units)[2]
-
-#hs = pd.Series(map(lambda x: x[0], h[:,0]), index=jd)
-#print(hs)
-
-#num = int(nc_file.variables['time'][0])
-
-#print(datetime(1900,1,1) + timedelta(hours=num), nc_file.variables['time'][:])
-#print(num2date(num, nc_file.variables['time'].units))
-
-#base = datetime(1900,1,1)
-
-#print([str(x) for x in map(lambda x: timedelta(hours=int(x))+base, nc_file.variables['time'][:])])
-#names = [vari for vari in nc_file.variables]
-
-#for name in names:
-    #print("name: " + nc_file.variables[name].long_name + "    unit: " + nc_file.variables[name].units)
-#print(nc_file.dimensions)
-
-#nc_file.close()
-
-#fig = plt.figure()
-#ax = fig.subplots()
-
-#ger_file = gpd.read_file(data_path + 'bundeslaender_simplify20.geojson')
-#print(type(ger_file))
-#poly_patch = PolygonPatch(ger_file.geometry, ec='black', alpha=1)
-#ax.add_patch(poly_patch)
-
-
-#print(ger_file.total_bounds)
-#ax = ger_file.plot()
-#plt.show()
-
-#sf = shp.Reader('/home/marcel/Downloads/vg2500_geo84/vg2500_bld.shp')
-#for shape in sf.shapeRecords():
-    #x = [i[0] for i in shape.shape.points[:]]
-    #y = [i[1] for i in shape.shape.points[:]]
-    #print(x,y)
-
-#sf = shp.Reader("/home/marcel/Downloads/vg2500_geo84/vg2500_bld.shp")
-
-#print("Initializing Display")
-#fig = plt.figure()
-#ax = fig.add_subplot(111)
-#plt.xlim([5.7, 15.2])
-#plt.ylim([47, 55.4])
-#print("Display Initialized")
-
-#for shape in sf.shapes():
-    #print("Finding Points")
-    #points = shape.points
-    #print("Found Points")    
-
-    #print("Creating Polygon")
-    #ap = plt.Polygon(points, fill=False, edgecolor="k")
-    #ax.add_patch(ap)
-    #print("Polygon Created")
-
-#print("Displaying Polygons")
-#plt.show()
-
-#sf=shp.Reader('/home/marcel/Downloads/vg2500_geo84/vg2500_bld.shp')
-##sf.plot(linestyle='-', rasterized=True)
-##plt.show()
-
-#for shape in sf:
-    #print(shape)
-    #x = [i[0] for i in shape.shape.points[:]]
-    #y = [i[1] for i in shape.shape.points[:]]
-    #plt.plot(x,y)
-#plt.show()
-
-
-#for i in range(0,4):
-    #sf = gpd.read_file(f'/home/marcel/Downloads/DEU_adm/DEU_adm{i}.shp')
-    #sf.plot()
-    #plt.show()
-    
-#hertz_load = 'DE_50hertz_load_actual_entsoe_transparency'
-#amprion_load = 'DE_amprion_load_actual_entsoe_transparency'
-#tennet_load = 'DE_tennet_load_actual_entsoe_transparency'
-#transnetbw_load = 'DE_transnetbw_load_actual_entsoe_transparency'
-
-#power_df = pd.read_csv(data_path + "power_load/time_series_15min_singleindex_filtered.csv", low_memory=False)
-#print(power_df[power_df[hertz_load] == 0])
-#print(power_df[power_df[amprion_load] == 0])
-#print(power_df[power_df[tennet_load] == 0])
-#print(power_df[power_df[transnetbw_load] == 0])
-
-#print(datetime(2017, 1, 1, 12))
-
-#def days_of_month(y, m):
-    #d0 = datetime(y, m, 1)
-    #d1 = d0 + relativedelta(months=1)
-    #out = list()
-    #while d0 < d1:
-        #out.append(d0.strftime('%Y-%m-%d'))
-        #d0 += timedelta(days=1)
-    #return out
-
-#years = range(2017,2018)
-#months = range(1,13)
-#dates = [datetime(year,month,day,12) for year in years for month in months for day in range(1,monthrange(year, month)[1]+1)]
-
-#wvars = []
-
-#weather_df = pd.read_csv(f'{data_path}ecmwf/GridActuals_2017.csv', low_memory=False)
-#for date in dates:
-    #wvar = weather_df[weather_df['time'] == str(date)].loc[:, 't2m'].var()
-    ##print(wvar)
-    #wvars.append((date,wvar))
-
-#wvars = sorted(wvars, key=lambda x: -x[1])
-#from plot_weather_map import plot_map_matplotlib_csv
-#for i in range(5):
-    #date = wvars[i][0]
-    #plot_map_matplotlib_csv(date)
-    
-    
-#xv = np.linspace(6,15,(15-6)*4+1)
-#yv = np.linspace(47.5,55,(55-47.5)*4+1)
-#a = np.array(np.meshgrid(xv,yv)).T.reshape(-1,2)
-
-#for i in a:
-    #print(i)

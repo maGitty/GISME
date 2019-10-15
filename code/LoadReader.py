@@ -33,13 +33,13 @@ class LoadReader:
         assert os.path.exists(load_path), 'file containing load data does not exist'
         
         with xr.open_dataset(load_path) as load_file:
-            self.__ldata__ = load_file
+            self.__ldata__ = load_file.interpolate_na('utc_timestamp')
             self.var_names = [name for name in load_file.data_vars]
             self.date_bounds = load_file[utc_col].min().values, load_file[utc_col].max().values
             #print(load_file['DE_load_actual_entsoe_transparency'].values)
     
     def _csv_to_nc(self):
-        """Used to convert csv file to .nc file format for speedup and compatibility
+        """Converts csv file to .nc file format for speedup and compatibility
         
         Returns
         -------
@@ -94,7 +94,7 @@ class LoadReader:
         xarray.DataArray containing desired data with respective timestamps"""
         assert name in self.var_names, f'column {name} not found'
         
-        return self.__ldata__[name].sel(utc_timestamp=time).interpolate_na('utc_timestamp')
+        return self.__ldata__[name].sel(utc_timestamp=time)
         
     def vals4slice(self, name, start, stop, step=None):
         """Returns values for variable in specified time range
@@ -118,10 +118,10 @@ class LoadReader:
         
         if step is None:
             # if no step specified simply return all values between start and stop
-            return self.__ldata__[name].sel(utc_timestamp=slice(start,stop)).interpolate_na('utc_timestamp')
+            return self.__ldata__[name].sel(utc_timestamp=slice(start,stop))
         else:
             # if step is given, return only desired points by passing a timeseries with frequency
-            return self.__ldata__[name].sel(utc_timestamp=pd.date_range(start,stop,freq=f"{step}H")).interpolate_na('utc_timestamp')
+            return self.__ldata__[name].sel(utc_timestamp=pd.date_range(start,stop,freq=f"{step}H"))
     
     def vals4step(self,name,step=1):
         """Returns complete values for specified step size
@@ -137,7 +137,7 @@ class LoadReader:
         -------
         xarray.DataArray containing desired data with respective timestamps
         """
-        return self.__ldata__[name].sel(utc_timestamp=pd.date_range(*self.date_bounds,freq=f"{step}H")).interpolate_na('utc_timestamp')
+        return self.__ldata__[name].sel(utc_timestamp=pd.date_range(*self.date_bounds,freq=f"{step}H"))
         
     
     

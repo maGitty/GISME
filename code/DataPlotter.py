@@ -791,13 +791,13 @@ stop = pd.Timestamp(2016,12,31,12)
 
 pl = DataPlotter(fmt='pdf',save=False,show=False,isin=True)#,shape=(2,2))
 
-t_start = pd.Timestamp(2017,1,1,0)
+t_start = pd.Timestamp(2015,1,1,0)
 t_stop = pd.Timestamp(2017,12,31,0)
 #arima = ARIMA_forecast()
 #arima.load('/home/marcel/Dropbox/data/ARIMA_p4d0q2.pkl')
 #pl.plot_armax_forecast(t_start,t_stop,t_stop+timedelta(weeks=1),1,0,exog=['t2m_all'])
-pl.plot_armax_forecast(t_start,t_stop,t_stop+timedelta(weeks=1),1,0,save_armax=True)
-#pl.plot_armax_forecast(t_start,t_stop,t_stop+timedelta(weeks=1),1,0,exog=['t2m_mean'])
+pl.plot_armax_forecast(t_start,t_stop,t_stop+timedelta(days=365),1,0)
+pl.plot_armax_forecast(t_start,t_stop,t_stop+timedelta(days=365),1,0,exog=['weekend'])
 #pl.plot_armax_forecast(t_start,t_stop,t_stop+timedelta(weeks=1),1,0,exog=['dayofweek','t2m_mean'])
 
 #pl.plot_isinRegion('DE212')

@@ -56,7 +56,10 @@ class TSForecast:
         -------
         None
         """
-        assert len(forecast) == len(actual), f'lengths do not equal: {len(forecast)},{len(actual)}'
+        self.date_range = pd.date_range(fc_start,fc_stop,freq='1H')
+        assert (len(forecast) == len(actual)) and\
+               (len(forecast) == len(self.date_range)),\
+               f'lengths do not equal: fc:{len(forecast)},load:{len(actual)},hours:{len(self.date_range)}'
         self.hours_ahead = hours_ahead
         self.forecast = forecast
         self.actual = actual
@@ -74,14 +77,64 @@ class TSForecast:
         """
         sum_str = f"{self.hours_ahead} hours ahead forecast from {self.fc_start} "\
             f"to {self.fc_stop} trained from {self.train_start} to {self.train_stop}:"\
-            f"\nmape : {np.round(self.mape(),2)} , rmse : {np.round(self.rmse(),2)}"
+            f"\nrmse : {np.round(self.rmse(),3)} , mae : {np.round(self.mae(),3)} ,"\
+            f" mpe : {np.round(self.mpe(),3)} , mape : {np.round(self.mape(),3)}"
         return sum_str
     
-    def mape(self):
-        """Calculates Mean Average Percentage Error of this forecast
+    def __teXstr__(self):
+        """Returns the error measures of this forecast
+        
         Returns
         -------
-        Mean Average Percentage Error as float
+        The error measures as string in tex format to insert into a table only missing the type of the model
+        """
+        return f"{np.round(self.rmse(),3)} & {np.round(self.mae(),3)} & "\
+               f"{np.round(self.mpe(),3)} & {np.round(self.mape(),3)}\\\\"
+    
+    def __plot__(self):
+        """TODO
+        """
+        date_range = pd.date_range(self.fc_start,self.fc_stop,freq='1H')
+        plt.plot(date_range,self.actual,label='actual')
+        plt.plot(date_range,self.forecast,label=f'{self.hours_ahead}H forecast')
+    
+    def difference(self,other_fc):
+        """Return difference between values of
+           this forecast and other_fc
+        
+        Parameters
+        ----------
+        other_fc : TSForecast
+                   forecast to compare to this forecast
+        
+        Returns
+        -------
+        numpy.array of differences between forecasts
+        """
+        assert len(self.actual) == len(other_fc.actual), f'forecast lengths are different: {len(self.actual)}, {len(other_fc.actual)}'
+        return self.forecast-other_fc.forecast
+    
+    def mae(self):
+        """Calculates Mean Absolute Error of this forecast
+        Returns
+        -------
+        Mean Absolute Error as float
+        """
+        return np.mean(np.abs(self.actual-self.forecast))
+    
+    def mpe(self):
+        """Calculates Mean Percentage Error of this forecast
+        Returns
+        -------
+        Mean Percentage Error as float
+        """
+        return np.mean(((self.actual-self.forecast)/self.actual)*100)
+    
+    def mape(self):
+        """Calculates Mean Absolute Percentage Error of this forecast
+        Returns
+        -------
+        Mean Absolute Percentage Error as float
         """
         return np.mean(np.abs((self.actual-self.forecast)/self.actual)*100)
     
@@ -109,7 +162,7 @@ class TSForecast:
 
 class ARMA_forecast:
     """ARMA forecast"""
-    def __init__(self,start,stop,p=None,q=None):
+    def __init__(self,start,stop,p,q):
         """Initializes instance
         Parameters
         ----------
@@ -133,10 +186,13 @@ class ARMA_forecast:
         self.stop = stop
         self.__arma_result = None
         self.forecasts = []
+        self.name = f'ARMA_p{self.p}q{self.q}'
 
     @staticmethod
     def load(fname):
-        """Loads ARMA_forecast instance from file name
+        """ATTENTION: overhead, just call pickle.load(open(fname,'rb')) to load instance
+           Loads ARMA_forecast instance from file name
+        
         Parameters
         ----------
         fname : string
@@ -158,7 +214,7 @@ class ARMA_forecast:
         -------
         file name of stored instance as string
         """
-        fname = os.path.join(data_path,f"ARMA_p{self.p}q{self.q}.pkl")
+        fname = os.path.join(data_path,f"{self.name}.pkl")
         pickle.dump(self,open(fname,'wb'))
         return fname
     
@@ -169,26 +225,20 @@ class ARMA_forecast:
         -------
         None
         """
-        # time steps of values in hours
-        data = self.load_reader.vals4slice(de_load,
-                                           self.start,
-                                           self.stop,
+        data = self.load_reader.vals4slice(de_load,self.start,self.stop,
                                            step=1).ffill(dim='utc_timestamp').values
-        
-        date_range = pd.date_range(self.start,
-                                   self.stop,
-                                   freq="1H")
-        model = ARMA(data,
-                      order=(self.p,self.q),
-                      dates=date_range)
+        date_range = pd.date_range(self.start,self.stop,freq="1H")
+        model = ARMA(data,(self.p,self.q))
         self.__arma_result = model.fit(method='css-mle',
-                                      trend='c',
-                                      transparams=False,
-                                      full_output=-1)
+                                       trend='c',
+                                       transparams=False,
+                                       disp=0,
+                                       full_output=-1)
         self.fit_params = self.__arma_result.params
     
     def predict_next(self,hours_ahead=24):
         """Predicts for given amount of hours from current trained point
+        
         Parameters
         ----------
         hours_ahead : int
@@ -198,9 +248,11 @@ class ARMA_forecast:
         -------
         predicted values as numpy.ndarray
         """
+        assert hasattr(self,'__arma_result'), "ARMA is not trained yet"
+        
         predictions = self.__arma_result.predict(self.stop,
-                                                self.stop+timedelta(hours=hours_ahead),
-                                                dynamic=False)
+                                                 self.stop+timedelta(hours=hours_ahead),
+                                                 dynamic=False)
         return predictions
     
     def predict_range(self,stop_time,hours_ahead):
@@ -216,7 +268,8 @@ class ARMA_forecast:
         -------
         list of forecasts for each number in hours_ahead respectively as list
         """
-        assert self.__arma_result is not None, "did not train arma yet"
+        assert hasattr(self,'__arma_result'), "ARMA is not trained yet"
+        
         max_hours = max(hours_ahead)
         delta1h = timedelta(hours=1)
         forecast = [[] for hour in range(len(hours_ahead))]
@@ -272,7 +325,7 @@ class ARMAX_forecast:
         q     : int
                 parameter for moving average part
         exog  : list of strings
-                used exogenous variables
+                used exogenous variables, see __load_data for possible choices
         
         Returns
         -------
@@ -293,11 +346,13 @@ class ARMAX_forecast:
     def __load_data(self):
         """Loads data including exogenous variables as pandas.DataFrame based on self.exog
            possible choices for exogenous variables:
+             - 'load_lag'     : load data shifted by one week
              - 'dayofweek'    : week day (one dummy per day)
              - 'weekend'      : dummy for wether it is weekend or not (1 or 0)
              - 'data_counter' : counting data points beginning from 0
              - 't2m_max'      : maximum of 2 metre temperature for each step
              - 't2m_mean'     : mean of 2 metre temperature for each step
+             - 't2m_top10'    : top 10 regions grid points compared by population
              - 't2m_all'      : every grid point of 2 metre temperature as single exogenous variable
              - 'u10_all'      : every grid point of 10 metre U wind component as single exogenous variable
              - 'v10_all'      : every grid point of 10 metre V wind component as single exogenous variable
@@ -312,82 +367,71 @@ class ARMAX_forecast:
              - 'tcrw_all'     : every grid point of total column rain water as single exogenous variable
              - 'fdir_all'     : every grid point of total sky direct solar radiation at surface as single exogenous variable
              """
-        last_date = datetime(2018,12,31)
+        last_date = datetime(2019,1,2)
         
         load_data = self.load_reader.vals4slice(de_load,self.start,last_date,step=1)
         date_range = pd.date_range(self.start,last_date,freq='1H')
         self.load_data = pd.DataFrame(data={'load' : load_data},index=date_range)
-        self.data = pd.DataFrame(data=[],index=date_range)
+        self.ex_data = pd.DataFrame(data=[],index=date_range)
         
         if self.exog is None:
             return
         
         dow = date_range.to_series().dt.dayofweek.values
+        if 'load_lag' in self.exog:
+            delta1week = timedelta(weeks=1)
+            self.ex_data['load_shift'] = self.load_reader.vals4slice(de_load,self.start-delta1week,last_date-delta1week,step=1)
         if 'dayofweek' in self.exog:
-            self.data['Monday'] = (dow == 0).astype(int)
-            self.data['Tuesday'] = (dow == 1).astype(int)
-            self.data['Wednesday'] = (dow == 2).astype(int)
-            self.data['Thursday'] = (dow == 3).astype(int)
-            self.data['Friday'] = (dow == 4).astype(int)
-            self.data['Saturday'] = (dow == 5).astype(int)
-            self.data['Sunday'] = (dow == 6).astype(int)
+            self.ex_data['Monday'] = (dow == 0).astype(int)
+            self.ex_data['Tuesday'] = (dow == 1).astype(int)
+            self.ex_data['Wednesday'] = (dow == 2).astype(int)
+            self.ex_data['Thursday'] = (dow == 3).astype(int)
+            self.ex_data['Friday'] = (dow == 4).astype(int)
+            self.ex_data['Saturday'] = (dow == 5).astype(int)
+            self.ex_data['Sunday'] = (dow == 6).astype(int)
         if 'weekend' in self.exog:
-            self.data['weekend'] = np.bitwise_or((dow==5),(dow==6))
+            self.ex_data['weekend'] = np.bitwise_or(dow==5,dow==6).astype(int)
         if 'data_counter' in self.exog:
-            self.data['data_counter'] = range(len(load_data))
+            self.ex_data['data_counter'] = range(len(load_data))
         if 't2m_max' in self.exog:
-            self.data['t2m_max'] = self.weather_reader.max_slice('t2m',self.start,last_date)
+            self.ex_data['t2m_max'] = self.weather_reader.max_slice('t2m',self.start,last_date)
         if 't2m_mean' in self.exog:
-            self.data['t2m_mean'] = self.weather_reader.mean_slice('t2m',self.start,last_date)
+            self.ex_data['t2m_mean'] = self.weather_reader.mean_slice('t2m',self.start,last_date)
+        if 't2m_top10' in self.exog:
+            for i,top_i in enumerate(self.weather_reader
+                                     .demoTopNregionsSlice('t2m',self.start,last_date,10).transpose()):
+                self.ex_data[f't2m_top{i}gridpoint'] = top_i
         if 't2m_all' in self.exog:
             for i,t2m in self.weather_reader.flattened_slice('t2m',self.start,last_date):
-                self.data[f't2m{i}'] = t2m
+                self.ex_data[f't2m{i}'] = t2m
             #data['t2m_all'] = self.weather_reader.flattened_slice('t2m',self.start,last_date)
         if 'u10_all' in self.exog:
-            self.data['u10_all'] = self.weather_reader.flattened_slice('u10',self.start,last_date)
+            self.ex_data['u10_all'] = self.weather_reader.flattened_slice('u10',self.start,last_date)
         if 'v10_all' in self.exog:
-            self.data['v10_all'] = self.weather_reader.flattened_slice('v10',self.start,last_date)
+            self.ex_data['v10_all'] = self.weather_reader.flattened_slice('v10',self.start,last_date)
         if 'lai_hv_all' in self.exog:
-            self.data['lai_hv_all'] = self.weather_reader.flattened_slice('lai_hv',self.start,last_date)
+            self.ex_data['lai_hv_all'] = self.weather_reader.flattened_slice('lai_hv',self.start,last_date)
         if 'lai_lv_all' in self.exog:
-            self.data['lai_lv_all'] = self.weather_reader.flattened_slice('lai_lv',self.start,last_date)
+            self.ex_data['lai_lv_all'] = self.weather_reader.flattened_slice('lai_lv',self.start,last_date)
         if 'lcc_all' in self.exog:
-            self.data['lcc_all'] = self.weather_reader.flattened_slice('lcc',self.start,last_date)
+            self.ex_data['lcc_all'] = self.weather_reader.flattened_slice('lcc',self.start,last_date)
         if 'stl1_all' in self.exog:
-            self.data['stl1_all'] = self.weather_reader.flattened_slice('stl1',self.start,last_date)
+            self.ex_data['stl1_all'] = self.weather_reader.flattened_slice('stl1',self.start,last_date)
         if 'slhf_all' in self.exog:
-            self.data['slhf_all'] = self.weather_reader.flattened_slice('slhf',self.start,last_date)
+            self.ex_data['slhf_all'] = self.weather_reader.flattened_slice('slhf',self.start,last_date)
         if 'str_all' in self.exog:
-            self.data['str_all'] = self.weather_reader.flattened_slice('str',self.start,last_date)
+            self.ex_data['str_all'] = self.weather_reader.flattened_slice('str',self.start,last_date)
         if 'sshf_all' in self.exog:
-            self.data['sshf_all'] = self.weather_reader.flattened_slice('sshf',self.start,last_date)
+            self.ex_data['sshf_all'] = self.weather_reader.flattened_slice('sshf',self.start,last_date)
         if 'tcc_all' in self.exog:
-            self.data['tcc_all'] = self.weather_reader.flattened_slice('tcc',self.start,last_date)
+            self.ex_data['tcc_all'] = self.weather_reader.flattened_slice('tcc',self.start,last_date)
         if 'tcrw_all' in self.exog:
-            self.data['tcrw_all'] = self.weather_reader.flattened_slice('tcrw',self.start,last_date)
+            self.ex_data['tcrw_all'] = self.weather_reader.flattened_slice('tcrw',self.start,last_date)
         if 'fdir_all' in self.exog:
-            self.data['fdir_all'] = self.weather_reader.flattened_slice('fdir',self.start,last_date)
+            self.ex_data['fdir_all'] = self.weather_reader.flattened_slice('fdir',self.start,last_date)
     
     def __load_exog(self,tstart,tstop):
         """Loads exogenous variables as numpy.ndarray based on self.exog
-           possible choices:
-             - 'dayofweek'    : number of week day
-             - 'data_counter' : counting data points beginning from 0
-             - 't2m_max'      : maximum of 2 metre temperature for each step
-             - 't2m_mean'     : mean of 2 metre temperature for each step
-             - 't2m_all'      : every grid point of 2 metre temperature as single exogenous variable
-             - 'u10_all'      : every grid point of 10 metre U wind component as single exogenous variable
-             - 'v10_all'      : every grid point of 10 metre V wind component as single exogenous variable
-             - 'lai_hv_all'   : every grid point of high vegetation leaf area index as single exogenous variable
-             - 'lai_lv_all'   : every grid point of low vegetation leaf area index as single exogenous variable
-             - 'lcc_all'      : every grid point of low cloud cover as single exogenous variable
-             - 'stl1_all'     : every grid point of soil temperature level 1 as single exogenous variable
-             - 'slhf_all'     : every grid point of surface latent heat flux as single exogenous variable
-             - 'str_all'      : every grid point of surface net thermal radiation as single exogenous variable
-             - 'sshf_all'     : every grid point of surface sensible heat flux as single exogenous variable
-             - 'tcc_all'      : every grid point of total cloud cover as single exogenous variable
-             - 'tcrw_all'     : every grid point of total column rain water as single exogenous variable
-             - 'fdir_all'     : every grid point of total sky direct solar radiation at surface as single exogenous variable
         
         Parameters
         ----------
@@ -404,80 +448,8 @@ class ARMAX_forecast:
         """
         if self.exog is None:
             return
-        return self.data[tstart:tstop].values
+        return self.ex_data[tstart:tstop].values
 
-        ## read demo file
-        #demo_df = pd.read_csv(demography_file,encoding='latin1',index_col='GEO')
-        ## clean population data
-        #demo_df['Value'] = demo_df['Value'].map(lambda val: pd.NaT if val == ':' else float(val.replace(',','')))
-        ## filter by any year, as regions don't actually move, right?
-        #demo_df = demo_df[demo_df['TIME']==2018]
-        ## filter all regions with an id of length 5 all others are countries etc
-        #demo_df = demo_df[[len(reg)==5 for reg in demo_df.index]]
-        ## sort 
-        #demo_df.sort_values('Value', axis=0, ascending=False, inplace=True, kind="quicksort", na_position="last")
-        
-        #allor = np.load(os.path.join(isin_path,f'isin{demo_df.index[0]}.npy'))
-        #for i in range(1,9):
-            #reg = np.load(os.path.join(isin_path,f'isin{demo_df.index[i]}.npy'))
-            #allor = np.bitwise_or(allor,reg)
-        #mapexog = self.weather_reader.isin_sliceMap('t2m',tstart,tstop,allor)
-        
-        #return mapexog
-        
-        #if self.exog is None:
-            #return None
-        #date_range = pd.date_range(tstart,tstop,freq="1H")
-        #dow = date_range.to_series().dt.dayofweek.values
-        #if 'dayofweek' in self.exog:
-            ## extend exog by 7 dummy arrays, each for one weekday
-            #cat = np.zeros((7,dow.size))
-            #for i in range(7):
-                #cat[i,dow==i] = 1
-            #exog.extend(cat)
-        #if 'weekend' in self.exog:
-            #wend = np.zeros((dow.size))
-            #wend[dow==5] = 1
-            #wend[dow==6] = 1
-            #exog.append(wend)
-        #if 'data_counter' in self.exog:
-            #if range_start is None:
-                #exog.append(np.array(range(date_range.size)))
-            #else:
-                #exog.append(np.array(range(range_start,range_start+date_range.size)))
-        #if 't2m_max' in self.exog:
-            #exog.append(self.weather_reader.max_slice('t2m',tstart,tstop))
-        #if 't2m_mean' in self.exog:
-            #exog.append(self.weather_reader.mean_slice('t2m',tstart,tstop))
-        #if 't2m_all' in self.exog:
-            #exog.extend(self.weather_reader.flattened_slice('t2m',tstart,tstop))
-        #if 'u10_all' in self.exog:
-            #exog.extend(self.weather_reader.flattened_slice('u10',tstart,tstop))
-        #if 'v10_all' in self.exog:
-            #exog.extend(self.weather_reader.flattened_slice('v10',tstart,tstop))
-        #if 'lai_hv_all' in self.exog:
-            #exog.extend(self.weather_reader.flattened_slice('lai_hv',tstart,tstop))
-        #if 'lai_lv_all' in self.exog:
-            #exog.extend(self.weather_reader.flattened_slice('lai_lv',tstart,tstop))
-        #if 'lcc_all' in self.exog:
-            #exog.extend(self.weather_reader.flattened_slice('lcc',tstart,tstop))
-        #if 'stl1_all' in self.exog:
-            #exog.extend(self.weather_reader.flattened_slice('stl1',tstart,tstop))
-        #if 'slhf_all' in self.exog:
-            #exog.extend(self.weather_reader.flattened_slice('slhf',tstart,tstop))
-        #if 'str_all' in self.exog:
-            #exog.extend(self.weather_reader.flattened_slice('str',tstart,tstop))
-        #if 'sshf_all' in self.exog:
-            #exog.extend(self.weather_reader.flattened_slice('sshf',tstart,tstop))
-        #if 'tcc_all' in self.exog:
-            #exog.extend(self.weather_reader.flattened_slice('tcc',tstart,tstop))
-        #if 'tcrw_all' in self.exog:
-            #exog.extend(self.weather_reader.flattened_slice('tcrw',tstart,tstop))
-        #if 'fdir_all' in self.exog:
-            #exog.extend(self.weather_reader.flattened_slice('fdir',tstart,tstop))
-        
-        #return np.column_stack(exog)
-    
     @staticmethod
     def load(fname):
         """Loads ARMAX_forecast instance from file name
@@ -508,7 +480,7 @@ class ARMAX_forecast:
         fname = os.path.join(data_path,'ARMAX',f'start{self.start.strftime("%Y%m%d%H")}_stop'\
                              f'{self.stop.strftime("%Y%m%d%H")}_p{self.p}q{self.q}'\
                              '{"" if self.exog is None else "_"+"_".join(self.exog)}.pkl')
-        log.info(f'saving arma as {fname}')
+        log.info(f'saving armax as {fname}')
         pickle.dump(self,open(fname,'wb'))
         return fname
     
@@ -520,32 +492,54 @@ class ARMAX_forecast:
         None
         """
         data = self.load_data[self.start:self.stop].values
-        model_exog = self.__load_exog(self.start,self.stop)
-        arma = ARMA(data,exog=model_exog,
+        exog = None if self.exog is None else self.ex_data[self.start+timedelta(hours=1):self.stop+timedelta(hours=1)].values
+        armax = ARMA(data,
+                     exog=exog,
                      order=(self.p,self.q))
-        self.__armax_result = arma.fit(method=self.method,
+        self.__armax_result = armax.fit(method='css',
                                         trend='nc',
                                         transparams=False,
-                                        full_output=-1)
+                                        disp=0)
+        #print(self.__armax_result.params['x1'])
         self.fit_params = self.__armax_result.params
-        print(self.fit_params)
+        self.load_param = self.fit_params[-1]
+        self.exog_params = self.fit_params[:-1]
     
-    def predict_next(self,hours_ahead=24):
-        """Predicts for given amount of hours from current trained point
-        Parameters
-        ----------
-        hours_ahead : int
-                      number of hours to forecast
+    def arx1_predict(self,fc_end):
+        delta1h = timedelta(hours=1)
+        data = self.load_data[self.stop:fc_end-delta1h].values[:,0]
+        ar1 = self.load_param
+        if self.exog is None:
+            forecast = ar1*data
+        else:
+            exog = self.ex_data[self.stop+delta1h:fc_end+delta1h].values[:,:]
+            forecast = np.dot(self.exog_params,exog[1:].transpose()) +\
+                       self.load_param * (data - np.dot(self.exog_params,exog[:-1].transpose()))
+        self.forecasts.append(TSForecast(1,
+                                         forecast,
+                                         self.load_data[self.stop+delta1h:fc_end].values[:,0],
+                                         self.start,
+                                         self.stop,
+                                         self.stop+delta1h,
+                                         fc_end))
+        return forecast
+    
+    def forecast_to(self,fc_end,hours_ahead=1):
+        """TODO"""
+        delta1h = timedelta(hours=1)
+        fc_load = self.load_data[self.stop:fc_end].values[:,0]*self.load_param
+        fc_exog = np.divide(self.ex_data[self.stop+delta1h:fc_end+delta1h].values.transpose(),fc_load).transpose()
+        fc_exog = np.dot(fc_exog,self.exog_params)
+        forecast = TSForecast(hours_ahead=hours_ahead,
+                              forecast=fc_load+fc_exog,
+                              actual=self.load_data[self.stop+delta1h:fc_end+delta1h].values[:,0],
+                              train_start=self.start,
+                              train_stop=self.stop,
+                              fc_start=self.stop+delta1h,
+                              fc_stop=fc_end+delta1h)
+        self.forecasts.append(forecast)
         
-        Returns
-        -------
-        predicted values as numpy.ndarray
-        """
-        predictions = self.__armax_result.forecast(steps=hours_ahead,
-                                                   exog=pd.date_range(self.stop+timedelta(hours=1),
-                                                                      self.stop+timedelta(hours=hours_ahead),
-                                                                      freq='1H').to_series().dt.dayofweek)[0]
-        return predictions
+        return forecast
     
     def predict_range(self,stop_time,hours_ahead):
         """Predicts from instance tstop to given stop_time for every hour with given hours_ahead
@@ -560,40 +554,42 @@ class ARMAX_forecast:
         -------
         list of forecasts for each number in hours_ahead respectively as list
         """
-        assert self.__armax_result is not None, "did not train arma yet"
+        assert self.__armax_result is not None, "did not train armax yet"
         max_hours = max(hours_ahead)
-        data = self.load_reader.vals4slice(de_load,self.start,self.stop,step=1)
+        data = self.load_data[self.start:self.stop]
         delta1h = timedelta(hours=1)
-        out_of_sample_exog = self.__load_exog(self.stop+delta1h,
-                                              self.stop+timedelta(hours=max_hours))
-        fc = self.__armax_result.forecast(steps=max_hours,exog=out_of_sample_exog)[0]
+        out_of_sample_exog = self.ex_data[self.stop+delta1h:self.stop+timedelta(hours=max_hours)]
+        #fc = self.__armax_result.forecast(steps=max_hours,exog=out_of_sample_exog)[0]
         
-        forecast = [[] for hour in range(len(hours_ahead))]
-        for i,hours in enumerate(hours_ahead):
-            forecast[i].append(fc[hours-1])
+        #forecast = [[] for hour in range(len(hours_ahead))]
+        #for i,hours in enumerate(hours_ahead):
+            #forecast[i].append(fc[hours-1])
+        forecast = [[]*len(hours_ahead)]
         
         stop_counter = self.stop
         while stop_counter < stop_time:
-            stop_counter+=delta1h
-            data = self.load_reader.vals4slice(de_load,self.start,stop_counter,
-                                              step=1).ffill(dim='utc_timestamp').values
-            model_exog = self.__load_exog(self.start,stop_counter)
-            arma = ARMA(data,exog=model_exog,
+            data = self.load_data[self.start:stop_counter].values
+            model_exog = self.ex_data[self.start+delta1h:stop_counter+delta1h]
+            armax = ARMA(data,exog=model_exog,
                         order=(self.p,self.q))
-            arma.method = self.method
+            armax.method = self.method
+            armax.k_trend = 0
+            armax.nobs = len(data)
+            armax.transparams = False
             #if self.exog is not None: # needed if constant is included -> did result in higher error
-                #arma.exog = add_trend(model_exog, trend='c', prepend=True, has_constant='raise')
-            self.__armax_result.initialize(arma,self.fit_params)
-            out_of_sample_exog = self.__load_exog(stop_counter+delta1h,
-                                                  stop_counter+timedelta(hours=max_hours))
+                #armax.exog = add_trend(model_exog, trend='c', prepend=True, has_constant='raise')
+            self.__armax_result.initialize(armax,self.fit_params)
+            out_of_sample_exog = self.ex_data[stop_counter+delta1h:stop_counter+timedelta(hours=max_hours)]
             fc = self.__armax_result.forecast(steps=max_hours,exog=out_of_sample_exog)[0]
     
+            stop_counter+=delta1h
             for i,hours in enumerate(hours_ahead):
                 forecast[i].append(fc[hours-1])
         
-        actual_data = self.load_reader.vals4slice(de_load,self.stop,stop_counter,step=1).ffill(dim='utc_timestamp').values
+        actual_data = self.load_data[self.stop+delta1h:stop_counter].values[:,0]
         for i,fc in enumerate(forecast):
-            self.forecasts.append(TSForecast(hours_ahead[i],fc,actual_data,self.start,self.stop,self.stop,stop_counter))
+            self.forecasts.append(TSForecast(hours_ahead[i],np.array(fc),np.array(actual_data),
+                                             self.start,self.stop,self.stop+delta1h,stop_counter))
         
         return forecast
     
@@ -604,13 +600,75 @@ class ARMAX_forecast:
         None
         """
         log.info(f'\n{self.__armax_result.summary()}')
-
-#armax = ARMAX_forecast(datetime(2017,1,1),datetime(2017,12,31),1,0)
-#print(armax.data)
+        
+start = datetime(2015,1,8,0)
+stop = datetime(2017,12,31,23)
+fc_end = datetime(2018,12,31,23)
+exog = ['load_lag']
+#fc_end = stop + timedelta(days=14)
+#armax = ARMAX_forecast(start,stop,1,0,exog)
 #armax.train()
-#print(armax.predict_range(datetime(2018,1,7),[1,6]))
-#for fc in armax.forecasts:
-    #print(fc)
+#print(armax.fit_params)
+#armax.summary()
+#armax.forecast_to(fc_end)
+#log.info(armax.forecasts[0])
+#armax.forecasts[0].__plot__()
+##plt.plot(armax.forecasts[0].forecast,label=f'{armax.forecasts[0].hours_ahead}H manual forecast')
+#fc_manual = armax.forecasts[0].forecast
+
+armax = ARMAX_forecast(start,stop,1,0,exog)
+armax.train()
+armax.summary()
+print(type(armax.fit_params),dir(armax.fit_params),armax.fit_params["ar.L1.y"])
+
+#armax.predict_range(fc_end,[1])
+#log.info(armax.forecasts[0])
+#armax.forecasts[0].__plot__()
+
+armax.arx1_predict(fc_end)
+log.info(armax.forecasts[0])
+armax.forecasts[0].__plot__()
+
+#plt.plot(pd.date_range(stop+timedelta(hours=1),fc_end,freq='1H'),armax.forecasts[0].difference(armax.forecasts[1]))
+#plt.plot(armax.forecasts[0].forecast,label=f'{armax.forecasts[0].hours_ahead}H iterative forecast')
+#mape_diff = np.mean(np.abs((fc_manual-armax.forecasts[0].forecast)/fc_manual)*100)
+#difference = (fc_manual-armax.forecasts[0].forecast)/fc_manual
+#plt.plot(difference,label='fc relative difference')
+
+#plt.plot(armax.forecasts[0].actual,label='actual')
+plt.legend()
+#log.info(f'forecast mape difference: {np.mean(np.abs(difference)*100)}')
+plt.show()
+
+
+#dr = pd.date_range(start,stop,freq='1H')
+#fc_stop = datetime(2015,1,8)
+#armax = ARMAX_forecast(start,stop,1,0,['weekend'])
+##print(armax.data)
+#armax.train()
+#armax.summary()
+##print(armax.predict_range(datetime(2018,1,7),[1,6]))
+##for fc in armax.forecasts:
+    ##print(fc)
+
+#lr = LoadReader()
+#df = pd.DataFrame(data={'load':lr.vals4slice(de_load,start,stop,step=1).values[:-1],
+                        #'fc':armax._ARMAX_forecast__armax_result.fittedvalues[1:]},
+                  #index=dr[:-1])
+
+#print(f'mape: {np.mean(np.abs((df["load"]-df["fc"])/df["load"])*100)}')
+#print(f'rmse: {np.sqrt(((df["fc"]-df["load"])**2).mean())}')
+#print(np.mean(np.power(df['load']-df['fc'],2)))
+#ldat = lr.vals4slice(de_load,start,fc_stop,step=1).values
+#dr_fc = pd.date_range(start,fc_stop,freq='1H')
+##plt.plot(df[300:500])
+#slc = slice(0,600)
+#plt.plot(df['load'][slc],label='actual')
+#plt.plot(df['fc'][slc],label='1H forecast')
+#plt.legend()
+
+#plt.show()
+
 
 #def auto_arma(tstart,tstop,ar_stop,ma_stop):
     #load_reader = LoadReader()

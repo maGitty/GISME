@@ -51,7 +51,7 @@ class Utility:
                 # convert region shape to polygon for plotting
                 return region
     
-    def topNregions(self,n):
+    def demoTopNregions(self,n):
         """Searches for n most populated regions
         
         Parameters
@@ -75,6 +75,25 @@ class Utility:
         demo_df.sort_values('Value', axis=0, ascending=False, inplace=True, kind="quicksort", na_position="last")
         return {self.getRegion(region_id).record.NUTS_NAME.strip('\000') : region['Value']\
                 for region_id,region in demo_df.head(n).iterrows()}
+    
+    def demoTopNregionsMap(self,n):
+        """TODO"""
+        # read demo file
+        demo_df = pd.read_csv(demography_file,encoding='latin1',index_col='GEO')
+        # clean population data
+        demo_df['Value'] = demo_df['Value'].map(lambda val: pd.NaT if val == ':' else float(val.replace(',','')))
+        # filter by any year, as regions don't actually move, right?
+        demo_df = demo_df[demo_df['TIME']==2018]
+        # filter all regions with an id of length 5 all others are countries etc
+        demo_df = demo_df[[len(reg)==5 for reg in demo_df.index]]
+        # sort 
+        demo_df.sort_values('Value', axis=0, ascending=False, inplace=True, kind="quicksort", na_position="last")
+        
+        top10map = np.load(os.path.join(isin_path,f'isin{demo_df.index[0]}.npy'))
+        for i in range(1,n):
+            reg = np.load(os.path.join(isin_path,f'isin{demo_df.index[i]}.npy'))
+            top10map = np.bitwise_or(top10map,reg)
+        return top10map
     
     def check_isinDE(self):
         """Used to check which points of dataset are within germany

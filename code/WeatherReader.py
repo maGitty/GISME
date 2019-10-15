@@ -37,7 +37,7 @@ class WeatherReader:
         assert os.path.exists(era5_path), 'path to weather data does not exist'
         
         self.isin = isin
-        self.util = Utility(False,False)
+        self.util = Utility()
         self.filename = os.path.join(era5_path,'*.nc')
         with xr.open_mfdataset(self.filename) as nc_file:
             # drop times where no data is available, until now only seen at the end of the dataset
@@ -385,11 +385,15 @@ class WeatherReader:
         return self.wdata[name].sel(time=slice(start,stop)).where(contained,other=np.nan,drop=False)\
                 .stack(loc=(lon_col,lat_col)).dropna('loc').transpose().values
     
-    def isin_sliceMap(self,name,start,stop,mp):
+    def isin_sliceMap(self,name,start,stop,matrix):
         """TODO"""
-        return self.wdata[name].sel(time=slice(start,stop)).where(mp,other=np.nan,drop=False)\
+        return self.wdata[name].sel(time=slice(start,stop)).where(matrix,other=np.nan,drop=False)\
                    .stack(loc=(lon_col,lat_col)).dropna('loc').values
-        
+    
+    def demoTopNregionsSlice(self,name,start,stop,n):
+        """TODO"""
+        return self.isin_sliceMap(name,start,stop,self.util.demoTopNregionsMap(n))
+    
     def var_over_time(self, name):
         """Returns variance over time reduced along longitude
            and latitude dimensions and drops NA values
@@ -538,3 +542,5 @@ class WeatherReader:
         return self.__nmax_reduce_days(name, np.nanmean, n)
     
 
+#wr = WeatherReader()
+#print(wr.demoTopNregionsSlice('t2m',datetime(2017,1,1),datetime(2018,1,1),10).shape)
