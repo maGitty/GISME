@@ -93,7 +93,7 @@ Besides weather data used to refine the forecasting results, also historic load 
 %\label{fig:t2m_mean_2015010112_2018123112_24F}%
 %\end{figure}
 
-\begin{figure}[h!]%
+\begin{figure}[H]%
 	\centering
 	\begin{subfigure}{.5\textwidth}
 		\centering
@@ -188,12 +188,22 @@ In regard to coding styles, especially when it comes to docstrings, the numpy co
 \label{fig:arma_fc}%
 \end{figure}
 
-Describe the results you have obtained using your methods described above. Again use proper visualization methods.
+\begin{table}[h!]%
+\rowcolors{2}{white}{gray!25}
+\centering
+\footnotesize
+\begin{tabularx}{\linewidth}{lLrrrr}
+\tablehead model & \tablehead data & \tablehead\gls{rmse} & \tablehead\gls{mae} & \tablehead\gls{mpe} & \tablehead\gls{mape}\\\hline
+ARMA(1,0) & no exogenous data & 67.114 & 66.160 & 0.114 & 0.114\\
+ARMAX(1,0) & weekend dummy & 66.913 & 65.963 & 0.114 & 0.114\\
+ARMAX(1,0) & t2m mean temperature & 1958.589 & 1930.693 & 3.324 & 3.324\\
+ARMAX(1,0) & weekend dummy + t2m mean & 4.417 & 4.157 & -0.008 & 0.008\\
+ARMAX(1,0) & t2m data of 10 regions with highest population & 2381.090 & 2347.192 & 4.041 & 4.041\\
+ARMAX(1,0) & t2m data of 10 regions with highest population + weekend dummy & 3475.891 & 3426.441 & 5.899 & 5.899\\
+\end{tabularx}
+\caption{ARMAX results.}
+\label{tab:armax_results}
+\end{table}
 
-\subsection{Experiment 1}
 
-\dots
-
-\subsection{Experiment 2}
-
-\dots
+%Describe the results you have obtained using your methods described above. Again use proper visualization methods.
