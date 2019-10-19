@@ -35,7 +35,30 @@ import pytz
 import re,os,operator,functools
 from shapely.geometry import Point, Polygon
 import holidays
+import itertools
 from statsmodels.tsa.arima_model import ARMA
+
+def arx1_predict(const, ar1, ex1, data, exog):
+    predicted_values = []
+    for i in range(1, len(data)):
+        f_prev = const + ex1 * exog[i - 1]
+        f_now = const + ex1 * exog[i]
+        y = f_now + ar1 * (data[i - 1] - f_prev)
+        list.append(predicted_values, y)
+    return predicted_values
+
+def arx1_predict(self,fc_end):
+    delta1h = timedelta(hours=1)
+    data = self.load_data[self.stop:fc_end-delta1h].values[:,0]
+    ar1 = self.load_param
+    if self.exog is None:
+        forecast = self.const + ar1 * (data - self.const)
+    else:
+        exog = self.const + np.dot(self.exog_params,self.ex_data[self.stop+delta1h:fc_end+delta1h].values.transpose())
+        forecast = exog[1:] + ar1 * (data - exog[:-1])
+    self.forecasts.append(TSForecast(1,forecast,self.load_data[self.stop+delta1h:fc_end].values[:,0],
+                                     self.start,self.stop,self.stop+delta1h,fc_end))
+    return forecast
 
 
 def mape(actual,forecast):
@@ -45,57 +68,138 @@ def rmse(actual,forecast):
     return np.sqrt(((forecast-actual)**2).mean())
 
 
-lr = LoadReader()
-wr = WeatherReader()
-delta1h = timedelta(hours=1)
-start = datetime(2015,1,1,0)
-stop = datetime(2017,12,31,23)
-last_date = datetime(2018,12,31,23)
-#TODO manual forecast
-date_range = pd.date_range(start,last_date,freq='1H')
-load_data = pd.DataFrame(data={'load' : lr.vals4slice(de_load,start,last_date,step=1)},
-                         index=date_range)
+def armafc():
+    lr = LoadReader()
+    wr = WeatherReader()
+    delta1h = timedelta(hours=1)
+    delta1week = timedelta(weeks=1)
+    start = datetime(2015,1,8)
+    stop = datetime(2017,12,31)
+    fc_end = datetime(2018,12,30)
+    last_date = datetime(2018,12,31)
+    has_const = True
+    
+    date_range = pd.date_range(start,last_date,freq='1H')
+    fc_range = pd.date_range(stop+delta1h,fc_end,freq='1H')
+    
+    load_data = pd.DataFrame(data={'load':lr.vals4slice(de_load,start,last_date,step=1)},
+                             index=date_range)
+    
+    dow = date_range.to_series().dt.dayofweek.values
+    exog = pd.DataFrame(data=[],index=date_range)
+    #exog['weekend'] = np.bitwise_or(dow==5,dow==6).astype(int)
+    #exog['t2m_mean'] = wr.mean_slice('t2m',start,last_date)
+    exog['load_lag'] = lr.vals4slice(de_load,start-delta1week,last_date-delta1week,step=1)
+    
+    start_time = datetime.now()
+    log.info(f'starting training and forecast')
+    
+    p=1
+    q=1
+    b=len(exog.columns)
+    armax = ARMA(endog=load_data[start:stop].values[:,0],
+                 exog =exog[start:stop].values,
+                 order=(p,q))
+    armax_result = armax.fit(method='mle',
+                             #solver='cg',
+                             trend='c' if has_const else 'nc',
+                             disp=0)
+    fit_params = armax_result.params
+    print(f'fit parameters:\n{fit_params}\n{armax_result.summary()}')
+    const = fit_params[0] if has_const else 0
+    exB = fit_params[1 if has_const else 0:-p-q]
+    arP = fit_params[-p-q:-q] if q > 0 else fit_params[-p:]
+    maQ = fit_params[-q:] if q > 0 else []
+    print(f'const:{const}\nar:{arP}\nma:{maQ}\nexog:{exB}')
+    
+    print(len(fc_range),len(load_data[stop-timedelta(hours=p-1):fc_end].values[:,0]))
+    if q > 0:
+        err = np.zeros(len(fc_range)+q)
+        err[:q] = armax_result.resid[-q:]
+    
+    def armaxPQ_predict(const,arP,maQ,exB,data,resid,exog=None):
+        pred = np.empty(len(data)-p)
+        def m_t(index):
+            return const if exog is None else const + np.dot(exB,exog[index].transpose())
+        
+        for t in range(len(data)-p):
+            ar_term = m_t(t+p) + np.dot(arP[::-1],data[t:t+p]-m_t(slice(t,t+p)))
+            ma_term = 0 if q is 0 else np.dot(maQ[::-1],resid[t:t+q])
+            y = ar_term + ma_term
+            if q > 0:
+                resid[t+q] = data[t+p] - y
+            pred[t] = y
+        return pred
+    
+    def arx1_predictkal(self,fc_end):
+        predicted_values = []
+        delta1h = timedelta(hours=1)
+        data = self.load_data[self.stop:fc_end].values[:,0]
+        exog = self.ex_data[self.stop:fc_end].values
+        for i in range(1, len(data)):
+            f_prev = self.const + np.dot(self.exog_params,exog[i - 1])
+            f_now = self.const + np.dot(self.exog_params,exog[i])
+            y = f_now + self.load_param * (data[i - 1] - f_prev)
+            predicted_values.append(y)
+        predicted_values = np.array(predicted_values)
+        fc = TSForecast(1,predicted_values,self.load_data[self.stop+delta1h:fc_end].values[:,0],
+                        self.start,self.stop,self.stop+delta1h,fc_end)
+        self.forecasts.append(fc)
+        return fc
+    
+    forecast = armaxPQ_predict(const,arP,maQ,exB,
+                               load_data[stop-timedelta(hours=p-1):fc_end].values[:,0],
+                               None if q is 0 else err,
+                               exog[stop-timedelta(hours=p-1):fc_end].values
+                               )
+    fc = TSForecast(1,forecast,
+                    load_data[stop+delta1h:fc_end].values[:,0],
+                    start,stop,stop+delta1h,fc_end)
+    print(f'TSForecast: {fc}')
+    fc.__plot__()
+    #plt.plot(fc.actual,label='actual')
+    #plt.plot(fc.forecast,label='1H forecast')
+    #plt.legend()
+    #np.vectorize(lambda x:x)
+    plt.show()
 
-dow = date_range.to_series().dt.dayofweek.values
-exog = pd.DataFrame(data=[],index=date_range)
-exog['weekend'] = np.bitwise_or(dow==5,dow==6).astype(int)
-exog['t2m_mean'] = wr.mean_slice('t2m',start,last_date)
+#armafc()
+items = ['t2m_mean','weekend','t2m_top10','load_lag']
+combinations = [list(itertools.compress(items,mask)) for mask in itertools.product(*[[0,1]]*len(items))]
+print(combinations)
 
-start_time = datetime.now()
-log.info(f'starting training and forecast: {start_time}')
-
-p=1
-q=0
-armax = ARMA(endog=load_data[start:stop].values,
-             exog =exog[start+delta1h:stop+delta1h].values,
-             order=(p,q))
-armax_result = armax.fit(method='css',
-                         #solver='cg',
-                         trend='nc',
-                         transparams=False,
-                         full_output=-1,
-                         disp=0)
-fit_params = armax_result.params
-log.info(f'fit parameters: {fit_params}\n{armax_result.summary()}')
-
-fc_load = load_data[stop:last_date-delta1h].values[:,0]*fit_params[-1]
-fc_exog = np.divide(exog[stop+delta1h:last_date].values.transpose(),fc_load).transpose()
-fc_exog = np.dot(fc_exog,fit_params[:-1])
-forecast = pd.DataFrame(data={'fc':fc_load+fc_exog if 'fc_exog' in locals() else fc_load},
-                       index=pd.date_range(stop,last_date-delta1h,freq='1H'))
-
-print(f'mape: {mape(load_data[stop:last_date-delta1h].values,forecast.values)}')
-print(f'rmse: {rmse(load_data[stop:last_date-delta1h].values,forecast.values)}')
-
-fc = TSForecast(1,forecast.values,
-                load_data[stop+delta1h:last_date].values,
-                start,stop,stop+delta1h,last_date)
-print(f'TSForecast: {fc}')
-
-plt.plot(fc.actual,label='actual')
-plt.plot(fc.forecast,label='1H forecast')
-plt.legend()
-plt.show()
+def best_model():
+    lr = LoadReader()
+    wr = WeatherReader()
+    delta1h = timedelta(hours=1)
+    start = datetime(2015,1,8,0)
+    stop = datetime(2017,12,31,23)
+    last_date = datetime(2018,12,31,23)
+    
+    date_range = pd.date_range(start,last_date,freq='1H')
+    fc_range = pd.date_range(stop,last_date-delta1h,freq='1H')
+    
+    load_data = pd.DataFrame(data={'load' : lr.vals4slice(de_load,start,last_date,step=1)},
+                             index=date_range)
+    
+    dow = date_range.to_series().dt.dayofweek.values
+    exog = pd.DataFrame(data=[],index=date_range)
+    #exog['weekend'] = np.bitwise_or(dow==5,dow==6).astype(int)
+    #exog['t2m_mean'] = wr.mean_slice('t2m',start,last_date)
+    exog['load_lag'] = lr.vals4slice(de_load,start-timedelta(weeks=1),last_date-timedelta(weeks=1),step=1)
+    
+    for p in range(1,6):
+        for q in range(5):
+            armax = ARMA(endog=load_data[start:stop].values,
+                         exog =exog[start+delta1h:stop+delta1h].values,
+                         order=(p,q))
+            armax_result = armax.fit(method='mle',
+                                     trend='nc',
+                                     #solver='cg',
+                                     #transparams=False,
+                                     disp=0)
+            print(armax_result.summary())
+            print(f'ARMA({p},{q})\nAIC:{np.round(armax_result.aic,2)}\nBIC:{np.round(armax_result.bic,2)}\nHQIC:{np.round(armax_result.hqic,2)}')
 
 
 def rolling_reestimation_fc():
@@ -377,107 +481,3 @@ def data_csv_timet2mload():
 #bics = zip(bics.keys,bics.values)
 #hqics = zip(hqics.keys,hqics.values)
 
-def containsReg():
-    wr = WeatherReader()
-    lons = wr.get_coords()[lon_col].values
-    lats = wr.get_coords()[lat_col].values
-    
-    de_shape = shp.Reader(nuts3_01res_shape)
-    
-    for shape in de_shape.shapeRecords()[30:]:
-        if 'DE' in shape.record:
-            re_shape = shape
-            break
-    print(re_shape.record)
-    
-    poly = Polygon(re_shape.shape.points)
-    
-    coords = np.empty((len(lats),len(lons)),np.dtype(Point))
-    
-    for y in range(len(lats)):
-        for x in range(len(lons)):
-            lo = lons[x]
-            la = lats[y]
-            coords[y,x] = Point(lo,la)
-    
-    contains = np.vectorize(lambda p: p.within(poly) or p.touches(poly))
-    
-    contained = contains(coords)
-    plt.imshow(wr.vals4time('t2m',datetime(2017,1,1,12)).where(contained).values)
-    plt.show()
-    #np.save(f'{data_path}isin', contained)
-
-
-def plt2d():
-    rd = WeatherReader()
-    ld = LoadReader()
-    
-    var = 't2m'
-    ystart = 2015
-    ystop = 2018
-    
-    start = pd.Timestamp(datetime(ystart,1,1,0),tz='utc')
-    stop = pd.Timestamp(datetime(ystop,12,31,18),tz='utc')
-    print(len(pd.date_range(start,stop,freq='1H')))
-    
-    #print(ld.vals4slice(de_load, start, stop))
-    load = ld.vals4slice(de_load, start, stop, step=6)
-    #ncval = rd.var_over_time(var).sel(time=slice('2016-1-1','2017-12-31')).values
-    ncval = rd.reduce_lonlat(var, np.min).sel(time=slice(f'{ystart}-1-1',f'{ystop}-12-31'))
-    #rng = pd.date_range(start,stop,freq='6H')
-    
-    print(load['utc_timestamp'])
-    print(ncval['time'])
-    print(load.size,ncval.size)
-    
-    plt.scatter(ncval.values-273.15,load.values,s=4)
-    plt.xlabel(f'{var} min reduce over DE (°C)')
-    plt.ylabel('DE_load_actual_entsoe_transparency (MW)')
-    #cbar = plt.colorbar()
-    #cbar.ax.set_ylabel('DE_load_actual_entsoe_transparency (MW)', rotation=-90, va="bottom")
-    
-    plt.show()
-
-#plt2d()
-
-def plot3dim():
-    rd = WeatherReader()
-    ld = LoadReader()
-    
-    var = 't2m'
-    ystart = 2015
-    ystop = 2018
-    
-    start = pd.Timestamp(datetime(ystart,1,1,12),tz='utc')
-    stop = pd.Timestamp(datetime(ystop,12,31,12),tz='utc')
-    
-    load = ld.vals4slice(de_load, start, stop, step=24)
-    rng = pd.date_range(start,stop,freq='24H')
-    ncval = rd.reduce_lonlat(var, np.min).sel(time=rng)
-    
-    ncwend = ncval.where((ncval['time.weekday'] == 5) | (ncval['time.weekday'] == 6), drop=True)
-    ncweek = ncval.where((ncval['time.weekday'] != 5) & (ncval['time.weekday'] != 6), drop=True)
-    
-    loadwend = load.where((load['utc_timestamp.weekday'] == 5) | (load['utc_timestamp.weekday'] == 6), drop=True)
-    loadweek = load.where((load['utc_timestamp.weekday'] != 5) & (load['utc_timestamp.weekday'] != 6), drop=True)
-    
-    rngwend = rng.where((rng.weekday == 5) | (rng.weekday == 6), other=pd.NaT).dropna()
-    rngweek = rng.where((rng.weekday != 5) & (rng.weekday != 6), other=pd.NaT).dropna()
-    
-    print(ncwend.sizes, ncweek.sizes)
-    print(loadwend.sizes, loadweek.sizes)
-    
-    print(rngwend.size, rngweek.size)
-    
-    #print(ncval)
-    #print(load.size,ncval.size)
-    
-    plt.scatter(rngwend, loadwend, s=20, c=ncwend, cmap='jet', marker='>', label='weekend')
-    plt.scatter(rngweek, loadweek, s=20, c=ncweek, cmap='jet', marker='<', label='workday')
-    plt.ylabel(f'{var} min reduce over DE')
-    plt.xlabel('date')
-    cbar = plt.colorbar()
-    plt.legend()
-    cbar.ax.set_ylabel('DE_load_actual_entsoe_transparency (MW)', rotation=-90, va="bottom")
-    
-    plt.show()

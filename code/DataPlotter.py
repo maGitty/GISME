@@ -14,10 +14,12 @@ __status__ = "Production"
 
 from glob_vars import (figure_path,lon_col,lat_col,de_load,hertz_load,amprion_load,
                        tennet_load,transnet_load,bbox,variable_dictionary,data_path,
-                       nuts3_01res_shape,nuts0_shape,isin_path,log,demography_file)
+                       nuts3_01res_shape,nuts0_shape,isin_path,log,demography_file,
+                       data_min_date,data_max_date)
 from WeatherReader import WeatherReader
 from LoadReader import LoadReader
-from Predictions import ARMA_forecast,ARMAX_forecast
+from Predictions import ARMAX_forecast
+from Utility import Utility
 
 import os
 import math
@@ -454,7 +456,8 @@ class DataPlotter:
             contained = np.load(os.path.join(data_path,'isin.npy'))
         except:
             log.info(f'isin file not found in {data_path}')
-            contained = self.wreader.check_isinDE()
+            util = Utility()
+            contained = util.check_isinDE()
         
         fig,ax = plt.subplots()
         ax.imshow(contained,cmap=plt.cm.Greys,extent=bbox)
@@ -478,7 +481,8 @@ class DataPlotter:
             contained = np.load(os.path.join(isin_path,f'isin{region_id}.npy'))
         except:
             log.info(f'isin file not found in {isin_path} for region {region_id}')
-            contained = self.wreader.check_isinRegion(region_id)
+            util = Utility()
+            contained = util.check_isinRegion(region_id)
         
         fig,ax = plt.subplots()
         ax.imshow(contained,cmap=plt.cm.Greys,extent=bbox)
@@ -525,7 +529,7 @@ class DataPlotter:
         cbar = plt.colorbar(sm)
         cbar.set_label('inhabitants (in 1k)')
         
-        for value,region in zip(values,self.regions):
+        for value,region in zip(values,regions):
             ax.add_patch(PolygonPatch(region.shape.__geo_interface__,fc=sm.to_rgba(value),ec='none'))
         
         dir_pth = os.path.join(figure_path,'demo')
@@ -533,7 +537,7 @@ class DataPlotter:
         
         self.__save_show_fig(fig, dir_pth, file_name)
     
-    def plot_load_acf(self,start,stop,lags=42,hour_steps=1,ndiff=0):
+    def plot_load_acf(self,start,stop,lags=48,hour_steps=1,ndiff=0):
         """Plot autocorrelation plot of load data within given time range
            and given lags, hour steps and number of differneces
         
@@ -548,7 +552,7 @@ class DataPlotter:
         file_name = os.path.join(dir_pth,f'load_{lags}lags_ndiff{ndiff}_hstep{hour_steps}')
         self.__save_show_fig(fig, dir_pth, file_name)
     
-    def plot_load_pacf(self,start,stop,lags=42,hour_steps=1,ndiff=0):
+    def plot_load_pacf(self,start,stop,lags=48,hour_steps=1,ndiff=0):
         """Plot partial autocorrelation plot of load data within given time
            range and given lags, hour steps and number of differneces
         
@@ -676,56 +680,8 @@ class DataPlotter:
         file_name = os.path.join(dir_pth,f'{"_".join([varname[:7] for varname in var])}_{aspect[0]}A{aspect[1]}_'\
                                  f'{start.strftime("%Y%m%d%H")}_{stop.strftime("%Y%m%d%H")}_{freq}F')
         self.__save_show_fig(fig,dir_pth,file_name)
-        
-    def plot_arma_forecast(self,tstart,tstop,forecast_end,p,q,hours_range=[1,6,24],save_arma=False):
-        """Plot an ARMA forecast for given parameters
-        
-        Parameters
-        ----------
-        tstart       : datetime.datetime
-                       start time
-        tstop        : datetime.datetime
-                       stop time
-        forecast_end : datetime.datetime
-                       stop time of forecast (=tstop + forecast length)
-        p            : integer
-                       specifies number of AR coefficients
-        q            : integer
-                       specifies number of MA coefficients
-        hours_range  : list of integers
-                       specifies list of hours to forecast
-        save_arma    : bool
-                       specifies whether to save the arma or not
-        
-        Returns
-        -------
-        None
-        """
-        arma = ARMA_forecast(tstart,tstop,p,q)
-        arma.train()
-        arma.summary()
-        
-        if save_arma:
-            arma.save()
-        
-        forecast1W = arma.predict_range(forecast_end,hours_range)
-        data = self.lreader.vals4slice(de_load,tstop,forecast_end,step=1)
-        fc_range = pd.date_range(tstop,forecast_end,freq='1H')
-        
-        fig,ax = plt.subplots()        
-        for i,hours in enumerate(hours_range):
-            ax.plot(fc_range,forecast1W[i],label=f'{hours}H forecast')
-        ax.plot(fc_range,data,label='actual value')
-        ax.set_ylabel('load [MW]')
-        plt.setp(ax.get_xticklabels(),rotation=30,horizontalalignment='right')
-        plt.legend()
-        
-        dir_pth = os.path.join(figure_path,'ARMAfc')
-        file_name = os.path.join(dir_pth,f'ARMA_p{p}q{q}_data{tstart.year}to'\
-                                 f'{tstop.year}_fcto{forecast_end.strftime("%Y%m%d%H")}')
-        self.__save_show_fig(fig,dir_pth,file_name)
-
-    def plot_armax_forecast(self,tstart,tstop,forecast_end,p,q,exog=None,hours_range=[1,6,24],save_armax=False):
+    
+    def plot_armax_forecast(self,tstart,tstop,forecast_end,p,q,exog=None,hours_range=[1,6,24],save_armax=False,plot_range=None):
         """Plot an ARMAX forecast for the given parameters
         
         Parameters
@@ -751,30 +707,38 @@ class DataPlotter:
         -------
         None
         """
-        armax = ARMAX_forecast(tstart,tstop,p,q,exog=exog)
+        armax = ARMAX_forecast(tstart,tstop,p,q,exog=exog,const=False)
         armax.train()
         armax.summary()
-        
         if save_armax:
             armax.save()
-        
-        forecast1W = armax.predict_range(forecast_end,hours_range)
-        data = self.lreader.vals4slice(de_load,tstop,forecast_end,step=1)
-        fc_range = pd.date_range(tstop,forecast_end,freq='1H')
-        
+        forecast = armax.arx1_predict(forecast_end)
         fig,ax = plt.subplots()
-        for i,hours in enumerate(hours_range):
-            ax.plot(fc_range,forecast1W[i],label=f'{hours}H forecast')
-            log.info(armax.forecasts[i])
-        ax.plot(fc_range,data,label='actual value')
+        #for i,hours in enumerate(hours_range):
+            #ax.plot(fc_range,forecast[i],label=f'{hours}H forecast')
+            #log.info(armax.forecasts[i])
+        log.info(armax.forecasts[0])
+        
+        if plot_range is None:
+            fc_range = pd.date_range(tstop,forecast_end,freq='1H')
+            ax.plot(fc_range,forecast,label='1H forecast')
+            ax.plot(fc_range,armax.forecasts[0].actual,label='actual value')
+        else:
+            fc_range = pd.date_range(plot_range[0],plot_range[1],freq='1H')
+            df = armax.forecasts[0].sel(plot_range[0],plot_range[1])
+            ax.plot(fc_range,df['forecast'].values,label='1H forecast')
+            ax.plot(fc_range,df['actual'].values,label='actual value')
+        
         ax.set_ylabel('load [MW]')
         plt.setp(ax.get_xticklabels(),rotation=30,horizontalalignment='right')
         plt.legend()
         
         dir_pth = os.path.join(figure_path,'ARMAXfc')
-        file_name = os.path.join(dir_pth,f'ARMAX_p{p}q{q}_data{tstart.year}to{tstop.year}'\
-                                 f'_fcto{forecast_end.strftime("%Y%m%d%H")}'\
-                                 f'{"" if exog is None else "_" + "_".join(exog)}')
+        file_name = os.path.join(dir_pth,
+                                 f'ARMAX_p{p}q{q}_data{tstart.year}to{tstop.year}_fcto{forecast_end.strftime("%Y%m%d%H")}'\
+                                 f'{"" if exog is None else "_" + "_".join(exog)}'\
+                                 f'{"" if plot_range is None else "_plot_range" + plot_range[0].strftime("%Y%m%d%H")}'\
+                                 f'{"" if plot_range is None else "_" + plot_range[1].strftime("%Y%m%d%H")}')
         self.__save_show_fig(fig,dir_pth,file_name)
 
 var='t2m'
@@ -784,21 +748,28 @@ n=1
 funcs = [np.nanmin,np.nanmax,np.nanvar,np.nanmean,np.nanmedian,np.nansum]
 
 start = pd.Timestamp(2015,1,1,12)
-stop = pd.Timestamp(2016,12,31,12)
+stop = pd.Timestamp(2017,12,31,12)
 #start = pd.Timestamp(2017,1,1,12)
 #stop = pd.Timestamp(2018,12,31,12)
 # freq = 24
 
-pl = DataPlotter(fmt='pdf',save=False,show=False,isin=True)#,shape=(2,2))
+pl = DataPlotter(fmt='pdf',save=True,show=True,isin=True)#,shape=(2,2))
 
-t_start = pd.Timestamp(2015,1,1,0)
-t_stop = pd.Timestamp(2017,12,31,0)
+t_start = datetime(2015,1,8,0)
+t_stop = datetime(2017,12,31,23)
+end = datetime(2018,12,31,23)
+
+#pl.plot_load_acf(start, stop,lags=24)
+#pl.plot_load_pacf(start, stop,lags=24)
+
 #arima = ARIMA_forecast()
 #arima.load('/home/marcel/Dropbox/data/ARIMA_p4d0q2.pkl')
-#pl.plot_armax_forecast(t_start,t_stop,t_stop+timedelta(weeks=1),1,0,exog=['t2m_all'])
-pl.plot_armax_forecast(t_start,t_stop,t_stop+timedelta(days=365),1,0)
-pl.plot_armax_forecast(t_start,t_stop,t_stop+timedelta(days=365),1,0,exog=['weekend'])
-#pl.plot_armax_forecast(t_start,t_stop,t_stop+timedelta(weeks=1),1,0,exog=['dayofweek','t2m_mean'])
+plot_start = datetime(2018,1,1,0)
+plot_end = datetime(2018,1,7,23)
+pl.plot_armax_forecast(t_start,t_stop,end,1,0,plot_range=(plot_start,plot_end))
+pl.plot_armax_forecast(t_start,t_stop,end,1,0,exog=['weekend'],plot_range=(plot_start,plot_end))
+pl.plot_armax_forecast(t_start,t_stop,end,1,0,exog=['dayofweek'],plot_range=(plot_start,plot_end))
+pl.plot_armax_forecast(t_start,t_stop,end,1,0,exog=['load_lag'],plot_range=(plot_start,plot_end))
 
 #pl.plot_isinRegion('DE212')
 #pl.plot_isinRegion('DE929')

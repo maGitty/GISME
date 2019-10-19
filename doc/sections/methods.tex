@@ -23,7 +23,7 @@ This chapter introduces the methods that are applied in this thesis. First, the 
 For time series forecasting, often used methods are \eg \gls{arma} models as mentioned in \tcite{Hyndman2018}. This sections will outline the methods that are applied in this thesis to forecast the electricity load.\\% Forecasting: Principles and Practice\footnote{\url{https://otexts.com/fpp2}}.%, but  also \gls{nn}, where it is common to reduce the number of input variables in order to speed up computation, which is desirable for the huge amount of grid-based data that grows quadratically with size. There are also some papers that use regression models other than \gls{arma} such as \gls{lr}, \gls{mlr} or \gls{svm}. \tcite{Aguiar2016} applies \gls{nn} to do intra-day solar radiation forecasting with a forecasting horizon of 1-6 hours on Gran Canaria and, as in this thesis, grid-based data from \gls{ecmwf} is used.\\
 
 %\subsection{Linear Regression}
-\subsection{ARMA}
+\subsection*{ARMA}
 
 The \gls{arma} model is a combination of \acrfull{ar} and \acrfull{ma} terms. The formal description is given by\\
 
@@ -34,16 +34,16 @@ y_t = c+\sum_{i=1}^{p}\phi_iy_{t-i}+\sum_{j=1}^{q}\rho_j\epsilon_{t-j}+\epsilon_
 
 with $c$ as a constant, $\epsilon_t$ as noise term with respect to time $t$, $p$ as size of the \gls{ar} part, $q$ as size of the \gls{ma} part, $\phi$ and $\rho$ for the \gls{ar} and \gls{ma} coefficients respectively and $y_t$ as the response variable.\\
 
-\subsection{ARMAX}
+\subsection*{ARMAX}
 
 An extension of \gls{arma} is \gls{armax}, which includes an additional term for exogenous variables. This term can be used to include relations to external factors that do not depend on the endogenous data. It is formally described as\\
 
 \begin{equation}
-y_t = c+\sum_{i=1}^{p}\phi_iy_{t-i}+\sum_{j=1}^{q}\rho_j\epsilon_{t-j}+\sum_{k=1}^{n}c_kx_k+\epsilon_t~.
+y_t = c+\sum_{i=1}^{p}\phi_iy_{t-i}+\sum_{j=1}^{q}\rho_j\epsilon_{t-j}+\sum_{k=1}^{n}\eta_kx_k+\epsilon_t~.
 \label{eq:armax}
 \end{equation}
 
-\Cref{eq:armax} almost equals \Cref{eq:arma} for the \gls{arma} model, but here, there is an additional term $\sum_{k=1}^{n}c_kx_k$ for $n$ included exogenous variables $x$ with $c$ as the respective coefficients.
+\Cref{eq:armax} almost equals \Cref{eq:arma} for the \gls{arma} model, but here, there is an additional term $\sum_{k=1}^{n}\eta_kx_k$ for $n$ included exogenous variables $x$ with $\eta$ as the respective coefficients.
 
 %\subsubsection{only calendar variables as exogenous inputs}
 %
@@ -54,7 +54,7 @@ y_t = c+\sum_{i=1}^{p}\phi_iy_{t-i}+\sum_{j=1}^{q}\rho_j\epsilon_{t-j}+\sum_{k=1
 
 Because the used weather data is grid-based, there are two more dimensions as usual where only one value per time step exists for a variable. This is why feature selection here is more important to obtain a reasonable computation time. In the following, the used methods for feature selection are presented.\\
 
-\subsection{Naive approach}
+\subsection*{Naive approach}
 
 At first, naive techniques are presented, that are used to reduce the huge amount of grid-based weather data along the two spatial dimensions, longitude and latitude, for each step in time respectively. These are simple functions such as the maximum or the mean. An exemplary formula for reducing the data along longitude and latitude using the mean can be given as\\
 
@@ -64,7 +64,7 @@ x_t = \frac{1}{l \times m} \sum_{i=1}^{l}\sum_{j=1}^{m}x_{ij}~,
 
 where $x_t$ is the calculated mean for time $t$, $l$ and $m$ are the size of the data along the axis of the longitude and latitude and $x_{ij}$ is the value of a weather variable at the grid point with longitude $i$ and latitude $j$.
 
-\subsection{Using population data}
+\subsection*{Using population data}
 
 Another method involves population data from Eurostat\footnote{\url{https://ec.europa.eu/eurostat/data/database}}. It contains the population of NUTS 3 level regions. The regions are sorted by population and those with the highest population are used to filter the respective grid points that are then used as exogenous variables.\\
 
@@ -75,7 +75,7 @@ Another method involves population data from Eurostat\footnote{\url{https://ec.e
 
 In order to estimate whether the used model performs well, it is important to apply suitable metrics to evaluate the results. In the following, the four used metrics are introduced, where for each metric, $k$ is the number of forecast values, $y$ the actual values and $\hat{y}$ the predicted values.\\
 
-\subsection{Root Mean Squared Error}
+\subsection*{Root Mean Squared Error}
 
 The first metric is the \gls{rmse}, which is an often used, scale-dependent accuracy measure that is applied to calculate the root of the squared mean of the differences between the forecast and the actual values. It is described by\\
 
@@ -84,7 +84,7 @@ RMSE = \sqrt{\frac{1}{k} \sum_{i=1}^{k} (y_i-\hat{y}_i)^2}~.
 \label{eq:rmse}
 \end{equation}
 
-\subsection{Mean Absolute Error}
+\subsection*{Mean Absolute Error}
 
 The second metric is the \gls{mae}, which is another scale-dependent accuracy measure that averages absolute errors. The equation for the \gls{mae} is described by\\
 
@@ -92,7 +92,7 @@ The second metric is the \gls{mae}, which is another scale-dependent accuracy me
 MAE = \frac{1}{k} \sum_{i=1}^{k} \left|y_i-\hat{y}_i\right|~.
 \end{equation}
 
-\subsection{Mean Percentage Error}
+\subsection*{Mean Percentage Error}
 
 The third metric is the \gls{mpe}, which is a relative measure of the prediction accuracy. Since it is multiplied by 100 after dividing it by the size of the predictions and the , it is called a percentage error. The equation is\\
 %The \gls{mpe} is the computed average of percentage errors by which forecasts of a model differ from actual values of the quantity being forecast
@@ -101,7 +101,7 @@ The third metric is the \gls{mpe}, which is a relative measure of the prediction
 MPE = \frac{100}{k} \sum_{i=1}^{k} \frac{y_i-\hat{y}_i}{y_i}~.
 \end{equation}
 
-\subsection{Mean Absolute Percentage Error}
+\subsection*{Mean Absolute Percentage Error}
 
 The fourth metric is the \gls{mape}, which is similar to the \gls{mpe}, but takes the absolute value of each single error as in case of the \gls{mae}. The equation for the \gls{mape} is given by\\
 

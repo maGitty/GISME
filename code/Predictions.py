@@ -18,7 +18,7 @@ from glob_vars import (de_load,hertz_load,amprion_load,tennet_load,transnet_load
 
 from datetime import datetime,timedelta
 from matplotlib import pyplot as plt
-from statsmodels.tsa.arima_model import ARMA,ARMAResults
+from statsmodels.tsa.arima_model import ARMA
 from statsmodels.tsa.tsatools import add_trend
 from statsmodels.tools.eval_measures import aicc
 from statsmodels.regression.linear_model import OLS
@@ -39,6 +39,7 @@ class TSForecast:
     """Used to store time series forecast"""
     def __init__(self,hours_ahead,forecast,actual,train_start,train_stop,fc_start,fc_stop):
         """Initializes instance
+        
         Parameters
         ----------
         hours_ahead : int
@@ -97,6 +98,15 @@ class TSForecast:
         date_range = pd.date_range(self.fc_start,self.fc_stop,freq='1H')
         plt.plot(date_range,self.actual,label='actual')
         plt.plot(date_range,self.forecast,label=f'{self.hours_ahead}H forecast')
+        plt.legend()
+    
+    def sel(self,start,stop):
+        """TODO
+        """
+        df = pd.DataFrame(data={'actual':self.actual,
+                                'forecast':self.forecast},
+                          index=self.date_range)
+        return df[start:stop]
     
     def difference(self,other_fc):
         """Return difference between values of
@@ -116,6 +126,7 @@ class TSForecast:
     
     def mae(self):
         """Calculates Mean Absolute Error of this forecast
+        
         Returns
         -------
         Mean Absolute Error as float
@@ -124,6 +135,7 @@ class TSForecast:
     
     def mpe(self):
         """Calculates Mean Percentage Error of this forecast
+        
         Returns
         -------
         Mean Percentage Error as float
@@ -132,6 +144,7 @@ class TSForecast:
     
     def mape(self):
         """Calculates Mean Absolute Percentage Error of this forecast
+        
         Returns
         -------
         Mean Absolute Percentage Error as float
@@ -140,6 +153,7 @@ class TSForecast:
     
     def rmse(self):
         """Calculates Root Mean Square Error
+        
         Returns
         -------
         Root Mean Square Error as float
@@ -154,166 +168,17 @@ class TSForecast:
         A summary as string
         """
         sum_str = f"{self.hours_ahead} hours ahead forecast from {self.fc_start} "\
-            f"to {self.fc_stop} trained from {self.train_start} to {self.train_stop}:"\
+            f"to {self.fc_stop}\ntrained from {self.train_start} to {self.train_stop}:"\
             f"\nmape : {np.round(self.mape(),2)} , rmse : {np.round(self.rmse(),2)}"
         
         return sum_str
 
 
-class ARMA_forecast:
-    """ARMA forecast"""
-    def __init__(self,start,stop,p,q):
-        """Initializes instance
-        Parameters
-        ----------
-        start : datetime.datetime
-                start time of forecast
-        stop  : datetime.datetime
-                stop time of forecast
-        p     : int
-                parameter for autoregressive part
-        q     : int
-                parameter for moving average part
-        
-        Returns
-        -------
-        None
-        """
-        self.load_reader = LoadReader()
-        self.p = p
-        self.q = q
-        self.start = start
-        self.stop = stop
-        self.__arma_result = None
-        self.forecasts = []
-        self.name = f'ARMA_p{self.p}q{self.q}'
-
-    @staticmethod
-    def load(fname):
-        """ATTENTION: overhead, just call pickle.load(open(fname,'rb')) to load instance
-           Loads ARMA_forecast instance from file name
-        
-        Parameters
-        ----------
-        fname : string
-                path to pickled file containing instance
-        
-        Returns
-        -------
-        ARMA_forecast instance if exists, raising Exception otherwise
-        """
-        try:
-            return pickle.load(open(fname,'rb'))
-        except Exception as e:
-            log.exception(f"an error occured:\n{e}")
-            raise OSError(f'file not found: {fname}')
-
-    def save(self):
-        """Stores instance to pickle
-        Returns
-        -------
-        file name of stored instance as string
-        """
-        fname = os.path.join(data_path,f"{self.name}.pkl")
-        pickle.dump(self,open(fname,'wb'))
-        return fname
-    
-    def train(self):
-        """Fits ARMA_forecast instance with specified endogenous data
-           Needs to be called before forecasting
-        Returns
-        -------
-        None
-        """
-        data = self.load_reader.vals4slice(de_load,self.start,self.stop,
-                                           step=1).ffill(dim='utc_timestamp').values
-        date_range = pd.date_range(self.start,self.stop,freq="1H")
-        model = ARMA(data,(self.p,self.q))
-        self.__arma_result = model.fit(method='css-mle',
-                                       trend='c',
-                                       transparams=False,
-                                       disp=0,
-                                       full_output=-1)
-        self.fit_params = self.__arma_result.params
-    
-    def predict_next(self,hours_ahead=24):
-        """Predicts for given amount of hours from current trained point
-        
-        Parameters
-        ----------
-        hours_ahead : int
-                      number of hours to forecast
-        
-        Returns
-        -------
-        predicted values as numpy.ndarray
-        """
-        assert hasattr(self,'__arma_result'), "ARMA is not trained yet"
-        
-        predictions = self.__arma_result.predict(self.stop,
-                                                 self.stop+timedelta(hours=hours_ahead),
-                                                 dynamic=False)
-        return predictions
-    
-    def predict_range(self,stop_time,hours_ahead):
-        """Predicts from instance tstop to given stop_time for every hour with given hours_ahead
-        Parameters
-        ----------
-        stop_time   : datetime.datetime
-                      time of last forecast
-        hours_ahead : list of int
-                      time steps to forecast
-        
-        Returns
-        -------
-        list of forecasts for each number in hours_ahead respectively as list
-        """
-        assert hasattr(self,'__arma_result'), "ARMA is not trained yet"
-        
-        max_hours = max(hours_ahead)
-        delta1h = timedelta(hours=1)
-        forecast = [[] for hour in range(len(hours_ahead))]
-        
-        fc = self.__arma_result.forecast(steps=max_hours)[0]
-        
-        for i,hours in enumerate(hours_ahead):
-            forecast[i].append(fc[hours-1])
-        
-        stop_counter = self.stop
-        while stop_counter < stop_time:
-            stop_counter+=delta1h
-            data = self.load_reader.vals4slice(de_load,
-                                          self.start,
-                                          stop_counter,
-                                          step=1).ffill(dim='utc_timestamp').values
-            date_range = pd.date_range(self.start,stop_counter,freq="1H")
-            arma = ARMA(data,order=(self.p,self.q),dates=date_range)
-            arma.method = 'css-mle'
-            self.__arma_result.initialize(arma, self.fit_params)
-            fc = self.__arma_result.forecast(steps=max_hours)[0]
-    
-            for i,hours in enumerate(hours_ahead):
-                forecast[i].append(fc[hours-1])
-        
-        actual_data = self.load_reader.vals4slice(de_load,self.stop,stop_counter,step=1).ffill(dim='utc_timestamp').values
-        for i,fc in enumerate(forecast):
-            self.forecasts.append(TSForecast(hours_ahead[i],fc,actual_data,self.start,self.stop,self.stop,stop_counter))
-        
-        return forecast
-    
-    def summary(self):
-        """Prints summary
-        Returns
-        -------
-        None
-        """
-        log.info(f'\n{self.__arma_result.summary()}')
-
-
 class ARMAX_forecast:
     """ARMAX forecast"""
-    def __init__(self,start,stop,p=None,q=None,exog=None):
+    def __init__(self,start,stop,p=None,q=None,exog=None,const=True):
         """Initializes instance
+        
         Parameters
         ----------
         start : datetime.datetime
@@ -326,6 +191,8 @@ class ARMAX_forecast:
                 parameter for moving average part
         exog  : list of strings
                 used exogenous variables, see __load_data for possible choices
+        const : boolean
+                specifies wether to include a constant or not
         
         Returns
         -------
@@ -340,7 +207,7 @@ class ARMAX_forecast:
         self.__armax_result = None
         self.forecasts = []
         self.exog = exog
-        self.method = 'css-mle'
+        self.has_const = const
         self.__load_data()
         
     def __load_data(self):
@@ -367,7 +234,7 @@ class ARMAX_forecast:
              - 'tcrw_all'     : every grid point of total column rain water as single exogenous variable
              - 'fdir_all'     : every grid point of total sky direct solar radiation at surface as single exogenous variable
              """
-        last_date = datetime(2019,1,2)
+        last_date = datetime(2018,12,31)
         
         load_data = self.load_reader.vals4slice(de_load,self.start,last_date,step=1)
         date_range = pd.date_range(self.start,last_date,freq='1H')
@@ -377,7 +244,7 @@ class ARMAX_forecast:
         if self.exog is None:
             return
         
-        dow = date_range.to_series().dt.dayofweek.values
+        dow = date_range.to_series().dt.dayofweek
         if 'load_lag' in self.exog:
             delta1week = timedelta(weeks=1)
             self.ex_data['load_shift'] = self.load_reader.vals4slice(de_load,self.start-delta1week,last_date-delta1week,step=1)
@@ -390,7 +257,7 @@ class ARMAX_forecast:
             self.ex_data['Saturday'] = (dow == 5).astype(int)
             self.ex_data['Sunday'] = (dow == 6).astype(int)
         if 'weekend' in self.exog:
-            self.ex_data['weekend'] = np.bitwise_or(dow==5,dow==6).astype(int)
+            self.ex_data['weekend'] = dow.isin([5,6]).astype(int)
         if 'data_counter' in self.exog:
             self.ex_data['data_counter'] = range(len(load_data))
         if 't2m_max' in self.exog:
@@ -453,6 +320,7 @@ class ARMAX_forecast:
     @staticmethod
     def load(fname):
         """Loads ARMAX_forecast instance from file name
+        
         Parameters
         ----------
         fname : string
@@ -470,6 +338,7 @@ class ARMAX_forecast:
     
     def save(self):
         """Stores instance to pickle
+        
         Returns
         -------
         file name of stored instance as string
@@ -487,111 +356,88 @@ class ARMAX_forecast:
     def train(self):
         """Fits ARMAX_forecast instance with specified endogenous and exogenous data
            Needs to be called before forecasting
-        Returnsobject
+        
+        Returns
         -------
         None
         """
         data = self.load_data[self.start:self.stop].values
-        exog = None if self.exog is None else self.ex_data[self.start+timedelta(hours=1):self.stop+timedelta(hours=1)].values
+        exog = None if self.exog is None else self.ex_data[self.start:self.stop].values
         armax = ARMA(data,
                      exog=exog,
                      order=(self.p,self.q))
-        self.__armax_result = armax.fit(method='css',
-                                        trend='nc',
-                                        transparams=False,
+        self.__armax_result = armax.fit(method='mle',
+                                        trend='c' if self.has_const else 'nc',
+                                        #solver='cg',
+                                        #transparams=False,
                                         disp=0)
         #print(self.__armax_result.params['x1'])
         self.fit_params = self.__armax_result.params
-        self.load_param = self.fit_params[-1]
-        self.exog_params = self.fit_params[:-1]
+        self.const = self.fit_params[0] if self.has_const else 0
+        self.exB = self.fit_params[1 if self.has_const else 0:-self.p-self.q]
+        self.arP = self.fit_params[-self.p-self.q:-self.q] if self.q > 0 else self.fit_params[-self.p:]
+        self.maQ = self.fit_params[-self.q:] if self.q > 0 else []
+        #self.arP = self.fit_params[-1]
+        #self.exog_params = self.fit_params[1 if self.has_const else 0:-1]
+        #print(f'const:{self.const}\nar1:{self.load_param}\nex1:{self.exog_params}')
     
     def arx1_predict(self,fc_end):
+        """TODO
+        """
         delta1h = timedelta(hours=1)
         data = self.load_data[self.stop:fc_end-delta1h].values[:,0]
         ar1 = self.load_param
         if self.exog is None:
-            forecast = ar1*data
+            forecast = self.const + ar1 * (data - self.const)
         else:
-            exog = self.ex_data[self.stop+delta1h:fc_end+delta1h].values[:,:]
-            forecast = np.dot(self.exog_params,exog[1:].transpose()) +\
-                       self.load_param * (data - np.dot(self.exog_params,exog[:-1].transpose()))
-        self.forecasts.append(TSForecast(1,
-                                         forecast,
-                                         self.load_data[self.stop+delta1h:fc_end].values[:,0],
-                                         self.start,
-                                         self.stop,
-                                         self.stop+delta1h,
-                                         fc_end))
+            exog = self.const + np.dot(self.exog_params,self.ex_data[self.stop+delta1h:fc_end+delta1h].values.transpose())
+            forecast = exog[1:] + ar1 * (data - exog[:-1])
+        self.forecasts.append(TSForecast(1,forecast,self.load_data[self.stop+delta1h:fc_end].values[:,0],
+                                         self.start,self.stop,self.stop+delta1h,fc_end))
         return forecast
-    
-    def forecast_to(self,fc_end,hours_ahead=1):
-        """TODO"""
+    #load_train = load["2015-01-08":"2017-12-31"]
+    #load_test = load["2018-01-01":"2018-12-31"]
+    #temp_train = temp["2015-01-08":"2017-12-31"]
+    #temp_test = temp["2018-01-01":"2018-12-31"]
+    def arx1_predictkal(self,fc_end):
+        predicted_values = []
         delta1h = timedelta(hours=1)
-        fc_load = self.load_data[self.stop:fc_end].values[:,0]*self.load_param
-        fc_exog = np.divide(self.ex_data[self.stop+delta1h:fc_end+delta1h].values.transpose(),fc_load).transpose()
-        fc_exog = np.dot(fc_exog,self.exog_params)
-        forecast = TSForecast(hours_ahead=hours_ahead,
-                              forecast=fc_load+fc_exog,
-                              actual=self.load_data[self.stop+delta1h:fc_end+delta1h].values[:,0],
-                              train_start=self.start,
-                              train_stop=self.stop,
-                              fc_start=self.stop+delta1h,
-                              fc_stop=fc_end+delta1h)
-        self.forecasts.append(forecast)
-        
-        return forecast
+        data = self.load_data[self.stop:fc_end].values[:,0]
+        exog = self.ex_data[self.stop:fc_end].values
+        for i in range(1, len(data)):
+            f_prev = self.const + np.dot(self.exog_params,exog[i - 1])
+            f_now = self.const + np.dot(self.exog_params,exog[i])
+            y = f_now + self.load_param * (data[i - 1] - f_prev)
+            predicted_values.append(y)
+        predicted_values = np.array(predicted_values)
+        fc = TSForecast(1,predicted_values,self.load_data[self.stop+delta1h:fc_end].values[:,0],
+                        self.start,self.stop,self.stop+delta1h,fc_end)
+        self.forecasts.append(fc)
+        return fc
     
-    def predict_range(self,stop_time,hours_ahead):
-        """Predicts from instance tstop to given stop_time for every hour with given hours_ahead
-        Parameters
-        ----------
-        stop_time   : datetime.datetime
-                      time of last forecast
-        hours_ahead : list of int
-                      time steps to forecast
+    def predict(self,fc_end):
+        data = self.load_data[self.stop-timedelta(hours=self.p-1):fc_end].values[:,0]
+        exog = self.ex_data[self.stop-timedelta(hours=self.p-1):fc_end].values
+        if self.q > 0:
+            resid = np.zeros(len(data)-self.p+self.q)
+            resid[:self.q] = self.__armax_result.resid[-self.q:]
+        pred = np.empty(len(data)-self.p)
+        def m_t(index):
+            return self.const if self.exog is None else self.const + np.dot(self.exB,exog[index].transpose())
         
-        Returns
-        -------
-        list of forecasts for each number in hours_ahead respectively as list
-        """
-        assert self.__armax_result is not None, "did not train armax yet"
-        max_hours = max(hours_ahead)
-        data = self.load_data[self.start:self.stop]
-        delta1h = timedelta(hours=1)
-        out_of_sample_exog = self.ex_data[self.stop+delta1h:self.stop+timedelta(hours=max_hours)]
-        #fc = self.__armax_result.forecast(steps=max_hours,exog=out_of_sample_exog)[0]
+        for t in range(len(data)-self.p):
+            ar_term = m_t(t+self.p) + np.dot(self.arP[::-1],data[t:t+self.p]-m_t(slice(t,t+self.p)))
+            ma_term = 0 if self.q is 0 else np.dot(self.maQ[::-1],resid[t:t+self.q])
+            y = ar_term + ma_term
+            if self.q > 0:
+                resid[t+self.q] = data[t+self.p] - y
+            pred[t] = y
         
-        #forecast = [[] for hour in range(len(hours_ahead))]
-        #for i,hours in enumerate(hours_ahead):
-            #forecast[i].append(fc[hours-1])
-        forecast = [[]*len(hours_ahead)]
-        
-        stop_counter = self.stop
-        while stop_counter < stop_time:
-            data = self.load_data[self.start:stop_counter].values
-            model_exog = self.ex_data[self.start+delta1h:stop_counter+delta1h]
-            armax = ARMA(data,exog=model_exog,
-                        order=(self.p,self.q))
-            armax.method = self.method
-            armax.k_trend = 0
-            armax.nobs = len(data)
-            armax.transparams = False
-            #if self.exog is not None: # needed if constant is included -> did result in higher error
-                #armax.exog = add_trend(model_exog, trend='c', prepend=True, has_constant='raise')
-            self.__armax_result.initialize(armax,self.fit_params)
-            out_of_sample_exog = self.ex_data[stop_counter+delta1h:stop_counter+timedelta(hours=max_hours)]
-            fc = self.__armax_result.forecast(steps=max_hours,exog=out_of_sample_exog)[0]
-    
-            stop_counter+=delta1h
-            for i,hours in enumerate(hours_ahead):
-                forecast[i].append(fc[hours-1])
-        
-        actual_data = self.load_data[self.stop+delta1h:stop_counter].values[:,0]
-        for i,fc in enumerate(forecast):
-            self.forecasts.append(TSForecast(hours_ahead[i],np.array(fc),np.array(actual_data),
-                                             self.start,self.stop,self.stop+delta1h,stop_counter))
-        
-        return forecast
+        fc = TSForecast(1,pred,
+                        self.load_data[self.stop+timedelta(hours=1):fc_end].values[:,0],
+                        self.start,self.stop,self.stop+timedelta(hours=1),fc_end) 
+        self.forecasts.append(fc)
+        return fc
     
     def summary(self):
         """Prints summary
@@ -600,11 +446,81 @@ class ARMAX_forecast:
         None
         """
         log.info(f'\n{self.__armax_result.summary()}')
+    
+    #def forecast_to(self,fc_end,hours_ahead=1):
+        #"""TODO"""
+        #delta1h = timedelta(hours=1)
+        #fc_load = self.load_data[self.stop:fc_end].values[:,0]*self.load_param
+        #fc_exog = np.divide(self.ex_data[self.stop+delta1h:fc_end+delta1h].values.transpose(),fc_load).transpose()
+        #fc_exog = np.dot(fc_exog,self.exog_params)
+        #forecast = TSForecast(hours_ahead=hours_ahead,
+                              #forecast=fc_load+fc_exog,
+                              #actual=self.load_data[self.stop+delta1h:fc_end+delta1h].values[:,0],
+                              #train_start=self.start,
+                              #train_stop=self.stop,
+                              #fc_start=self.stop+delta1h,
+                              #fc_stop=fc_end+delta1h)
+        #self.forecasts.append(forecast)
         
-start = datetime(2015,1,8,0)
-stop = datetime(2017,12,31,23)
-fc_end = datetime(2018,12,31,23)
-exog = ['load_lag']
+        #return forecast
+    
+    #def predict_range(self,stop_time,hours_ahead):
+        #"""Predicts from instance tstop to given stop_time for every hour with given hours_ahead
+        #Parameters
+        #----------
+        #stop_time   : datetime.datetime
+                      #time of last forecast
+        #hours_ahead : list of int
+                      #time steps to forecast
+        
+        #Returns
+        #-------
+        #list of forecasts for each number in hours_ahead respectively as list
+        #"""
+        #assert self.__armax_result is not None, "did not train armax yet"
+        #max_hours = max(hours_ahead)
+        #data = self.load_data[self.start:self.stop]
+        #delta1h = timedelta(hours=1)
+        #out_of_sample_exog = self.ex_data[self.stop+delta1h:self.stop+timedelta(hours=max_hours)]
+        ##fc = self.__armax_result.forecast(steps=max_hours,exog=out_of_sample_exog)[0]
+        
+        ##forecast = [[] for hour in range(len(hours_ahead))]
+        ##for i,hours in enumerate(hours_ahead):
+            ##forecast[i].append(fc[hours-1])
+        #forecast = [[]*len(hours_ahead)]
+        
+        #stop_counter = self.stop
+        #while stop_counter < stop_time:
+            #data = self.load_data[self.start:stop_counter].values
+            #model_exog = self.ex_data[self.start+delta1h:stop_counter+delta1h]
+            #armax = ARMA(data,exog=model_exog,
+                        #order=(self.p,self.q))
+            #armax.method = self.method
+            #armax.k_trend = 0
+            #armax.nobs = len(data)
+            #armax.transparams = False
+            ##if self.exog is not None: # needed if constant is included -> did result in higher error
+                ##armax.exog = add_trend(model_exog, trend='c', prepend=True, has_constant='raise')
+            #self.__armax_result.initialize(armax,self.fit_params)
+            #out_of_sample_exog = self.ex_data[stop_counter+delta1h:stop_counter+timedelta(hours=max_hours)]
+            #fc = self.__armax_result.forecast(steps=max_hours,exog=out_of_sample_exog)[0]
+    
+            #stop_counter+=delta1h
+            #for i,hours in enumerate(hours_ahead):
+                #forecast[i].append(fc[hours-1])
+        
+        #actual_data = self.load_data[self.stop+delta1h:stop_counter].values[:,0]
+        #for i,fc in enumerate(forecast):
+            #self.forecasts.append(TSForecast(hours_ahead[i],np.array(fc),np.array(actual_data),
+                                             #self.start,self.stop,self.stop+delta1h,stop_counter))
+        
+        #return forecast
+
+
+start = datetime(2015,1,8)
+stop = datetime(2017,12,31)
+fc_end = datetime(2018,12,31)
+exog = ['load_lag','t2m_mean','weekend','t2m_top10']
 #fc_end = stop + timedelta(days=14)
 #armax = ARMAX_forecast(start,stop,1,0,exog)
 #armax.train()
@@ -616,18 +532,19 @@ exog = ['load_lag']
 ##plt.plot(armax.forecasts[0].forecast,label=f'{armax.forecasts[0].hours_ahead}H manual forecast')
 #fc_manual = armax.forecasts[0].forecast
 
-armax = ARMAX_forecast(start,stop,1,0,exog)
+armax = ARMAX_forecast(start,stop,2,1,const=True,exog=exog)
 armax.train()
 armax.summary()
-print(type(armax.fit_params),dir(armax.fit_params),armax.fit_params["ar.L1.y"])
+#print(armax.arP,armax.maQ,armax.exB)
+#print(type(armax.fit_params),dir(armax.fit_params),armax.fit_params["const"])
 
-#armax.predict_range(fc_end,[1])
-#log.info(armax.forecasts[0])
-#armax.forecasts[0].__plot__()
-
-armax.arx1_predict(fc_end)
+armax.predict(fc_end)
 log.info(armax.forecasts[0])
 armax.forecasts[0].__plot__()
+
+plt.legend()
+plt.show()
+
 
 #plt.plot(pd.date_range(stop+timedelta(hours=1),fc_end,freq='1H'),armax.forecasts[0].difference(armax.forecasts[1]))
 #plt.plot(armax.forecasts[0].forecast,label=f'{armax.forecasts[0].hours_ahead}H iterative forecast')
@@ -635,10 +552,6 @@ armax.forecasts[0].__plot__()
 #difference = (fc_manual-armax.forecasts[0].forecast)/fc_manual
 #plt.plot(difference,label='fc relative difference')
 
-#plt.plot(armax.forecasts[0].actual,label='actual')
-plt.legend()
-#log.info(f'forecast mape difference: {np.mean(np.abs(difference)*100)}')
-plt.show()
 
 
 #dr = pd.date_range(start,stop,freq='1H')
