@@ -7,6 +7,8 @@ This chapter provides information about the input data acquired from different s
 \section{Data}
 \label{sec:data}
 
+In this section, the different types of data that are used within this thesis are presented. After that, the process of data preprocessing is briefly examined.\\
+
 %Of course choosing data sources as well as sorting and cleaning the data also requires a certain amount of time and effort. Thus it will be explained hereinafter how this has been done for the data used in this thesis.
 
 \subsection{ECMWF}
@@ -14,11 +16,11 @@ This chapter provides information about the input data acquired from different s
 The data used in this thesis originates from \acrshort{ecmwf}, which is a research institute that produces global numerical weather predictions and other data.\\
 It is time series based and for each timestamp there is a 2-dimensional array referred to by longitude and latitude respectively.\\
 
-It must be mentioned that, as the data used has been reanalysed, so the expected error is likely to be smaller than if working with real-time data.\\
+It must be mentioned, that, as the data used has been reanalysed, so the expected error is likely to be smaller than if working with real-time data.\\
 
-As data parameters there are also longitude and latitude, where the longitude is chosen to be from 5.5 to 15.5 and the latitude from 47 to 55.5. As the resolution of the used grid is at 0.25°, this results in a total of 1435 grid points per timestamp. As the range of the data from \acrshort{ecmwf} extends from 2015/1/1 to 2019/3/31(TODO update), there is a total of 1551 days with each 12 timestamps due to the 2 hours frequency and thus 18612 timestamps. Considering that there is a value for each point in the grid and every timestamp, there are 26708220 values for each variable.\\
+As data parameters, there are also longitude and latitude, where the longitude is chosen to be from 5.5 to 15.5 and the latitude from 47 to 55.5. As the resolution of the used grid is at 0.25°, this results in a total of 1435 grid points per timestamp. As the range of the data from \acrshort{ecmwf} extends from 2015/1/1 to 2018/12/31, there is a total of 1461 days with each 24 timestamps due to the 1 hours frequency and thus 35064 timestamps. Considering that there is a value for each point in the grid and every timestamp, there are 50316840 values for each variable and thus 654118920 values for 13 variables.\\
 
-Plotting the data on a map results in a result as can be seen in \Cref{fig:maxvar4_maps} and \Cref{fig:isin_compare}. In this case the temperature measured at 2 metres is visualized.\\
+\Cref{fig:maxvar4_maps} shows four plots of the data on a map of Germany and \Cref{fig:isin_compare}. In this case the temperature measured at 2 metres is visualized.\\
 
 %\begin{figure}[h!]%
 %\centering
@@ -110,14 +112,9 @@ Besides weather data used to refine the forecasting results, also historic load 
 \end{figure}
 
 
-%Describe the data set you are using. Use appropriate visualization (\eg graphs, statistical summaries \etc) to help the reader get to know your data set.
-
-%\Cref{tab:wvars} is an example table. Remember to use full sentences in your caption and explain everything one can see in the table there as well. You can of course also use a simpler format for your table.
-
-
 \subsection{Population}
 
-For further improvement and in order to figure out important point in the grid, population data for Germany has been  selected from Eurostat\footnote{\url{https://ec.europa.eu/eurostat/data/database}}.\\
+For further improvement and in order to filter important points in the grid, population data for Germany has been acquired from Eurostat\footnote{\url{https://ec.europa.eu/eurostat/data/database}}. The data is being visualized in \Cref{fig:demo2018_logscale} with a logarithmic scale to improve visual distinction of the different regions which is harder for a non-logarithmic scale.\\
 
 \begin{figure}[h!]%
 \centering
@@ -126,48 +123,37 @@ For further improvement and in order to figure out important point in the grid, 
 \label{fig:demo2018_logscale}%
 \end{figure}
 
+\subsection*{Data Preprocessing}
 
-%\begin{table}[h!]%
-%\caption{Example table with rotated table heads to save space and two different row colours to ease the readability.}
-%\rowcolors{2}{gray!25}{white}
-%\centering
-%\footnotesize
-%\begin{tabular}{lll}
-%\toprule \noalign{\smallskip}
-%\rottblhead{\tablehead Header 1} & \rottblhead{\tablehead Header 2} & \rottblhead{\tablehead Header 3} \\ \midrule
-%entry 1 & entry 2 & entry 3 \\ 
-%entry 1 & entry 2 & entry 3 \\ 
-%entry 1 & entry 2 & entry 3 \\ 	\bottomrule
-%\end{tabular}
-%\label{tab:example}
-%\end{table}
+TODO
 
 
-\section{Programming part}
+\section{Implementation}
 \label{sec:prog}
 
-\subsection{Programming Language}
+This section will first outline which programming language is used and why. After that there are two points about the documentation.\\
 
 For the programming part, Python 3.6+ has been chosen, as there is a variety of libraries to process all used file formats and because it tends to be a time saving language, also for visualization.\\
 
-\subsection{Documentation}
-
-In regard to coding styles, especially when it comes to docstrings, the numpy conventions were used. The three major points for this were first, that it is a popular and often used style, then it is also a visually oriented style which means, that it is easy to read and last it is supported by several (TODO check which, sphinx?!) autodoc tools that create a HTML based documentation from existing source code with docstrings.\\
+In regard to coding styles, especially when it comes to docstrings, the numpy conventions were used. The three major points for this were first, that it is a popular and often used style, second, it is also a visually oriented style which means, that it is easy to read and last, it is supported by several automated documentation tools that create a PDF or HTML based documentation from existing source code with docstrings.\\
 
 
-\section{Preparation}
+\section{Results}
+\label{sec:results}
+
+\subsection*{Model selection}
 
 \begin{figure}[h!]%
 	\centering
 	\begin{subfigure}{.5\textwidth}
 		\centering
-		\includegraphics[width=\textwidth]{plots/ACF/load_42lags_ndiff0_hstep1}%
+		\includegraphics[width=\textwidth]{plots/ACF/load_48lags_ndiff0_hstep1}%
 		\caption{}
 		\label{fig:acf_load_lags42}%
 	\end{subfigure}%
 	\begin{subfigure}{.5\textwidth}
 		\centering
-		\includegraphics[width=\textwidth]{plots/PACF/load_42lags_ndiff0_hstep1}%
+		\includegraphics[width=\textwidth]{plots/PACF/load_48lags_ndiff0_hstep1}%
 		\caption{}
 		\label{fig:pacf_load_lags42}%
 	\end{subfigure}
@@ -175,17 +161,22 @@ In regard to coding styles, especially when it comes to docstrings, the numpy co
 	\label{fig:acf_compare}
 \end{figure}
 
+TODO IC table
 
-\section{Results}
-\label{sec:results}
-
-\subsection{ARMA}
+\subsection*{ARMAX}
 
 \begin{figure}[h!]%
 \centering
-\includegraphics[width=\textwidth]{plots/ARMAfc/ARMA_p1q1_data2015to2018_fcto2018}%
-\caption{An example forecast for an ARMA(1,1) using load data from 2015/1/1 to 2018/5/1 forecasting one week for each step 1, 6 and 24 hours respectively.}%
-\label{fig:arma_fc}%
+\includegraphics[width=\textwidth]{plots/ARMAXfc/ARMAX_p1q0_data2015to2017_fcto2018123123_weekend_plot_range2018010100_2018010723}%
+\caption{An example forecast for an ARMAX(1,0) using load data from 2015/1/1 00:00 to 2017/12/31 23:00 performing one step ahead forecasts for each step, which equals 1 hour forecasts due to the 1 hour resolution of the data.}%
+\label{fig:armax_fc_weekend}%
+\end{figure}
+
+\begin{figure}[h!]%
+\centering
+\includegraphics[width=\textwidth]{plots/ARMAXfc/ARMAX_p1q0_data2015to2017_fcto2018123123_load_lag_plot_range2018010100_2018010723}%
+\caption{An example forecast for an ARMAX(1,0) using load data from 2015/1/1 00:00 to 2017/12/31 23:00 performing one step ahead forecasts for each step, which equals 1 hour forecasts due to the 1 hour resolution of the data.}%
+\label{fig:armax_fc_load_lag}%
 \end{figure}
 
 \begin{table}[h!]%
