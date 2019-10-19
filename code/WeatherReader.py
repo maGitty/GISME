@@ -543,4 +543,5 @@ class WeatherReader:
     
 
 #wr = WeatherReader()
+#print(pd.date_range(*wr.get_date_bounds(),freq='1H'))
 #print(wr.demoTopNregionsSlice('t2m',datetime(2017,1,1),datetime(2018,1,1),10).shape)

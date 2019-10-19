@@ -16,6 +16,7 @@ __maintainer__ = "Marcel Herm"
 __status__ = "Production"
 
 from pathlib import Path
+from datetime import datetime
 import os
 import logging
 
@@ -77,3 +78,5 @@ lat_min = 47
 lat_max = 55.5
 bbox = (lon_min,lon_max,lat_min,lat_max)
 
+data_min_date = datetime(2015,1,8,0)
+data_max_date = datetime(2018,12,31,23)
