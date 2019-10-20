@@ -453,7 +453,7 @@ class DataPlotter:
         None
         """
         try:
-            contained = np.load(os.path.join(data_path,'isin.npy'))
+            contained = np.load(os.path.join(isin_path,'isinDE.npy'))
         except:
             log.info(f'isin file not found in {data_path}')
             util = Utility()
@@ -681,7 +681,8 @@ class DataPlotter:
                                  f'{start.strftime("%Y%m%d%H")}_{stop.strftime("%Y%m%d%H")}_{freq}F')
         self.__save_show_fig(fig,dir_pth,file_name)
     
-    def plot_armax_forecast(self,tstart,tstop,forecast_end,p,q,exog=None,hours_range=[1,6,24],save_armax=False,plot_range=None):
+    def plot_armax_forecast(self,tstart,tstop,forecast_end,p,q,exog=None,
+                            save_armax=False,plot_range=None):
         """Plot an ARMAX forecast for the given parameters
         
         Parameters
@@ -698,10 +699,10 @@ class DataPlotter:
                        specifies number of MA coefficients
         exog         : list of strings
                        specifies the variables to include as exogenous variables
-        hours_range  : list of integers
-                       specifies list of hours to forecast
         save_armax   : bool
                        specifies whether to save the armax or not
+        plot_range   : None or tuple of datetime
+                       specifies wether to plot specific range of forecast
         
         Returns
         -------
@@ -712,7 +713,7 @@ class DataPlotter:
         armax.summary()
         if save_armax:
             armax.save()
-        forecast = armax.arx1_predict(forecast_end)
+        forecast = armax.predict_one_step_ahead(forecast_end)
         fig,ax = plt.subplots()
         #for i,hours in enumerate(hours_range):
             #ax.plot(fc_range,forecast[i],label=f'{hours}H forecast')
@@ -747,25 +748,15 @@ n=1
 # used numpy functions
 funcs = [np.nanmin,np.nanmax,np.nanvar,np.nanmean,np.nanmedian,np.nansum]
 
-start = pd.Timestamp(2015,1,1,12)
-stop = pd.Timestamp(2017,12,31,12)
-#start = pd.Timestamp(2017,1,1,12)
-#stop = pd.Timestamp(2018,12,31,12)
-# freq = 24
 
 pl = DataPlotter(fmt='pdf',save=True,show=True,isin=True)#,shape=(2,2))
 
-t_start = datetime(2015,1,8,0)
-t_stop = datetime(2017,12,31,23)
-end = datetime(2018,12,31,23)
+t_start = datetime(2015,1,8)
+t_stop = datetime(2017,12,31)
+end = datetime(2018,12,31)
 
-#pl.plot_load_acf(start, stop,lags=24)
-#pl.plot_load_pacf(start, stop,lags=24)
-
-#arima = ARIMA_forecast()
-#arima.load('/home/marcel/Dropbox/data/ARIMA_p4d0q2.pkl')
-plot_start = datetime(2018,1,1,0)
-plot_end = datetime(2018,1,7,23)
+plot_start = datetime(2018,1,1)
+plot_end = datetime(2018,1,8)
 pl.plot_armax_forecast(t_start,t_stop,end,1,0,plot_range=(plot_start,plot_end))
 pl.plot_armax_forecast(t_start,t_stop,end,1,0,exog=['weekend'],plot_range=(plot_start,plot_end))
 pl.plot_armax_forecast(t_start,t_stop,end,1,0,exog=['dayofweek'],plot_range=(plot_start,plot_end))

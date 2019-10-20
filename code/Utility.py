@@ -121,7 +121,7 @@ class Utility:
         contains = np.vectorize(lambda p: p.within(poly) or p.touches(poly))
     
         contained = contains(coords)
-        np.save(os.path.join(data_path,'isin'), contained)
+        np.save(os.path.join(isin_path,'isinDE'), contained)
         
         return contained
     

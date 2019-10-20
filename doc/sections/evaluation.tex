@@ -86,7 +86,7 @@ Total sky direct solar radiation at surface & $J~m^{-2}$ & -0.12 & 3088320.00 \\
 
 \subsection{Load data}
 
-Besides weather data used to refine the forecasting results, also historic load data was needed. Therefore data has been retained from Open Power System Data\footnote{\url{https://data.open-power-system-data.org/time_series/}}. \Cref{fig:t2m_mean_2015010112_2018123112_24F} shows the distribution of loads over time with one point per day at 12 am UTC time. The color shows the mean temperature measured at 2 metres.\\
+Besides weather data used to refine the forecasting results, also historic load data was needed. Therefore data has been retained from Open Power System Data\footnote{\url{https://data.open-power-system-data.org/time_series/}}. \Cref{fig:t2m_mean_18A5_twofold_24F} shows the distribution of loads over time with one point per day at 12 am UTC time. The color shows the mean temperature measured at 2 metres. The same data in a single plot is added in the Appendix as \Cref{fig:t2m_mean_2015010112_2018123112_24F}, it is shown here in two plots for better distinction of single points.\\
 
 %\begin{figure}[h!]%
 %\centering
@@ -131,6 +131,8 @@ TODO
 \section{Implementation}
 \label{sec:prog}
 
+TODO thanks to Kaleb Phipps\footnote{\url{https://www.iai.kit.edu/2154_2880.php}}
+
 This section will first outline which programming language is used and why. After that there are two points about the documentation.\\
 
 For the programming part, Python 3.6+ has been chosen, as there is a variety of libraries to process all used file formats and because it tends to be a time saving language, also for visualization.\\
@@ -149,13 +151,13 @@ In regard to coding styles, especially when it comes to docstrings, the numpy co
 		\centering
 		\includegraphics[width=\textwidth]{plots/ACF/load_48lags_ndiff0_hstep1}%
 		\caption{}
-		\label{fig:acf_load_lags42}%
+		\label{fig:acf_load_lags48}%
 	\end{subfigure}%
 	\begin{subfigure}{.5\textwidth}
 		\centering
 		\includegraphics[width=\textwidth]{plots/PACF/load_48lags_ndiff0_hstep1}%
 		\caption{}
-		\label{fig:pacf_load_lags42}%
+		\label{fig:pacf_load_lags48}%
 	\end{subfigure}
 	\caption{Autocorrelation (a) and Partial Autocorrelation (b) plots used to select the order of \acrshort{arma} and \acrshort{armax} models.}
 	\label{fig:acf_compare}
@@ -167,15 +169,22 @@ TODO IC table
 
 \begin{figure}[h!]%
 \centering
-\includegraphics[width=\textwidth]{plots/ARMAXfc/ARMAX_p1q0_data2015to2017_fcto2018123123_weekend_plot_range2018010100_2018010723}%
-\caption{An example forecast for an ARMAX(1,0) using load data from 2015/1/1 00:00 to 2017/12/31 23:00 performing one step ahead forecasts for each step, which equals 1 hour forecasts due to the 1 hour resolution of the data.}%
-\label{fig:armax_fc_weekend}%
+\includegraphics[width=\textwidth]{plots/ARMAXfc/ARMAX_p1q0_data2015to2017_fcto2018123100_plot_range2018010100_2018010800}%
+\caption{An example forecast from 2017/12/31 01:00 to 2018/12/31 00:00 for an ARMAX(1,0) using load data from 2015/01/08 00:00 to 2017/12/31 00:00 performing one step ahead forecasts for each step, which equals 1 hour forecasts due to the 1 hour resolution of the data.}%
+\label{fig:armax_fc}%
 \end{figure}
 
 \begin{figure}[h!]%
 \centering
-\includegraphics[width=\textwidth]{plots/ARMAXfc/ARMAX_p1q0_data2015to2017_fcto2018123123_load_lag_plot_range2018010100_2018010723}%
-\caption{An example forecast for an ARMAX(1,0) using load data from 2015/1/1 00:00 to 2017/12/31 23:00 performing one step ahead forecasts for each step, which equals 1 hour forecasts due to the 1 hour resolution of the data.}%
+\includegraphics[width=\textwidth]{plots/ARMAXfc/ARMAX_p1q0_data2015to2017_fcto2018123100_dayofweek_plot_range2018010100_2018010800}%
+\caption{An example forecast from 2017/12/31 01:00 to 2018/12/31 00:00 for an ARMAX(1,0) using load data from 2015/01/08 00:00 to 2017/12/31 00:00 and seven dummy variables each for one week day as exogenous input, performing one step ahead forecasts for each step, which equals one hour forecasts due to the one hour resolution of the data.}%
+\label{fig:armax_fc_dayofweek}%
+\end{figure}
+
+\begin{figure}[h!]%
+\centering
+\includegraphics[width=\textwidth]{plots/ARMAXfc/ARMAX_p1q0_data2015to2017_fcto2018123100_load_lag_plot_range2018010100_2018010800.pdf}%
+\caption{An example forecast from 2017/12/31 01:00 to 2018/12/31 00:00 for an ARMAX(1,0) using load data from 2015/01/08 00:00 to 2017/12/31 00:00 and the load data shifted back in time by one week as exogenous input, performing one step ahead forecasts for each step, which equals one hour forecasts due to the one hour resolution of the data.}%
 \label{fig:armax_fc_load_lag}%
 \end{figure}
 

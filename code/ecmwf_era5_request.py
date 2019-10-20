@@ -1,4 +1,17 @@
 #!/usr/bin/python3
+
+"""
+This module provides functionality to download the needed weather data
+
+"""
+
+__author__ = "Marcel Herm"
+__credits__ = ["Marcel Herm","Nicole Ludwig","Marian Turowski"]
+__license__ = "MIT"
+__version__ = "0.0.1"
+__maintainer__ = "Marcel Herm"
+__status__ = "Production"
+
 from glob_vars import era5_path, lon_min, lon_max, lat_min, lat_max
 
 import os
@@ -6,9 +19,8 @@ import cdsapi
 import urllib3
 import threading
 
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning) # to suppress InsecureRequestWarning thrown when using mobile network or similar
-if not os.path.exists(era5_path):
-    os.makedirs(era5_path)
+# to suppress InsecureRequestWarning thrown when using mobile network or some sorts of networks
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 def retrieve_year():
     while True:
@@ -74,30 +86,34 @@ def retrieve_year():
         except:
             print(f'download not available for {year} in month {month}')
       
-            
-# client = cdsapi.Client()
-#
-# years = range(2015,2020)
-# months = ['01','02','03','04','05','06','07','08','09','10','11','12']
-# # yms consists of a year and a list of months of one half of a year
-# # because a the cdsapi refused downloading due to a size limit
-# yms = []
-# for year in years:
-#     for month in months:
-#         yms.append((str(year),month))
-# yms.pop() # pop first, which is second half of 2019 for which no data exists yet
-#
-# ###################
-# # retrieving data #
-# ###################
-# num_threads = os.cpu_count()
-# threads = []
-#
-# for i in range(10):
-#     t = threading.Thread(target=retrieve_year)
-#     t.start()
-#     threads.append(t)
-#
-# for t in threads:
-#     t.join()
-# ###################
+
+
+#client = cdsapi.Client()
+#years = range(2015,2019)
+#months = ['01','02','03','04','05','06','07','08','09','10','11','12']
+## yms consists of a year and a list of months of one half of a year
+## because a the cdsapi refused downloading due to a size limit
+#yms = []
+#for year in years:
+    #for month in months:
+        #yms.append((str(year),month))
+##yms.pop() # pop first, which is second half of 2019 for which no data exists yet (not needed, only data to end 2018 is used)
+
+## create folder to store data if it does not exist yet
+#if not os.path.exists(era5_path):
+    #os.makedirs(era5_path)
+
+####################
+## retrieving data #
+####################
+#num_threads = os.cpu_count()
+#threads = []
+
+#for i in range(10):
+    #t = threading.Thread(target=retrieve_year)
+    #t.start()
+    #threads.append(t)
+
+#for t in threads:
+    #t.join()
+####################
