@@ -8,13 +8,12 @@ several functions to filter,reduce or reorganize the data
 __author__ = "Marcel Herm"
 __credits__ = ["Marcel Herm","Nicole Ludwig","Marian Turowski"]
 __license__ = "MIT"
-__version__ = "0.0.1"
+__version__ = "0.1.1"
 __maintainer__ = "Marcel Herm"
 __status__ = "Production"
 
-from glob_vars import (lon_col,lat_col,era5_path,nuts0_shape,
-                       nuts0_10res_shape,data_path,demography_file,
-                       nuts3_01res_shape,isin_path,log)
+from glob_vars import (lon_col,lat_col,era5_path,nuts0_shape,data_path,
+                       demography_file,nuts3_01res_shape,isin_path,log)
 from Utility import Utility
 
 import os
@@ -93,7 +92,7 @@ class WeatherReader:
         
         if self.isin:
             try:
-                contained = np.load(os.path.join(data_path,'isin.npy'))
+                contained = np.load(os.path.join(isin_path,'isinDE.npy'))
             except:
                 log.info(f'isin file not found in {data_path}')
                 contained = self.util.check_isinDE()
@@ -111,7 +110,7 @@ class WeatherReader:
         
         if self.isin:
             try:
-                contained = np.load(os.path.join(data_path,'isin.npy'))
+                contained = np.load(os.path.join(isin_path,'isinDE.npy'))
             except:
                 log.info(f'isin file not found in {data_path}')
                 contained = self.util.check_isinDE()
@@ -214,7 +213,7 @@ class WeatherReader:
         
         if isin:
             try:
-                contained = np.load(os.path.join(data_path,'isin.npy'))
+                contained = np.load(os.path.join(isin_path,'isinDE.npy'))
             except:
                 log.info(f'isin file not found in {data_path}')
                 contained = self.util.check_isinDE()
@@ -368,7 +367,7 @@ class WeatherReader:
     def isin_sliceDE(self,name,start,stop):
         """TODO"""
         try:
-            contained = np.load(os.path.join(data_path,'isin.npy'))
+            contained = np.load(os.path.join(isin_path,'isinDE.npy'))
         except:
             log.info(f'isin file not found in {data_path}')
             contained = self.util.check_isinDE()
@@ -378,7 +377,7 @@ class WeatherReader:
     def isin_sliceRegion(self,name,start,stop,region_id):
         """TODO"""
         try:
-            contained = np.load(os.path.join(data_path,'isin.npy'))
+            contained = np.load(os.path.join(isin_path,'isinDE.npy'))
         except:
             log.info(f'isin file not found in {data_path}')
             contained = self.util.check_isinRegion(region_id)

@@ -2,7 +2,8 @@
 \label{ch:methods}
 
 %This chapter should introduce to the theoretical background of your thesis. Any method you use to obtain the results later should be introduced and explained. 
-This chapter introduces the methods that are applied in this thesis. First, the used forecasting methods are introduced. After that, the used feature selection techniques are explained and also the methods that were applied for error measuring.\\
+This chapter introduces the methods that are applied in this thesis. The first group of methods comprises the used forecasting methods, the second group involves feature selection techniques and the last group covers methods that are used to evaluate forecasts.\\
+%This chapter introduces the methods that are applied in this thesis. First, the used forecasting methods are introduced. After that, the used feature selection techniques are explained and also the methods that were applied for error measuring.\\
 %In this chapter, the used forecasting methods are explained and why they were used. After that, other methodological aspects of this thesis will be outlined.\\
 
 %Using weather data from ECMWF Copernicus Climate Change Service (C3S).\\
@@ -20,12 +21,12 @@ This chapter introduces the methods that are applied in this thesis. First, the 
 \section{Forecasting methods}
 \label{sec:forecastmet}
 
-For time series forecasting, often used methods are \eg \gls{arma} models as mentioned in \tcite{Hyndman2018}. This sections will outline the methods that are applied in this thesis to forecast the electricity load.\\% Forecasting: Principles and Practice\footnote{\url{https://otexts.com/fpp2}}.%, but  also \gls{nn}, where it is common to reduce the number of input variables in order to speed up computation, which is desirable for the huge amount of grid-based data that grows quadratically with size. There are also some papers that use regression models other than \gls{arma} such as \gls{lr}, \gls{mlr} or \gls{svm}. \tcite{Aguiar2016} applies \gls{nn} to do intra-day solar radiation forecasting with a forecasting horizon of 1-6 hours on Gran Canaria and, as in this thesis, grid-based data from \gls{ecmwf} is used.\\
+For time series forecasting, often used methods are \eg \gls{arma} models as mentioned in \tcite{Hyndman2018}. This sections will introduce the methods that are applied in this thesis to forecast the electricity load.\\% Forecasting: Principles and Practice\footnote{\url{https://otexts.com/fpp2}}.%, but  also \gls{nn}, where it is common to reduce the number of input variables in order to speed up computation, which is desirable for the huge amount of grid-based data that grows quadratically with size. There are also some papers that use regression models other than \gls{arma} such as \gls{lr}, \gls{mlr} or \gls{svm}. \tcite{Aguiar2016} applies \gls{nn} to do intra-day solar radiation forecasting with a forecasting horizon of 1-6 hours on Gran Canaria and, as in this thesis, grid-based data from \gls{ecmwf} is used.\\
 
 %\subsection{Linear Regression}
 \subsection*{ARMA}
 
-The \gls{arma} model is a combination of \acrfull{ar} and \acrfull{ma} terms. The formal description is given by\\
+The \gls{arma} model is a combination of \acrfull{ar} and \gls{ma} terms. The formal description is given by\\
 
 \begin{equation}
 y_t = c+\sum_{i=1}^{p}\phi_iy_{t-i}+\sum_{j=1}^{q}\rho_j\epsilon_{t-j}+\epsilon_t~,
@@ -43,20 +44,21 @@ y_t = c+\sum_{i=1}^{p}\phi_iy_{t-i}+\sum_{j=1}^{q}\rho_j\epsilon_{t-j}+\sum_{k=1
 \label{eq:armax}
 \end{equation}
 
-\Cref{eq:armax} almost equals \Cref{eq:arma} for the \gls{arma} model, but here, there is an additional term $\sum_{k=1}^{n}\eta_kx_k$ for $n$ included exogenous variables $x$ with $\eta$ as the respective coefficients.
+The only difference between \Cref{eq:armax} and \Cref{eq:arma} is the additional term $\sum_{k=1}^{n}\eta_kx_k$ for the \gls{armax} for $n$ included exogenous variables $x$ with $\eta$ as the respective coefficients.\\
+%\Cref{eq:armax} almost equals \Cref{eq:arma} for the \gls{arma} model, but here, there is an additional term $\sum_{k=1}^{n}\eta_kx_k$ for $n$ included exogenous variables $x$ with $\eta$ as the respective coefficients.
 
 %\subsubsection{only calendar variables as exogenous inputs}
 %
 %\subsubsection{additional weather variables as exogenous inputs}
 
-\section{Feature Selection}
+\section{Feature selection techniques}
 \label{sec:featsel}
 
-Because the used weather data is grid-based, there are two more dimensions as usual where only one value per time step exists for a variable. This is why feature selection here is more important to obtain a reasonable computation time. In the following, the used methods for feature selection are presented.\\
+Because the used weather data is grid-based, there are two more dimensions than usual, where only one value per time step exists for a variable. This is why feature selection here is more important in order to obtain a reasonable computation time. In the following, the used methods for feature selection are presented.\\
 
 \subsection*{Naive approach}
 
-At first, naive techniques are presented, that are used to reduce the huge amount of grid-based weather data along the two spatial dimensions, longitude and latitude, for each step in time respectively. These are simple functions such as the maximum or the mean. An exemplary formula for reducing the data along longitude and latitude using the mean can be given as\\
+First, naive techniques are presented, that are used to reduce the huge amount of grid-based weather data. They are reduced along the two spatial dimensions, longitude and latitude, for each step in time, respectively. These are simple functions such as the maximum or the mean. An exemplary formula for reducing the data along longitude and latitude using the mean is given as\\
 
 \begin{equation}
 x_t = \frac{1}{l \times m} \sum_{i=1}^{l}\sum_{j=1}^{m}x_{ij}~,
@@ -77,7 +79,7 @@ In order to estimate whether the used model performs well, it is important to ap
 
 \subsection*{Root Mean Squared Error}
 
-The first metric is the \gls{rmse}, which is an often used, scale-dependent accuracy measure that is applied to calculate the root of the squared mean of the differences between the forecast and the actual values. It is described by\\
+The first metric is the \gls{rmse}, which is an often used, scale-dependent accuracy measure that calculates the root of the squared mean of the differences between the forecast and the actual values. It is described by\\
 
 \begin{equation}
 RMSE = \sqrt{\frac{1}{k} \sum_{i=1}^{k} (y_i-\hat{y}_i)^2}~.
@@ -94,7 +96,7 @@ MAE = \frac{1}{k} \sum_{i=1}^{k} \left|y_i-\hat{y}_i\right|~.
 
 \subsection*{Mean Percentage Error}
 
-The third metric is the \gls{mpe}, which is a relative measure of the prediction accuracy. Since it is multiplied by 100 after dividing it by the size of the predictions and the , it is called a percentage error. The equation is\\
+The third metric is the \gls{mpe}, which is a relative measure of the prediction accuracy. Since it is multiplied by 100 after dividing it by the size of the predictions, it is called a percentage error. The equation is\\
 %The \gls{mpe} is the computed average of percentage errors by which forecasts of a model differ from actual values of the quantity being forecast
 
 \begin{equation}
@@ -103,7 +105,7 @@ MPE = \frac{100}{k} \sum_{i=1}^{k} \frac{y_i-\hat{y}_i}{y_i}~.
 
 \subsection*{Mean Absolute Percentage Error}
 
-The fourth metric is the \gls{mape}, which is similar to the \gls{mpe}, but takes the absolute value of each single error as in case of the \gls{mae}. The equation for the \gls{mape} is given by\\
+The fourth metric is the \gls{mape}, which is similar to the \gls{mpe}, but takes the absolute value of each single error instead. The equation for the \gls{mape} is given by\\
 
 \begin{equation}
 MAPE = \frac{1}{k}\times 100 \sum_{i=1}^{k} \left|\frac{y_i-\hat{y}_i}{y_i}\right|~.

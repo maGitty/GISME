@@ -1,7 +1,8 @@
 #!/usr/bin/python3
 
 """
-This module provides access to the used load data
+This module provides access to the used load data that
+has been downloaded from https://open-power-system-data.org/
 """
 
 __author__ = "Marcel Herm"
