@@ -5,21 +5,12 @@ This module provides access to the used load data that
 has been downloaded from https://open-power-system-data.org/
 """
 
-__author__ = "Marcel Herm"
-__credits__ = ["Marcel Herm","Nicole Ludwig","Marian Turowski"]
-__license__ = "MIT"
-__version__ = "0.0.1"
-__maintainer__ = "Marcel Herm"
-__status__ = "Production"
-
-from glob_vars import load_path, cest_col,utc_col, de_load, hasMWlbl
+from gisme import load_path, cest_col, utc_col, hasMWlbl
 
 import os
-import numpy as np
 import pandas as pd
 import xarray as xr
 from collections import OrderedDict
-from datetime import datetime
 
 
 class LoadReader:
@@ -37,8 +28,7 @@ class LoadReader:
             self.__ldata__ = load_file.interpolate_na('utc_timestamp')
             self.var_names = [name for name in load_file.data_vars]
             self.date_bounds = load_file[utc_col].min().values, load_file[utc_col].max().values
-            #print(load_file['DE_load_actual_entsoe_transparency'].values)
-    
+
     def _csv_to_nc(self):
         """Converts csv file to .nc file format for speedup and compatibility
         
@@ -46,7 +36,7 @@ class LoadReader:
         -------
         None
         """
-        load_file = pd.read_csv(f'{os.path.splitext(load_path)[0]}.csv',header=0,index_col=0)
+        load_file = pd.read_csv(f'{os.path.splitext(load_path)[0]}.csv', header=0, index_col=0)
         load_file.index = pd.to_datetime(load_file.index)
         
         # convert to xarray.Dataset and drop unused local time column
@@ -92,7 +82,8 @@ class LoadReader:
         
         Returns
         -------
-        xarray.DataArray containing desired data with respective timestamps"""
+        xarray.DataArray containing desired data with respective timestamps
+        """
         assert name in self.var_names, f'column {name} not found'
         
         return self.__ldata__[name].sel(utc_timestamp=time)
@@ -119,12 +110,12 @@ class LoadReader:
         
         if step is None:
             # if no step specified simply return all values between start and stop
-            return self.__ldata__[name].sel(utc_timestamp=slice(start,stop))
+            return self.__ldata__[name].sel(utc_timestamp=slice(start, stop))
         else:
             # if step is given, return only desired points by passing a timeseries with frequency
-            return self.__ldata__[name].sel(utc_timestamp=pd.date_range(start,stop,freq=f"{step}H"))
+            return self.__ldata__[name].sel(utc_timestamp=pd.date_range(start, stop, freq=f"{step}H"))
     
-    def vals4step(self,name,step=1):
+    def vals4step(self, name, step=1):
         """Returns complete values for specified step size
         
         Parameters
@@ -138,14 +129,13 @@ class LoadReader:
         -------
         xarray.DataArray containing desired data with respective timestamps
         """
-        return self.__ldata__[name].sel(utc_timestamp=pd.date_range(*self.date_bounds,freq=f"{step}H"))
+        return self.__ldata__[name].sel(utc_timestamp=pd.date_range(*self.date_bounds, freq=f"{step}H"))
         
-    
-    
+
 # rd = LoadReader()
 
-#start = datetime(2015,1,1)
-#stop = datetime(2017,12,31)
+# start = datetime(2015,1,1)
+# stop = datetime(2017,12,31)
 
-#data = rd.vals4slice(de_load, start, stop, step=2).values
-#print(data)
+# data = rd.vals4slice(de_load, start, stop, step=2).values
+# print(data)

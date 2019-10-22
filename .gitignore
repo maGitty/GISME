@@ -112,6 +112,9 @@ venv.bak/
 *.wpr
 *.wpu
 
+# Pycharm project files
+code/.idea
+
 # Rope project settings
 .ropeproject
 

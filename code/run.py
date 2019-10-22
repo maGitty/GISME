@@ -11,175 +11,60 @@ __version__ = "0.0.1"
 __maintainer__ = "Marcel Herm"
 __status__ = "Production"
 
-from glob_vars import (data_path,load_path,era5_path,
-                       lon_col,lat_col, bbox,de_load,
-                       variable_dictionary,nuts3_01res_shape,
-                       nuts0_shape,demography_file,log,isin_path)
-from WeatherReader import WeatherReader
-from LoadReader import LoadReader
-from Predictions import ARMAX_forecast,TSForecast
+from gisme import (data_path, de_load, demography_file, log)
+from gisme.WeatherReader import WeatherReader
+from gisme.LoadReader import LoadReader
+from gisme.Predictions import ARMAXForecast,TSForecast
+from gisme.DataPlotter import DataPlotter
 
-from netCDF4 import Dataset, num2date
 from matplotlib import pyplot as plt
+import pickle
 import numpy as np
-import geopandas as gpd
-from descartes import PolygonPatch
-import shapefile as shp
 import pandas as pd
-from datetime import datetime,timedelta, time
-from dateutil.relativedelta import relativedelta
-from calendar import monthrange
-from glob import glob
-import xarray as xr
-import pytz
-import re,os,operator,functools
-from shapely.geometry import Point, Polygon
+from datetime import datetime, timedelta, time
+import os
+import sys
 import holidays
 import itertools
 from statsmodels.tsa.arima_model import ARMA
 
-def arx1_predict(const, ar1, ex1, data, exog):
-    predicted_values = []
-    for i in range(1, len(data)):
-        f_prev = const + ex1 * exog[i - 1]
-        f_now = const + ex1 * exog[i]
-        y = f_now + ar1 * (data[i - 1] - f_prev)
-        list.append(predicted_values, y)
-    return predicted_values
+#top10vars = ['t2m_top10','u10_top10','v10_top10','lai_hv_top10',
+             #'lai_lv_top10','lcc_top10','stl1_top10','slhf_top10',
+             #'str_top10','sshf_top10','tcc_top10','tcrw_top10','fdir_top10']
 
-def arx1_predict(self,fc_end):
-    delta1h = timedelta(hours=1)
-    data = self.load_data[self.stop:fc_end-delta1h].values[:,0]
-    ar1 = self.load_param
-    if self.exog is None:
-        forecast = self.const + ar1 * (data - self.const)
-    else:
-        exog = self.const + np.dot(self.exog_params,self.ex_data[self.stop+delta1h:fc_end+delta1h].values.transpose())
-        forecast = exog[1:] + ar1 * (data - exog[:-1])
-    self.forecasts.append(TSForecast(1,forecast,self.load_data[self.stop+delta1h:fc_end].values[:,0],
-                                     self.start,self.stop,self.stop+delta1h,fc_end))
-    return forecast
+#start = datetime(2015,1,8)
+#stop = datetime(2017,12,31)
+#fc_end = datetime(2018,12,31)
 
+#pl = DataPlotter(fmt='pdf', save=True, show=False, isin=True)  # , shape=(2, 2))
 
-def mape(actual,forecast):
-    return np.mean(np.abs((actual-forecast)/actual)*100)
+#t_start = datetime(2015, 1, 8)
+#t_stop = datetime(2017, 12, 31)
+#end = datetime(2018, 12, 31)
 
-def rmse(actual,forecast):
-    return np.sqrt(((forecast-actual)**2).mean())
+#plot_start = datetime(2018, 1, 1)
+#plot_end = datetime(2018, 1, 8)
 
+#for exog in top10vars:
+    #print(exog)
+    #try:
+        #pl.plot_armax_forecast(t_start, t_stop, end, 2, 2, exog=[exog], plot_range=(plot_start, plot_end))
+    #except Exception as e:
+        #print(str(e))
 
-def armafc():
-    lr = LoadReader()
-    wr = WeatherReader()
-    delta1h = timedelta(hours=1)
-    delta1week = timedelta(weeks=1)
-    start = datetime(2015,1,8)
-    stop = datetime(2017,12,31)
-    fc_end = datetime(2018,12,30)
-    last_date = datetime(2018,12,31)
-    has_const = True
-    
-    date_range = pd.date_range(start,last_date,freq='1H')
-    fc_range = pd.date_range(stop+delta1h,fc_end,freq='1H')
-    
-    load_data = pd.DataFrame(data={'load':lr.vals4slice(de_load,start,last_date,step=1)},
-                             index=date_range)
-    
-    dow = date_range.to_series().dt.dayofweek.values
-    exog = pd.DataFrame(data=[],index=date_range)
-    #exog['weekend'] = np.bitwise_or(dow==5,dow==6).astype(int)
-    #exog['t2m_mean'] = wr.mean_slice('t2m',start,last_date)
-    exog['load_lag'] = lr.vals4slice(de_load,start-delta1week,last_date-delta1week,step=1)
-    
-    start_time = datetime.now()
-    log.info(f'starting training and forecast')
-    
-    p=1
-    q=1
-    b=len(exog.columns)
-    armax = ARMA(endog=load_data[start:stop].values[:,0],
-                 exog =exog[start:stop].values,
-                 order=(p,q))
-    armax_result = armax.fit(method='mle',
-                             #solver='cg',
-                             trend='c' if has_const else 'nc',
-                             disp=0)
-    fit_params = armax_result.params
-    print(f'fit parameters:\n{fit_params}\n{armax_result.summary()}')
-    const = fit_params[0] if has_const else 0
-    exB = fit_params[1 if has_const else 0:-p-q]
-    arP = fit_params[-p-q:-q] if q > 0 else fit_params[-p:]
-    maQ = fit_params[-q:] if q > 0 else []
-    print(f'const:{const}\nar:{arP}\nma:{maQ}\nexog:{exB}')
-    
-    print(len(fc_range),len(load_data[stop-timedelta(hours=p-1):fc_end].values[:,0]))
-    if q > 0:
-        err = np.zeros(len(fc_range)+q)
-        err[:q] = armax_result.resid[-q:]
-    
-    def armaxPQ_predict(const,arP,maQ,exB,data,resid,exog=None):
-        pred = np.empty(len(data)-p)
-        def m_t(index):
-            return const if exog is None else const + np.dot(exB,exog[index].transpose())
-        
-        for t in range(len(data)-p):
-            ar_term = m_t(t+p) + np.dot(arP[::-1],data[t:t+p]-m_t(slice(t,t+p)))
-            ma_term = 0 if q is 0 else np.dot(maQ[::-1],resid[t:t+q])
-            y = ar_term + ma_term
-            if q > 0:
-                resid[t+q] = data[t+p] - y
-            pred[t] = y
-        return pred
-    
-    def arx1_predictkal(self,fc_end):
-        predicted_values = []
-        delta1h = timedelta(hours=1)
-        data = self.load_data[self.stop:fc_end].values[:,0]
-        exog = self.ex_data[self.stop:fc_end].values
-        for i in range(1, len(data)):
-            f_prev = self.const + np.dot(self.exog_params,exog[i - 1])
-            f_now = self.const + np.dot(self.exog_params,exog[i])
-            y = f_now + self.load_param * (data[i - 1] - f_prev)
-            predicted_values.append(y)
-        predicted_values = np.array(predicted_values)
-        fc = TSForecast(1,predicted_values,self.load_data[self.stop+delta1h:fc_end].values[:,0],
-                        self.start,self.stop,self.stop+delta1h,fc_end)
-        self.forecasts.append(fc)
-        return fc
-    
-    forecast = armaxPQ_predict(const,arP,maQ,exB,
-                               load_data[stop-timedelta(hours=p-1):fc_end].values[:,0],
-                               None if q is 0 else err,
-                               exog[stop-timedelta(hours=p-1):fc_end].values
-                               )
-    fc = TSForecast(1,forecast,
-                    load_data[stop+delta1h:fc_end].values[:,0],
-                    start,stop,stop+delta1h,fc_end)
-    print(f'TSForecast: {fc}')
-    fc.__plot__()
-    #plt.plot(fc.actual,label='actual')
-    #plt.plot(fc.forecast,label='1H forecast')
-    #plt.legend()
-    #np.vectorize(lambda x:x)
-    plt.show()
-
-#armafc()
-items = ['t2m_mean','weekend','t2m_top10','load_lag']
-combinations = [list(itertools.compress(items,mask)) for mask in itertools.product(*[[0,1]]*len(items))]
-print(combinations)
 
 def best_model():
     lr = LoadReader()
     wr = WeatherReader()
     delta1h = timedelta(hours=1)
-    start = datetime(2015,1,8,0)
-    stop = datetime(2017,12,31,23)
-    last_date = datetime(2018,12,31,23)
+    start = datetime(2015, 1, 8, 0)
+    stop = datetime(2017, 12, 31, 23)
+    last_date = datetime(2018, 12, 31, 23)
     
-    date_range = pd.date_range(start,last_date,freq='1H')
-    fc_range = pd.date_range(stop,last_date-delta1h,freq='1H')
+    date_range = pd.date_range(start, last_date, freq='1H')
+    fc_range = pd.date_range(stop, last_date-delta1h, freq='1H')
     
-    load_data = pd.DataFrame(data={'load' : lr.vals4slice(de_load,start,last_date,step=1)},
+    load_data = pd.DataFrame(data={'load': lr.vals4slice(de_load, start, last_date, step=1)},
                              index=date_range)
     
     dow = date_range.to_series().dt.dayofweek.values
@@ -200,116 +85,6 @@ def best_model():
                                      disp=0)
             print(armax_result.summary())
             print(f'ARMA({p},{q})\nAIC:{np.round(armax_result.aic,2)}\nBIC:{np.round(armax_result.bic,2)}\nHQIC:{np.round(armax_result.hqic,2)}')
-
-
-def rolling_reestimation_fc():
-    lr = LoadReader()
-    wr = WeatherReader()
-    delta1h = timedelta(hours=1)
-    pq=(1,0)
-    start = datetime(2015,1,1)
-    stop = datetime(2017,12,31)
-    last_date = datetime(2018,12,31)    
-    load_data = lr.vals4slice(de_load,start,last_date,step=1)
-    date_range = pd.date_range(start,last_date,freq='1H')
-    load_data = pd.DataFrame(data={'load' : load_data},index=date_range)
-    
-    dow = date_range.to_series().dt.dayofweek.values
-    t2m_mean = wr.mean_slice('t2m',start,last_date)
-    exog = pd.DataFrame(data={
-                              't2m_mean':t2m_mean,
-                              #'weekend':np.bitwise_or(dow==5,dow==6).astype(int)
-                              },
-                        index=date_range)
-    
-    start_time = datetime.now()
-    log.info(f'starting training and forecast: {start_time}')
-    
-    armax = ARMA(endog=load_data[start:stop].values,
-                 exog =exog[start:stop].values,
-                 order=pq)
-    
-    armax_result = armax.fit(method='css',
-                             solver='cg',
-                             trend='nc',
-                             transparams=True,
-                             full_output=-1,
-                             disp=0,
-                             maxiter=200)
-    fit_params = armax_result.params
-    
-    df = pd.DataFrame(data=np.array([load_data[start:stop].values[:-1][:,0],
-                                     armax_result.fittedvalues]).transpose(),
-                      columns=['load','fc'],
-                      index=pd.date_range(start,stop,freq='1H')[:-1])
-    print(f'mape: {mape(df["load"],df["fc"])}')
-    print(f'rmse: {rmse(df["load"],df["fc"])}')
-    plt.plot(df['load'][:300],label='actual')
-    plt.plot(df['fc'][:300],label='fc')
-    plt.legend()
-    plt.show()
-    
-    fc = []
-    fc.append(armax_result.forecast(steps=24,
-                                    exog=exog[stop+delta1h:stop+timedelta(hours=24)]
-                                    )[0][-1])
-    
-    stop_date = stop
-    while stop_date < last_date-timedelta(hours=24):
-        stop_date += delta1h
-        armax = ARMA(endog=load_data[start:stop_date].values,
-                     exog =exog[start:stop_date].values,
-                     order=pq)
-        armax_result = armax.fit(method='css',
-                                 solver='cg',
-                                 start_params=fit_params,
-                                 trend='nc',
-                                 transparams=True,
-                                 full_output=-1,
-                                 disp=0,
-                                 maxiter=200)
-        fc.append(armax_result.forecast(steps=24,
-                                        exog=exog[stop_date+delta1h:stop_date+timedelta(hours=24)]
-                                        )[0][-1])
-        if stop_date.hour == 23:
-            print(f'fc done for {stop_date.date()}')
-    log.info(f'finished training and forecast, took {(datetime.now()-start_time).seconds}s')
-    plt.plot(load_data[stop+timedelta(hours=24):last_date].index,load_data[stop+timedelta(hours=24):last_date].values,label='actual')
-    plt.plot(load_data[stop+timedelta(hours=24):last_date].index,fc,label='24H forecast')
-    plt.legend()
-    plt.show()
-
-#start = datetime(2017,1,1)
-#last_date = datetime(2018,12,31)
-#lr = LoadReader()
-#wr = WeatherReader()
-#date_range = pd.date_range(start,last_date,freq='1H')
-#load_data = lr.vals4slice(de_load,start,last_date,step=1).values
-##load_data = xr.DataArray(lr.vals4slice(de_load,start,last_date,step=1).values, dims={'time' : date_range})
-##load_data = xr.DataArray(load_data,coords=[date_range],dims=['time'])
-#data = pd.DataFrame(data={'load' : load_data},index=date_range)
-#dow = date_range.to_series().dt.dayofweek.values
-##dow = xr.DataArray(np.stack({'load':load_data,'dayofweek':dow}),coords=[date_range],dims=['time'])
-
-##print(dow)
-##load_data.merge(xr.Dataset(dow,coords={'time' : date_range}))
-#data['Monday'] = (dow == 0).astype(int)
-#data['Tuesday'] = (dow == 1).astype(int)
-#data['Wednesday'] = (dow == 2).astype(int)
-#data['Thursday'] = (dow == 3).astype(int)
-#data['Friday'] = (dow == 4).astype(int)
-#data['Saturday'] = (dow == 5).astype(int)
-#data['Sunday'] = (dow == 6).astype(int)
-#print(data[datetime(2017,1,1):datetime(2017,1,2)].values.transpose())
-#fdirs = wr.flattened_slice('t2m',start,last_date)
-
-#data.append(pd.DataFrame(fdirs))
-#for i, fdir in enumerate(fdirs):
-    #data[f'fdir{i}'] = fdir
-
-#print(data[datetime(2017,2,1):datetime(2017,3,1)]['load'].values)
-#print(data.values.T.shape)
-#print(data)
 
 
 def plot_corr_t2mmean_load():
