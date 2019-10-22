@@ -5,30 +5,25 @@ This module provides access to the used weather data as well as
 several functions to filter,reduce or reorganize the data
 """
 
-__author__ = "Marcel Herm"
-__credits__ = ["Marcel Herm","Nicole Ludwig","Marian Turowski"]
-__license__ = "MIT"
-__version__ = "0.1.1"
-__maintainer__ = "Marcel Herm"
-__status__ = "Production"
-
-from glob_vars import (lon_col,lat_col,era5_path,nuts0_shape,data_path,
-                       demography_file,nuts3_01res_shape,isin_path,log)
-from Utility import Utility
+from gisme import (lon_col, lat_col, era5_path, data_path, isin_path, log)
+from gisme.Utility import Utility
 
 import os
 import re
-import pandas as pd
 import numpy as np
 import xarray as xr
-import shapefile as shp
-from datetime import datetime, timedelta, time
+
 
 class WeatherReader:
     """Used to read weather nc files and to return xarray.DataArray containing desired data"""
-    def __init__(self,isin=False):
+    def __init__(self, isin=False):
         """Initializes instance, set path to open files, store some information for faster response
-        
+
+        Parameters
+        ----------
+        isin : boolean
+               specifies whether to only return points within a shape or not
+
         Returns
         -------
         None
@@ -37,10 +32,10 @@ class WeatherReader:
         
         self.isin = isin
         self.util = Utility()
-        self.filename = os.path.join(era5_path,'*.nc')
+        self.filename = os.path.join(era5_path, '*.nc')
         with xr.open_mfdataset(self.filename) as nc_file:
-            # drop times where no data is available, until now only seen at the end of the dataset
-            self.wdata = nc_file #.dropna('time') # drops times with no values, carefully use, might throw away single points somewhere
+            # dropna drops times with no values, carefully use, might throw away single points somewhere
+            self.wdata = nc_file  # .dropna('time')
         
         self.var_names = [name for name in self.wdata.data_vars]
         self.date_bounds = self.wdata['time'].min().values, self.wdata['time'].max().values
@@ -64,7 +59,8 @@ class WeatherReader:
         -------
         list of n days with min/max values for specified variable after applying func
         """
-        assert (name in self.var_names and minmax in ['min', 'max']), f'wrong variable name ({name}) or minmax not in ["min","max"]'
+        assert (name in self.var_names and minmax in ['min', 'max']),\
+            f'wrong variable name ({name}) or minmax not in ["min","max"]'
         
         data = self.reduce_lonlat(name, func).dropna('time')
         data = data.sortby(data)
@@ -92,30 +88,31 @@ class WeatherReader:
         
         if self.isin:
             try:
-                contained = np.load(os.path.join(isin_path,'isinDE.npy'))
+                contained = np.load(os.path.join(isin_path, 'isinDE.npy'))
             except:
-                log.info(f'isin file not found in {data_path}')
+                log.info(f'isin file not found in {data_path}, creating new')
                 contained = self.util.check_isinDE()
-            return self.wdata[name].where(contained,other=np.nan,drop=False).reduce(func, dim=[lon_col,lat_col])
+            return self.wdata[name].where(contained, other=np.nan, drop=False)\
+                                   .reduce(func, dim=[lon_col, lat_col])
         else:
-            return self.wdata[name].reduce(func, dim=[lon_col,lat_col])
+            return self.wdata[name].reduce(func, dim=[lon_col, lat_col])
     
-    def reduce_lonlat_slice(self, name, func,start,stop):
+    def reduce_lonlat_slice(self, name, func, start, stop):
         """Return data for specified variable after filtering by time slice
            and applying function to reduce along longitude and latitude axes
         """
         assert name in self.var_names, f'column {name} not found'
         
-        data = self.wdata[name].sel(time=slice(start,stop))
+        data = self.wdata[name].sel(time=slice(start, stop))
         
         if self.isin:
             try:
-                contained = np.load(os.path.join(isin_path,'isinDE.npy'))
+                contained = np.load(os.path.join(isin_path, 'isinDE.npy'))
             except:
-                log.info(f'isin file not found in {data_path}')
+                log.info(f'isin file not found in {data_path}, creating new')
                 contained = self.util.check_isinDE()
-            data =  data.where(contained,other=np.nan,drop=False)
-        return data.reduce(func, dim=[lon_col,lat_col])
+            data = data.where(contained, other=np.nan, drop=False)
+        return data.reduce(func, dim=[lon_col, lat_col])
     
     def get_size(self):
         """Returns shape of whole data"""
@@ -141,7 +138,7 @@ class WeatherReader:
         """Returns list of latitude values"""
         return self.wdata[lat_col].values
     
-    def get_long_name(self,var):
+    def get_long_name(self, var):
         """Returns long name for given abreviated variable name
         
         Parameters
@@ -155,7 +152,7 @@ class WeatherReader:
         """
         return self.wdata[var].long_name
     
-    def get_minmax(self,name):
+    def get_minmax(self, name):
         """Returns min and max for specified variable and times
         
         Parameters
@@ -169,7 +166,7 @@ class WeatherReader:
         -------
         tuple of min and max
         """
-        return (np.floor(self.wdata[name].min().values),np.ceil(self.wdata[name].max().values))
+        return np.floor(self.wdata[name].min().values), np.ceil(self.wdata[name].max().values)
     
     def print_vars_texfmt(self):
         """Prints all variables in format 'name & unit & min & max' to just insert to latex
@@ -181,12 +178,12 @@ class WeatherReader:
         pow_regex = re.compile('(\*\*)(\S+)')
         for var in self.var_names:
             variable = self.wdata[var].dropna('time')
-            unit = pow_regex.sub("^{\g<2>}",variable.units).replace(' ','~')
+            unit = pow_regex.sub("^{\g<2>}", variable.units).replace(' ', '~')
             print(f'{variable.long_name} & ${unit}$ & '
                   f'{variable.values.min().round(2):.2f} & '
                   f'{variable.values.max().round(2):.2f} \\\\')
     
-    def vals4time(self, name, datetime,isin=False):
+    def vals4time(self, name, datetime, isin=False):
         """Returns the values for specified variable and time
         
         Parameters
@@ -196,7 +193,7 @@ class WeatherReader:
         datetime : datetime.datetime
                    the specified datetime for which the data is returned
         isin     : bool
-                   wether to only get points within germany or all
+                   whether to only get points within germany or all
         
         Returns
         -------
@@ -213,14 +210,14 @@ class WeatherReader:
         
         if isin:
             try:
-                contained = np.load(os.path.join(isin_path,'isinDE.npy'))
+                contained = np.load(os.path.join(isin_path, 'isinDE.npy'))
             except:
                 log.info(f'isin file not found in {data_path}')
                 contained = self.util.check_isinDE()
-            data = data.where(contained,other=np.nan,drop=False)
+            data = data.where(contained, other=np.nan, drop=False)
         
         # update DataArray attributes to add min and max values for complete time
-        data.attrs.update({'vmin':np.floor(self.wdata[name].min().values),'vmax':np.ceil(self.wdata[name].max().values)})
+        data.attrs.update({'vmin': np.floor(self.wdata[name].min().values), 'vmax': np.ceil(self.wdata[name].max().values)})
         
         return data
 
@@ -305,7 +302,7 @@ class WeatherReader:
             raise Exception(f'coordinates not within bbox? lat:{latitude}')
         return data, long_name
 
-    def max_slice(self,name,start,stop):
+    def max_slice(self, name, start, stop):
         """Return values for specified variable with one value per step
            from start to stop reduced by max
         
@@ -322,9 +319,9 @@ class WeatherReader:
         -------
         xarray.DataArray of specified variable reduced over longitude and latitude by max
         """
-        return self.reduce_lonlat_slice(name,np.nanmax,start,stop)
+        return self.reduce_lonlat_slice(name, np.nanmax, start, stop)
     
-    def mean_slice(self,name,start,stop):
+    def mean_slice(self, name, start, stop):
         """Return values for specified variable with one value per step
            from start to stop reduced by mean
         
@@ -341,7 +338,7 @@ class WeatherReader:
         -------
         xarray.DataArray of specified variable reduced over longitude and latitude by mean
         """
-        return self.reduce_lonlat_slice(name,np.nanmean,start,stop)
+        return self.reduce_lonlat_slice(name, np.nanmean, start, stop)
     
     def flattened_slice(self, name, start, stop):
         """Return values for specified variable from start to stop
@@ -362,36 +359,36 @@ class WeatherReader:
         -------
         xarray.DataArray of specified variable reduced over longitude and latitude by mean
         """
-        return self.wdata[name].sel(time=slice(start,stop)).stack(loc=(lon_col,lat_col)).transpose()
+        return self.wdata[name].sel(time=slice(start, stop)).stack(loc=(lon_col, lat_col)).transpose()
     
-    def isin_sliceDE(self,name,start,stop):
+    def isin_sliceDE(self, name, start, stop):
         """TODO"""
         try:
-            contained = np.load(os.path.join(isin_path,'isinDE.npy'))
+            contained = np.load(os.path.join(isin_path, 'isinDE.npy'))
         except:
             log.info(f'isin file not found in {data_path}')
             contained = self.util.check_isinDE()
-        return self.wdata[name].sel(time=slice(start,stop)).where(contained,other=np.nan,drop=False)\
-                   .stack(loc=(lon_col,lat_col)).dropna('loc').transpose().values
+        return self.wdata[name].sel(time=slice(start, stop)).where(contained, other=np.nan, drop=False)\
+                   .stack(loc=(lon_col, lat_col)).dropna('loc').transpose().values
     
-    def isin_sliceRegion(self,name,start,stop,region_id):
+    def isin_slice_region(self, name, start, stop, region_id):
         """TODO"""
         try:
-            contained = np.load(os.path.join(isin_path,'isinDE.npy'))
+            contained = np.load(os.path.join(isin_path, 'isinDE.npy'))
         except:
             log.info(f'isin file not found in {data_path}')
-            contained = self.util.check_isinRegion(region_id)
-        return self.wdata[name].sel(time=slice(start,stop)).where(contained,other=np.nan,drop=False)\
-                .stack(loc=(lon_col,lat_col)).dropna('loc').transpose().values
+            contained = self.util.check_isin_region(region_id)
+        return self.wdata[name].sel(time=slice(start, stop)).where(contained, other=np.nan, drop=False)\
+                   .stack(loc=(lon_col, lat_col)).dropna('loc').transpose().values
     
-    def isin_sliceMap(self,name,start,stop,matrix):
+    def isin_slice_map(self, name, start, stop, matrix):
         """TODO"""
-        return self.wdata[name].sel(time=slice(start,stop)).where(matrix,other=np.nan,drop=False)\
-                   .stack(loc=(lon_col,lat_col)).dropna('loc').values
+        return self.wdata[name].sel(time=slice(start, stop)).where(matrix, other=np.nan, drop=False)\
+                   .stack(loc=(lon_col, lat_col)).dropna('loc').values
     
-    def demoTopNregionsSlice(self,name,start,stop,n):
+    def demo_top_n_regions_slice(self, name, start, stop, n):
         """TODO"""
-        return self.isin_sliceMap(name,start,stop,self.util.demoTopNregionsMap(n))
+        return self.isin_slice_map(name, start, stop, self.util.demo_top_n_regions_map(n))
     
     def var_over_time(self, name):
         """Returns variance over time reduced along longitude
