@@ -115,12 +115,12 @@ Besides weather data used to refine the forecasting results, also historic load 
 
 \subsection{Population}
 
-For further improvement and in order to filter important points in the grid, population data for Germany has been acquired from Eurostat\footnote{\url{https://ec.europa.eu/eurostat/data/database}}. The data is being visualized in \Cref{fig:demo2018_logscale} with a logarithmic scale to improve visual distinction of the different regions which is harder for a non-logarithmic scale.\\
+For further improvement and in order to filter important points in the grid, population data for Germany has been acquired from Eurostat\footnote{\url{https://ec.europa.eu/eurostat/data/database}}. The data is being visualized in \Cref{fig:demo2018_logscale} with a logarithmic scale to improve visual distinction between the different regions which would be difficult for a non-logarithmic scale.\\
 
 \begin{figure}[h!]%
 \centering
 \includegraphics[width=\textwidth]{plots/demo/demo2018_logscale}%
-\caption{Population of Germany for each region respectively using a log scale for better distinction.}%
+\caption{Population of Germany for each region respectively using a logarithmic scale for better distinction.}%
 \label{fig:demo2018_logscale}%
 \end{figure}
 
@@ -196,7 +196,7 @@ AIC\newline ~BIC\newline \rule{0pt}{1em}HQIC & 5 & 464173.18\newline 464230.42\n
 
 \subsection*{ARMAX}
 
-\Cref{fig:armax_fc}, \Cref{fig:armax_fc_dayofweek} and \Cref{fig:armax_fc_load_lag} show \gls{armax} forecasts. They are all one step ahead forecasts, which equals one hour forecasts due to the one hour resolution of the data.\\
+\Cref{fig:armax_fc}, \Cref{fig:armax_fc_dayofweek} and \Cref{fig:armax_fc_load_lag} show plots of one step ahead forecasts of ARMA(2,2) and ARMAX(2,2) models. This equals one hour forecasts due to the one hour resolution of the data. The training data has a time range from 2015/01/08 00:00 to 2017/12/31 00:00 and the forecast horizon covers the range from 2017/12/31 01:00 to 2018/12/31 00:00.\\
 
 \begin{figure}[h!]%
 \centering
@@ -245,13 +245,19 @@ Rhein-Sieg-Kreis & 599056\\
 \centering
 \footnotesize
 \begin{tabularx}{\linewidth}{lLrrrr}
-\tablehead model & \tablehead data & \tablehead\gls{rmse} & \tablehead\gls{mae} & \tablehead\gls{mpe} & \tablehead\gls{mape}\\\hline
-ARMA(1,0) & no exogenous data & 67.114 & 66.160 & 0.114 & 0.114\\
-ARMAX(1,0) & weekend dummy & 66.913 & 65.963 & 0.114 & 0.114\\
-ARMAX(1,0) & t2m mean temperature & 1958.589 & 1930.693 & 3.324 & 3.324\\
-ARMAX(1,0) & weekend dummy + t2m mean & 4.417 & 4.157 & -0.008 & 0.008\\
-ARMAX(1,0) & t2m data of 10 regions with highest population & 2381.090 & 2347.192 & 4.041 & 4.041\\
-ARMAX(1,0) & t2m data of 10 regions with highest population + weekend dummy & 3475.891 & 3426.441 & 5.899 & 5.899\\
+\tablehead model & \tablehead exogenous data & \tablehead\gls{rmse} & \tablehead\gls{mae} & \tablehead\gls{mpe} & \tablehead\gls{mape}\\\hline
+ARMA(2,2) & no exogenous data & 1727.742 & 1216.559 & 0.22 & 2.114\\
+ARMA(2,2) & t2m mean, load lag & 1024.265 & 628.298 & -0.02 & 1.103\\
+ARMA(2,2) & t2m mean, load lag, data counter & 1024.31 & 628.331 & -0.006 & 1.103\\
+ARMA(2,2) & t2m mean, weekend, load lag & 1024.251 & 628.292 & -0.02 & 1.103\\
+ARMA(2,2) & t2m mean, weekend, load lag, data counter & 1024.295 & 628.324 & -0.006 & 1.103\\
+ARMA(2,2) & load lag & 1030.753 & 633.436 & 0.101 & 1.112\\
+ARMA(2,2) & weekend, load lag & 1030.756 & 633.433 & 0.101 & 1.112\\
+ARMA(2,2) & load lag, data counter & 1029.191 & 633.093 & -0.165 & 1.114\\
+ARMA(2,2) & weekend, load lag, data counter & 1029.199 & 633.103 & -0.165 & 1.114\\
+ARMA(2,2) & t2m top10, load lag & 1043.292 & 649.564 & -0.018 & 1.144\\
+ARMA(2,2) & t2m top10, load lag, data counter & 1043.711 & 650.046 & -0.012 & 1.145\\
+%ARMA(2,2) & & & & & \\
 \end{tabularx}
 \caption{ARMAX results.}
 \label{tab:armax_results}
