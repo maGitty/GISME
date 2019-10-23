@@ -14,7 +14,12 @@ from collections import OrderedDict
 
 
 class LoadReader:
-    """Used to read load data and to return data respectively"""
+    """Used to read load data and to return data respectively
+    
+    Attributes
+    ----------
+    TODO
+    """
     def __init__(self):
         """Initializes instance
         

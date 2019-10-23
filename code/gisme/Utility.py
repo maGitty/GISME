@@ -16,7 +16,12 @@ from shapely.geometry import Polygon, Point
 
 
 class Utility:
-    """Provides utility functions"""
+    """Provides utility functions
+    
+    Attributes
+    ----------
+    TODO
+    """
     def __init__(self):
         """Initialize Utility instance"""
         self.lats = np.arange(lat_max, lat_min-.1, -.25)
@@ -24,16 +29,16 @@ class Utility:
 
     @staticmethod
     def get_region(region_id):
-        """Return the name of a region for a given region id
+        """Return region for a given region_id
         
         Parameters
         ----------
         region_id : string
-                    id of a region
+                    id of region
         
         Returns
         -------
-        the name of the region as a string
+        shapefile.ShapeRecord for region
         """
         # load shapes and mapping of ids to region names
         with shp.Reader(nuts3_01res_shape) as nuts3_sf:
@@ -44,24 +49,40 @@ class Utility:
                 # convert region shape to polygon for plotting
                 return region
     
-    def demo_top_n_regions(self, n):
+    def get_region_name(self,region_id):
+        """Return region name for a given region_id
+        
+        Parameters
+        ----------
+        region_id : string
+                    id of region
+        
+        Returns
+        -------
+        name of the region a string
+        """
+        return self.get_region(region_id).record['NUTS_NAME'].strip('\000')
+    
+    def demo_top_n_regions(self, n, year):
         """Searches for n most populated regions
         
         Parameters
         ----------
-        n : integer
-            specifies number of most populated regions to return
+        n    : integer
+               specifies number of most populated regions to return
+        year : integer
+               the year for which to check population
         
         Returns
         -------
-        dictionary of most populated regions with respective population
+        dictionary of most populated regions' names with respective population
         """
         # read demo file
         demo_df = pd.read_csv(demography_file, encoding='latin1', index_col='GEO')
         # clean population data
         demo_df['Value'] = demo_df['Value'].map(lambda val: pd.NaT if val == ':' else float(val.replace(',', '')))
         # filter by any year, as regions don't actually move, right?
-        demo_df = demo_df[demo_df['TIME'] == 2018]
+        demo_df = demo_df[demo_df['TIME'] == year]
         # filter all regions with an id of length 5 all others are countries etc
         demo_df = demo_df[[len(reg) == 5 for reg in demo_df.index]]
         # sort by population
@@ -70,14 +91,26 @@ class Utility:
                 for region_id, region in demo_df.head(n).iterrows()}
 
     @staticmethod
-    def demo_top_n_regions_map(n):
-        """TODO"""
+    def demo_top_n_regions_map(n, year):
+        """Returns 2D array showing which grid points are within the top n regions regarding population
+        
+        Parameters
+        ----------
+        n : integer
+            specifies number of most populated regions to return
+        year : integer
+               the year for which to check population
+        
+        Returns
+        -------
+        2D numpy.ndarray
+        """
         # read demo file
         demo_df = pd.read_csv(demography_file, encoding='latin1', index_col='GEO')
         # clean population data
         demo_df['Value'] = demo_df['Value'].map(lambda val: pd.NaT if val == ':' else float(val.replace(',', '')))
         # filter by any year, as regions don't actually move, right?
-        demo_df = demo_df[demo_df['TIME'] == 2018]
+        demo_df = demo_df[demo_df['TIME'] == year]
         # filter all regions with an id of length 5 all others are countries etc
         demo_df = demo_df[[len(reg) == 5 for reg in demo_df.index]]
         # sort 
@@ -157,5 +190,5 @@ class Utility:
         return contained
 
 
-# ut = Utility()
-# print(ut.topNregions(10))
+#ut = Utility()
+#print(ut.demo_top_n_regions(10))

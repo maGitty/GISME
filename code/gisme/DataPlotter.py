@@ -37,6 +37,10 @@ register_matplotlib_converters()
 class DataPlotter:
     """
     handles plotting for load and weather data
+    
+    Attributes
+    ----------
+    TODO
     """
     def __init__(self, fmt='pdf', save=True, show=False, shape=None, isin=False):
         """Initializes WeatherPlot instance
@@ -193,7 +197,7 @@ class DataPlotter:
         None
         """
         assert (self.shape is None or self.shape[0]*self.shape[1] == len(days)),\
-                "shape of plot must fit with number of plots"
+            "shape of plot must fit with number of plots"
         
         var = days.name
         cm_jet = cm.get_cmap('jet')
@@ -576,7 +580,8 @@ class DataPlotter:
         file_name = os.path.join(dir_pth, f'load_{lags}lags_ndiff{ndiff}_hstep{hour_steps}')
         self.__save_show_fig(fig, dir_pth, file_name)
     
-    def plot_load_time_func(self, var, start, stop, func, load_col=de_load, freq=24, aspect=(12, 5), skip_bottom_labels=False):
+    def plot_load_time_func(self, var, start, stop, func, load_col=de_load,
+                            freq=24, aspect=(12, 5), skip_bottom_labels=False):
         """Plot/save function of load and date with variable
            after applying given function to its data
         
@@ -760,30 +765,30 @@ class DataPlotter:
         self.__save_show_fig(fig, dir_pth, file_name)
 
 
-var = 't2m'
-n = 1
+# var = 't2m'
+# n = 1
 
-# used numpy functions
-funcs = [np.nanmin, np.nanmax, np.nanvar, np.nanmean, np.nanmedian, np.nansum]
+# # used numpy functions
+# funcs = [np.nanmin, np.nanmax, np.nanvar, np.nanmean, np.nanmedian, np.nansum]
 
 
-#pl = DataPlotter(fmt='pdf', save=True, show=False, isin=True)  # , shape=(2, 2))
+# pl = DataPlotter(fmt='pdf', save=True, show=False, isin=True)  # , shape=(2, 2))
 
-#t_start = datetime(2015, 1, 8)
-#t_stop = datetime(2017, 12, 31)
-#end = datetime(2018, 12, 31)
+# t_start = datetime(2015, 1, 8)
+# t_stop = datetime(2017, 12, 31)
+# end = datetime(2018, 12, 31)
 
-#plot_start = datetime(2018, 1, 1)
-#plot_end = datetime(2018, 1, 8)
+# plot_start = datetime(2018, 1, 1)
+# plot_end = datetime(2018, 1, 8)
 
-#items = ['t2m_mean', 'weekend', 't2m_top10', 'load_lag', 'data_counter']
-#combinations = [list(itertools.compress(items, mask)) for mask in itertools.product(*[[0, 1]]*len(items))]
-#combinations.remove([])
-#combinations.insert(0, None)
+# items = ['t2m_mean', 'weekend', 't2m_top10', 'load_lag', 'data_counter']
+# combinations = [list(itertools.compress(items, mask)) for mask in itertools.product(*[[0, 1]]*len(items))]
+# combinations.remove([])
+# combinations.insert(0, None)
 
-#for exog in combinations:
-    #print(exog)
-    #pl.plot_armax_forecast(t_start, t_stop, end, 2, 2, exog=exog, plot_range=(plot_start, plot_end))
+# for exog in combinations:
+#     print(exog)
+#     pl.plot_armax_forecast(t_start, t_stop, end, 2, 2, exog=exog, plot_range=(plot_start, plot_end))
 
 # pl.plot_armax_forecast(t_start, t_stop, end, 1, 0, plot_range=(plot_start, plot_end))
 # pl.plot_armax_forecast(t_start, t_stop, end, 1, 0, exog=['weekend'], plot_range=(plot_start, plot_end))
@@ -817,4 +822,3 @@ funcs = [np.nanmin, np.nanmax, np.nanvar, np.nanmean, np.nanmedian, np.nansum]
 #     pl.plot_nmax_med(var,n)
 #     pl.plot_nmin_sum(var,n)
 #     pl.plot_nmax_sum(var,n)
-
