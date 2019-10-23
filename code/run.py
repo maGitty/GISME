@@ -4,19 +4,15 @@
 
 """
 
-__author__ = "Marcel Herm"
-__credits__ = ["Marcel Herm","Nicole Ludwig","Marian Turowski"]
-__license__ = "MIT"
-__version__ = "0.0.1"
-__maintainer__ = "Marcel Herm"
-__status__ = "Production"
-
+# module imports
 from gisme import (data_path, de_load, demography_file, log)
-from gisme.WeatherReader import WeatherReader
+from gisme.DataPlotter import DataPlotter
 from gisme.LoadReader import LoadReader
 from gisme.Predictions import ARMAXForecast,TSForecast
-from gisme.DataPlotter import DataPlotter
+from gisme.Utility import Utility
+from gisme.WeatherReader import WeatherReader
 
+# external imports
 from matplotlib import pyplot as plt
 import pickle
 import numpy as np
@@ -52,6 +48,8 @@ from statsmodels.tsa.arima_model import ARMA
     #except Exception as e:
         #print(str(e))
 
+ut = Utility()
+print(ut.demo_top_n_regions(10))
 
 def best_model():
     lr = LoadReader()
@@ -94,7 +92,7 @@ def plot_corr_t2mmean_load():
     start = datetime(2015,1,1)
     stop = datetime(2018,12,31)
     
-    t2mmean = wr.mean_slice('t2m',start,stop)
+    t2mmean = wr.meanvals4timeslice('t2m',start,stop)
     load_data = lr.vals4slice(de_load, start, stop, step=1)
     
     plt.scatter(t2mmean,load_data,s=1)
@@ -131,12 +129,12 @@ def top10demo_fc():
                 #allor = np.bitwise_or(allor,wr.check_isinRegion(i))
     start = datetime(2017,1,1)
     stop = datetime(2017,12,31)
-    armax = ARMAX_forecast(start, stop, p=1, q=0)
+    armax = ARMAXForecast(start, stop, p=1, q=0)
     armax.train()
     armax.summary()
     
     end = stop+timedelta(weeks=1)
-    forecast1W = armax.predict_range(end,[1,6,24])
+    forecast1W = armax.predict_one_step_ahead(end,[1,6,24])
     data = lr.vals4slice(de_load,stop,end,step=1)
     fc_range = pd.date_range(stop,end,freq='1H')
     
@@ -194,7 +192,7 @@ def data_csv_timet2mload():
     stop = datetime(2018,12,31)
     
     dr = pd.date_range(start,stop,freq='1H').to_series().to_xarray().values
-    tmean = wr.mean_slice('t2m',start,stop).values
+    tmean = wr.meanvals4timeslice('t2m',start,stop).values
     load = lr.vals4slice(de_load,start,stop,step=1).values
     
     pd.DataFrame({'t2m mean': tmean, 'load' : load},

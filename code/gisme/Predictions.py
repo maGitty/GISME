@@ -22,8 +22,29 @@ register_matplotlib_converters()
 
 
 class TSForecast:
-    """Used to store time series forecast"""
-    def __init__(self, hours_ahead, forecast, actual, train_start, train_stop, fc_start, fc_stop):
+    """Used to store time series forecast
+    
+    Attributes
+    ----------
+    date_range  : DatetimeIndex
+                  the date range of the forecast from fc_start to fc_stop
+    hours_ahead : integer
+                  specifies the number of hours the forecast predicts ahead (currently only 1h possible)
+    forecast    : numpy.ndarray
+                  the array of forecasted values
+    actual      : numpy.ndarray
+                  the array of actual values
+    train_start : datetime.datetime
+                  start time of training
+    train_stop  : datetime.datetime
+                  end time of training
+    fc_start    : datetime.datetime
+                  start time of forecast
+    fc_stop     : datetime.datetime
+                  end time of forecast
+    """
+    def __init__(self, hours_ahead, forecast, actual, train_start,
+                 train_stop, fc_start, fc_stop):
         """Initializes instance
         
         Parameters
@@ -82,7 +103,14 @@ class TSForecast:
                f"{np.round(self.mpe(), 3)} & {np.round(self.mape(), 3)}\\\\"
     
     def __plot__(self):
-        """TODO
+        """Plots the respective forecast
+        
+        Still needs to call matplotlib.pyplot.show() which is omitted
+        here in case another forecast should be plotted in the same figure
+           
+        Returns
+        -------
+        None
         """
         date_range = pd.date_range(self.fc_start, self.fc_stop, freq='1H')
         plt.plot(date_range, self.actual, label='actual')
@@ -90,15 +118,25 @@ class TSForecast:
         plt.legend()
     
     def sel(self, start, stop):
-        """TODO
+        """Return a pandas.DataFrame containing the actual and forecast data from start to stop
+        
+        Parameters
+        ----------
+        start : datetime.datetime
+                start time
+        stop  : datetime.datetime
+                stop time
+        
+        Returns
+        -------
+        pandas.DataFrame containing actual and forecast values
         """
         df = pd.DataFrame(data={'actual': self.actual, 'forecast': self.forecast},
                           index=self.date_range)
         return df[start:stop]
     
     def difference(self, other_fc):
-        """Return difference between values of
-           this forecast and other_fc
+        """Return difference between values of this forecast and other_fc
         
         Parameters
         ----------
@@ -158,13 +196,50 @@ class TSForecast:
         """
         sum_str = f"{self.hours_ahead} hours ahead forecast from {self.fc_start} "\
             f"to {self.fc_stop}\ntrained from {self.train_start} to {self.train_stop}:"\
-            f"\nmape : {np.round(self.mape(),2)} , rmse : {np.round(self.rmse(),2)}"
+            f"\nrmse : {np.round(self.rmse(), 3)} , mae : {np.round(self.mae(), 3)} ,"\
+            f" mpe : {np.round(self.mpe(), 3)} , mape : {np.round(self.mape(), 3)}"
         
         return sum_str
 
 
 class ARMAXForecast:
-    """ARMAX forecast"""
+    """This class provides training and forecasting methods for ARMAX models
+    
+    Attributes
+    ----------
+    load_reader      : LoadReader
+                       used to load the load data
+    weather_reader   : WeatherReader
+                       used to load the weather data
+    p                : integer
+                       the number of AR terms in the ARMA
+    q                : integer
+                       the number of MA terms in the ARMA
+    start            : datetime.datetime
+                       the start time of the training
+    stop             : datetime.datetime
+                       the end time of the training
+    forecasts        : list of TSForecast
+                       the forecasts performed with this ARMAXForecast instance
+    exog             : list of strings
+                       names of exogenous variables used as exogenous inputs
+    has_const        : boolean
+                       whether to use a constant or not
+    load_data        : numpy.array
+                       the array of load data used for training and forecasting
+    ex_data          : numpy.ndarray
+                       the N-dimensional array used as exogenous inputs for training and forecasting
+    const            : float
+                       the models constant, if no constant is included, this is just 0
+    exB              : numpy.array
+                       the coefficients for the exogenous inputs
+    arP              : numpy.array
+                       the coefficients for the autoregressive terms
+    maQ              : numpy.array
+                       the coefficients for the moving average terms
+    __armax_result__ : statsmodels.tsa.arima_model.ARMAResults
+                       the return value of the ARMA.fit method that contains the training results
+    """
     def __init__(self, start, stop, p=None, q=None, exog=None, const=True):
         """Initializes instance
         
@@ -193,7 +268,7 @@ class ARMAXForecast:
         self.q = q
         self.start = start
         self.stop = stop
-        self.__armax_result = None
+        self.__armax_result__ = None
         self.forecasts = []
         self.exog = exog
         self.has_const = const
@@ -208,33 +283,33 @@ class ARMAXForecast:
              - 'data_counter' : counting data points beginning from 0
              - 't2m_max'      : maximum of 2 metre temperature for each step
              - 't2m_mean'     : mean of 2 metre temperature for each step
-             - 't2m_top10'    : top 10 regions grid points compared by population
+             - 't2m_top10'    : top 10 regions grid points compared by population of 2018
              - 't2m_all'      : every grid point of 2 metre temperature as single exogenous variable
-             - 'u10_top10'    : top 10 regions grid points compared by population
+             - 'u10_top10'    : top 10 regions grid points compared by population of 2018
              - 'u10_all'      : every grid point of 10 metre U wind component as single exogenous variable
-             - 'v10_top10'    : top 10 regions grid points compared by population
+             - 'v10_top10'    : top 10 regions grid points compared by population of 2018
              - 'v10_all'      : every grid point of 10 metre V wind component as single exogenous variable
-             - 'lai_hv_top10' : top 10 regions grid points compared by population
+             - 'lai_hv_top10' : top 10 regions grid points compared by population of 2018
              - 'lai_hv_all'   : every grid point of high vegetation leaf area index as single exogenous variable
-             - 'lai_lv_top10' : top 10 regions grid points compared by population
+             - 'lai_lv_top10' : top 10 regions grid points compared by population of 2018
              - 'lai_lv_all'   : every grid point of low vegetation leaf area index as single exogenous variable
-             - 'lcc_top10'    : top 10 regions grid points compared by population
+             - 'lcc_top10'    : top 10 regions grid points compared by population of 2018
              - 'lcc_all'      : every grid point of low cloud cover as single exogenous variable
-             - 'stl1_top10'   : top 10 regions grid points compared by population
+             - 'stl1_top10'   : top 10 regions grid points compared by population of 2018
              - 'stl1_all'     : every grid point of soil temperature level 1 as single exogenous variable
-             - 'slhf_top10'   : top 10 regions grid points compared by population
+             - 'slhf_top10'   : top 10 regions grid points compared by population of 2018
              - 'slhf_all'     : every grid point of surface latent heat flux as single exogenous variable
-             - 'str_top10'    : top 10 regions grid points compared by population
+             - 'str_top10'    : top 10 regions grid points compared by population of 2018
              - 'str_all'      : every grid point of surface net thermal radiation as single exogenous variable
-             - 'sshf_top10'   : top 10 regions grid points compared by population
+             - 'sshf_top10'   : top 10 regions grid points compared by population of 2018
              - 'sshf_all'     : every grid point of surface sensible heat flux as single exogenous variable
-             - 'tcc_top10'    : top 10 regions grid points compared by population
+             - 'tcc_top10'    : top 10 regions grid points compared by population of 2018
              - 'tcc_all'      : every grid point of total cloud cover as single exogenous variable
-             - 'tcrw_top10'   : top 10 regions grid points compared by population
+             - 'tcrw_top10'   : top 10 regions grid points compared by population of 2018
              - 'tcrw_all'     : every grid point of total column rain water as single exogenous variable
-             - 'fdir_top10'   : top 10 regions grid points compared by population
+             - 'fdir_top10'   : top 10 regions grid points compared by population of 2018
              - 'fdir_all'     : every grid point of total sky direct solar radiation at surface as single exogenous variable
-             """
+        """
         last_date = datetime(2018, 12, 31)
         
         load_data = self.load_reader.vals4slice(de_load, self.start, last_date, step=1)
@@ -263,99 +338,99 @@ class ARMAXForecast:
         if 'data_counter' in self.exog:
             self.ex_data['data_counter'] = range(len(load_data))
         if 't2m_max' in self.exog:
-            self.ex_data['t2m_max'] = self.weather_reader.max_slice('t2m', self.start, last_date)
+            self.ex_data['t2m_max'] = self.weather_reader.maxvals4timeslice('t2m', self.start, last_date)
         if 't2m_mean' in self.exog:
-            self.ex_data['t2m_mean'] = self.weather_reader.mean_slice('t2m', self.start, last_date)
+            self.ex_data['t2m_mean'] = self.weather_reader.meanvals4timeslice('t2m', self.start, last_date)
         if 't2m_top10' in self.exog:
-            for i, top_i in enumerate(self.weather_reader.demo_top_n_regions_slice('t2m', self.start,
-                                                                                   last_date, 10).transpose()):
+            for i, top_i in enumerate(self.weather_reader.demography_top_n_regions4timeslice('t2m', self.start,
+                                                                                             last_date, 10, 2018).transpose()):
                 self.ex_data[f't2m_top{i}gridpoint'] = top_i
         if 't2m_all' in self.exog:
-            for i, t2m in enumerate(self.weather_reader.flattened_slice('t2m', self.start, last_date)):
+            for i, t2m in enumerate(self.weather_reader.stackedvals4timeslice('t2m', self.start, last_date)):
                 self.ex_data[f't2m{i}'] = t2m
         if 'u10_top10' in self.exog:
-            for i, top_i in enumerate(self.weather_reader.demo_top_n_regions_slice('u10', self.start,
-                                                                                   last_date, 10).transpose()):
+            for i, top_i in enumerate(self.weather_reader.demography_top_n_regions4timeslice('u10', self.start,
+                                                                                             last_date, 10, 2018).transpose()):
                 self.ex_data[f'u10_top{i}gridpoint'] = top_i
         if 'u10_all' in self.exog:
-            for i, u10 in enumerate(self.weather_reader.flattened_slice('u10', self.start, last_date)):
+            for i, u10 in enumerate(self.weather_reader.stackedvals4timeslice('u10', self.start, last_date)):
                 self.ex_data[f'u10{i}'] = u10
         if 'v10_top10' in self.exog:
-            for i, top_i in enumerate(self.weather_reader.demo_top_n_regions_slice('v10', self.start,
-                                                                                   last_date, 10).transpose()):
+            for i, top_i in enumerate(self.weather_reader.demography_top_n_regions4timeslice('v10', self.start,
+                                                                                             last_date, 10, 2018).transpose()):
                 self.ex_data[f'v10_top{i}gridpoint'] = top_i
         if 'v10_all' in self.exog:
-            for i, v10 in enumerate(self.weather_reader.flattened_slice('v10', self.start, last_date)):
+            for i, v10 in enumerate(self.weather_reader.stackedvals4timeslice('v10', self.start, last_date)):
                 self.ex_data[f'v10{i}'] = v10
         if 'lai_hv_top10' in self.exog:
-            for i, top_i in enumerate(self.weather_reader.demo_top_n_regions_slice('lai_hv' , self.start,
-                                                                                   last_date, 10).transpose()):
+            for i, top_i in enumerate(self.weather_reader.demography_top_n_regions4timeslice('lai_hv' , self.start,
+                                                                                             last_date, 10, 2018).transpose()):
                 self.ex_data[f'lai_hv_top{i}gridpoint'] = top_i
         if 'lai_hv_all' in self.exog:
-            for i, lai_hv in enumerate(self.weather_reader.flattened_slice('lai_hv', self.start, last_date)):
+            for i, lai_hv in enumerate(self.weather_reader.stackedvals4timeslice('lai_hv', self.start, last_date)):
                 self.ex_data[f'lai_hv{i}'] = lai_hv
         if 'lai_lv_top10' in self.exog:
-            for i, top_i in enumerate(self.weather_reader.demo_top_n_regions_slice('lai_lv', self.start,
-                                                                                   last_date, 10).transpose()):
+            for i, top_i in enumerate(self.weather_reader.demography_top_n_regions4timeslice('lai_lv', self.start,
+                                                                                             last_date, 10, 2018).transpose()):
                 self.ex_data[f'lai_lv_top{i}gridpoint'] = top_i
         if 'lai_lv_all' in self.exog:
-            for i, lai_lv in enumerate(self.weather_reader.flattened_slice('lai_lv', self.start, last_date)):
+            for i, lai_lv in enumerate(self.weather_reader.stackedvals4timeslice('lai_lv', self.start, last_date)):
                 self.ex_data[f'lai_lv{i}'] = lai_lv
         if 'lcc_top10' in self.exog:
-            for i, top_i in enumerate(self.weather_reader.demo_top_n_regions_slice('lcc', self.start,
-                                                                                   last_date, 10).transpose()):
+            for i, top_i in enumerate(self.weather_reader.demography_top_n_regions4timeslice('lcc', self.start,
+                                                                                             last_date, 10, 2018).transpose()):
                 self.ex_data[f'lcc_top{i}gridpoint'] = top_i
         if 'lcc_all' in self.exog:
-            for i, lcc in enumerate(self.weather_reader.flattened_slice('lcc', self.start, last_date)):
+            for i, lcc in enumerate(self.weather_reader.stackedvals4timeslice('lcc', self.start, last_date)):
                 self.ex_data[f'lcc{i}'] = lcc
         if 'stl1_top10' in self.exog:
-            for i, top_i in enumerate(self.weather_reader.demo_top_n_regions_slice('stl1', self.start,
-                                                                                   last_date, 10).transpose()):
+            for i, top_i in enumerate(self.weather_reader.demography_top_n_regions4timeslice('stl1', self.start,
+                                                                                             last_date, 10, 2018).transpose()):
                 self.ex_data[f'stl1_top{i}gridpoint'] = top_i
         if 'stl1_all' in self.exog:
-            for i, stl1 in enumerate(self.weather_reader.flattened_slice('stl1', self.start, last_date)):
+            for i, stl1 in enumerate(self.weather_reader.stackedvals4timeslice('stl1', self.start, last_date)):
                 self.ex_data[f'stl1{i}'] = stl1
         if 'slhf_top10' in self.exog:
-            for i, top_i in enumerate(self.weather_reader.demo_top_n_regions_slice('slhf', self.start,
-                                                                                   last_date, 10).transpose()):
+            for i, top_i in enumerate(self.weather_reader.demography_top_n_regions4timeslice('slhf', self.start,
+                                                                                             last_date, 10, 2018).transpose()):
                 self.ex_data[f'slhf_top{i}gridpoint'] = top_i
         if 'slhf_all' in self.exog:
-            for i, slhf in enumerate(self.weather_reader.flattened_slice('slhf', self.start, last_date)):
+            for i, slhf in enumerate(self.weather_reader.stackedvals4timeslice('slhf', self.start, last_date)):
                 self.ex_data[f'slhf{i}'] = slhf
         if 'str_top10' in self.exog:
-            for i, top_i in enumerate(self.weather_reader.demo_top_n_regions_slice('str', self.start,
-                                                                                   last_date, 10).transpose()):
+            for i, top_i in enumerate(self.weather_reader.demography_top_n_regions4timeslice('str', self.start,
+                                                                                             last_date, 10, 2018).transpose()):
                 self.ex_data[f'str_top{i}gridpoint'] = top_i
         if 'str_all' in self.exog:
-            for i, str_var in enumerate(self.weather_reader.flattened_slice('str', self.start, last_date)):
+            for i, str_var in enumerate(self.weather_reader.stackedvals4timeslice('str', self.start, last_date)):
                 self.ex_data[f'str{i}'] = str_var
         if 'sshf_top10' in self.exog:
-            for i, top_i in enumerate(self.weather_reader.demo_top_n_regions_slice('sshf', self.start,
-                                                                                   last_date, 10).transpose()):
+            for i, top_i in enumerate(self.weather_reader.demography_top_n_regions4timeslice('sshf', self.start,
+                                                                                             last_date, 10, 2018).transpose()):
                 self.ex_data[f'sshf_top{i}gridpoint'] = top_i
         if 'sshf_all' in self.exog:
-            for i, sshf in enumerate(self.weather_reader.flattened_slice('sshf', self.start, last_date)):
+            for i, sshf in enumerate(self.weather_reader.stackedvals4timeslice('sshf', self.start, last_date)):
                 self.ex_data[f'sshf{i}'] = sshf
         if 'tcc_top10' in self.exog:
-            for i, top_i in enumerate(self.weather_reader.demo_top_n_regions_slice('tcc', self.start,
-                                                                                   last_date, 10).transpose()):
+            for i, top_i in enumerate(self.weather_reader.demography_top_n_regions4timeslice('tcc', self.start,
+                                                                                             last_date, 10, 2018).transpose()):
                 self.ex_data[f'tcc_top{i}gridpoint'] = top_i
         if 'tcc_all' in self.exog:
-            for i, tcc in enumerate(self.weather_reader.flattened_slice('tcc', self.start, last_date)):
+            for i, tcc in enumerate(self.weather_reader.stackedvals4timeslice('tcc', self.start, last_date)):
                 self.ex_data[f'tcc{i}'] = tcc
         if 'tcrw_top10' in self.exog:
-            for i, top_i in enumerate(self.weather_reader.demo_top_n_regions_slice('tcrw', self.start,
-                                                                                   last_date, 10).transpose()):
+            for i, top_i in enumerate(self.weather_reader.demography_top_n_regions4timeslice('tcrw', self.start,
+                                                                                             last_date, 10, 2018).transpose()):
                 self.ex_data[f'tcrw_top{i}gridpoint'] = top_i
         if 'tcrw_all' in self.exog:
-            for i, tcrw in enumerate(self.weather_reader.flattened_slice('tcrw', self.start, last_date)):
+            for i, tcrw in enumerate(self.weather_reader.stackedvals4timeslice('tcrw', self.start, last_date)):
                 self.ex_data[f'tcrw{i}'] = tcrw
         if 'fdir_top10' in self.exog:
-            for i, top_i in enumerate(self.weather_reader.demo_top_n_regions_slice('fdir', self.start,
-                                                                                   last_date, 10).transpose()):
+            for i, top_i in enumerate(self.weather_reader.demography_top_n_regions4timeslice('fdir', self.start,
+                                                                                             last_date, 10, 2018).transpose()):
                 self.ex_data[f'fdir_top{i}gridpoint'] = top_i
         if 'fdir_all' in self.exog:
-            for i, fdir in enumerate(self.weather_reader.flattened_slice('fdir', self.start, last_date)):
+            for i, fdir in enumerate(self.weather_reader.stackedvals4timeslice('fdir', self.start, last_date)):
                 self.ex_data[f'fdir{i}'] = fdir
     
     def __load_exog(self, tstart, tstop):
@@ -380,7 +455,7 @@ class ARMAXForecast:
 
     @staticmethod
     def load(fname):
-        """Loads ARMAX_forecast instance from file name
+        """Loads ARMAXForecast instance from file name
         
         Parameters
         ----------
@@ -389,9 +464,9 @@ class ARMAXForecast:
         
         Returns
         -------
-        ARMAX_forecast instance if exists, raising Exception otherwise
+        ARMAXForecast instance if exists, raising Exception otherwise
         """
-        return pickle.load(open(fname,'rb'))
+        return pickle.load(open(fname, 'rb'))
     
     def save(self):
         """Stores instance to pickle
@@ -400,19 +475,19 @@ class ARMAXForecast:
         -------
         file name of stored instance as string
         """
-        dir_pth = os.path.join(data_path,'ARMAX')
+        dir_pth = os.path.join(data_path, 'ARMAX')
         if not os.path.exists(dir_pth):
             os.mkdir(dir_pth)
-        fname = os.path.join(data_path,'ARMAX',
+        fname = os.path.join(dir_pth,
                              f'start{self.start.strftime("%Y%m%d%H")}_stop'\
                              f'{self.stop.strftime("%Y%m%d%H")}_p{self.p}q{self.q}'\
                              f'{"" if self.exog is None else "_"+"_".join(self.exog)}.pkl')
         log.info(f'saving armax as {fname}')
-        pickle.dump(self,open(fname,'wb'))
+        pickle.dump(self, open(fname,'wb'))
         return fname
     
     def train(self):
-        """Fits ARMAX_forecast instance with specified endogenous and exogenous data
+        """Fits ARMAXForecast instance with specified endogenous and exogenous data
            Needs to be called before forecasting
         
         Returns
@@ -424,52 +499,60 @@ class ARMAXForecast:
         armax = ARMA(data,
                      exog=exog,
                      order=(self.p,self.q))
-        self.__armax_result = armax.fit(method='mle',
+        self.__armax_result__ = armax.fit(method='mle',
                                         trend='c' if self.has_const else 'nc',
                                         #solver='cg',
                                         #transparams=False,
                                         disp=0)
-        #print(self.__armax_result.params['x1'])
-        self.fit_params = self.__armax_result.params
-        self.const = self.fit_params[0] if self.has_const else 0
-        self.exB = self.fit_params[1 if self.has_const else 0:-self.p-self.q]
-        self.arP = self.fit_params[-self.p-self.q:-self.q] if self.q > 0 else self.fit_params[-self.p:]
-        self.maQ = self.fit_params[-self.q:] if self.q > 0 else []
-        #self.arP = self.fit_params[-1]
-        #self.exog_params = self.fit_params[1 if self.has_const else 0:-1]
-        #print(f'const:{self.const}\nar1:{self.load_param}\nex1:{self.exog_params}')
+        #print(self.__armax_result__.params['x1'])
+        fit_params = self.__armax_result__.params
+        self.const = fit_params[0] if self.has_const else 0
+        self.exB = fit_params[1 if self.has_const else 0:-self.p-self.q]
+        self.arP = fit_params[-self.p-self.q:-self.q] if self.q > 0 else fit_params[-self.p:]
+        self.maQ = fit_params[-self.q:] if self.q > 0 else []
     
     def predict_one_step_ahead(self,fc_end):
+        """Predicts one step ahead from instance stop time to given fc_end for every hour
+        
+        Parameters 
+        ---------- 
+        fc_end : datetime.datetime 
+                 time of last forecast 
+         
+        Returns 
+        -------
+        TSForecast instance containing actual and forecast values
+        """
         data = self.load_data[self.stop-timedelta(hours=self.p-1):fc_end].values[:,0]
         exog = self.ex_data[self.stop-timedelta(hours=self.p-1):fc_end].values
         if self.q > 0:
             resid = np.zeros(len(data)-self.p+self.q)
-            resid[:self.q] = self.__armax_result.resid[-self.q:]
+            resid[:self.q] = self.__armax_result__.resid[-self.q:]
         pred = np.empty(len(data)-self.p)
         def m_t(index):
-            return self.const if self.exog is None else self.const + np.dot(self.exB,exog[index].transpose())
+            return self.const if self.exog is None else self.const + np.dot(self.exB, exog[index].transpose())
         
         for t in range(len(data)-self.p):
-            ar_term = m_t(t+self.p) + np.dot(self.arP[::-1],data[t:t+self.p]-m_t(slice(t,t+self.p)))
-            ma_term = 0 if self.q == 0 else np.dot(self.maQ[::-1],resid[t:t+self.q])
+            ar_term = m_t(t+self.p) + np.dot(self.arP[::-1],data[t:t+self.p]-m_t(slice(t, t+self.p)))
+            ma_term = 0 if self.q == 0 else np.dot(self.maQ[::-1], resid[t:t+self.q])
             y = ar_term + ma_term
             if self.q > 0:
                 resid[t+self.q] = data[t+self.p] - y
             pred[t] = y
         
-        fc = TSForecast(1,pred,
-                        self.load_data[self.stop+timedelta(hours=1):fc_end].values[:,0],
-                        self.start,self.stop,self.stop+timedelta(hours=1),fc_end) 
+        fc = TSForecast(1, pred, self.load_data[self.stop+timedelta(hours=1):fc_end].values[:,0],
+                        self.start, self.stop, self.stop+timedelta(hours=1), fc_end) 
         self.forecasts.append(fc)
         return fc
     
     def summary(self):
         """Prints summary
+        
         Returns
         -------
         None
         """
-        log.info(f'\n{self.__armax_result.summary()}')
+        log.info(f'\n{self.__armax_result__.summary()}')
 
 
 #start = datetime(2015,1,8)
@@ -478,7 +561,7 @@ class ARMAXForecast:
 #exog = ['load_lag','t2m_mean','weekend','t2m_top10']
 ##fc_end = stop + timedelta(days=14)
 
-#armax = ARMAX_forecast(start,stop,2,1,const=True,exog=exog)
+#armax = ARMAXForecast(start,stop,2,1,const=True,exog=exog)
 #armax.train()
 #armax.summary()
 

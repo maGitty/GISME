@@ -15,7 +15,12 @@ import xarray as xr
 
 
 class WeatherReader:
-    """Used to read weather nc files and to return xarray.DataArray containing desired data"""
+    """Used to read weather nc files and to return xarray.DataArray containing desired data
+    
+    Attributes
+    ----------
+    TODO
+    """
     def __init__(self, isin=False):
         """Initializes instance, set path to open files, store some information for faster response
 
@@ -35,14 +40,15 @@ class WeatherReader:
         self.filename = os.path.join(era5_path, '*.nc')
         with xr.open_mfdataset(self.filename) as nc_file:
             # dropna drops times with no values, carefully use, might throw away single points somewhere
-            self.wdata = nc_file  # .dropna('time')
+            self.wdata = nc_file.interpolate_na('time')  # .dropna('time')
         
         self.var_names = [name for name in self.wdata.data_vars]
         self.date_bounds = self.wdata['time'].min().values, self.wdata['time'].max().values
     
-    def __nminmax_reduce_days(self, name, func, minmax, n):
-        """Private method, return list of n days with min/max values for variable after
-           applying function to reduce along longitude and latitude axes
+    def _nminmax_reduce_days(self, name, func, minmax, n):
+        """Private method, return list of n days with min/max values for variable
+        
+        Function is applied to reduce the data along longitude and latitude axes
         
         Parameters
         ----------
@@ -57,7 +63,7 @@ class WeatherReader:
               
         Returns
         -------
-        list of n days with min/max values for specified variable after applying func
+        xarray.DataArray of n days with min/max values for specified variable after applying func
         """
         assert (name in self.var_names and minmax in ['min', 'max']),\
             f'wrong variable name ({name}) or minmax not in ["min","max"]'
@@ -68,21 +74,59 @@ class WeatherReader:
         
         return n_minmax
     
-    def __nmin_reduce_days(self, name, func, n):
-        """Private method, return list of n days with min values for variable after
-           applying function to reduce along longitude and latitude axes
+    def _nmin_reduce_days(self, name, func, n):
+        """Private method, return list of n days with min values for variable
+        
+        Function is applied to reduce the data along longitude and latitude axes
+           
+        Parameters
+        ----------
+        name  : string
+                name of the variable
+        func  : numpy function
+                a numpy function
+        n     : integer
+                number of days to return
+        
+        Returns
+        -------
+        xarray.DataArray with n values reduced along longitude and latitude
         """
-        return self.__nminmax_reduce_days(name, func, 'min', n)
+        return self._nminmax_reduce_days(name, func, 'min', n)
     
-    def __nmax_reduce_days(self, name, func, n):
-        """Private method, return list of n days with max values for variable after
-           applying function to reduce along longitude and latitude axes
+    def _nmax_reduce_days(self, name, func, n):
+        """Private method, return list of n days with max values for variable
+        
+        Function is applied to reduce the data along longitude and latitude axes
+           
+        Parameters
+        ----------
+        name  : string
+                name of the variable
+        func  : numpy function
+                a numpy function
+        n     : integer
+                number of days to return
+        
+        Returns
+        -------
+        xarray.DataArray with n values reduced along longitude and latitude
         """
-        return self.__nminmax_reduce_days(name, func, 'max', n)
+        return self._nminmax_reduce_days(name, func, 'max', n)
     
     def reduce_lonlat(self, name, func):
-        """Private method, return data for specified variable after applying
-           function to reduce along longitude and latitude axes
+        """Return data for specified variable after applying function to reduce along longitude and latitude axes
+           
+        Parameters
+        ----------
+        name  : string
+                name of the variable
+        func  : numpy function
+                a numpy function
+        
+        Returns
+        -------
+        xarray.DataArray with values reduced along longitude and latitude
         """
         assert name in self.var_names, f'column {name} not found'
         
@@ -98,8 +142,25 @@ class WeatherReader:
             return self.wdata[name].reduce(func, dim=[lon_col, lat_col])
     
     def reduce_lonlat_slice(self, name, func, start, stop):
-        """Return data for specified variable after filtering by time slice
-           and applying function to reduce along longitude and latitude axes
+        """Return data for specified variable
+        
+        Date is filtered by time slice and function is applied
+        to reduce it along longitude and latitude axes
+           
+        Parameters
+        ----------
+        name  : string
+                name of the variable
+        func  : numpy function
+                a numpy function
+        start : datetime.datetime
+                start time for values to be returned
+        stop  : datetime.datetime
+                stop time for values to be returned
+        
+        Returns
+        -------
+        xarray.DataArray with values reduced along longitude and latitude for time slice
         """
         assert name in self.var_names, f'column {name} not found'
         
@@ -115,7 +176,7 @@ class WeatherReader:
         return data.reduce(func, dim=[lon_col, lat_col])
     
     def get_size(self):
-        """Returns shape of whole data"""
+        """Returns shape of whole data as tuple"""
         return self.wdata.sizes
     
     def get_coords(self):
@@ -123,19 +184,19 @@ class WeatherReader:
         return self.wdata.coords
     
     def get_vars(self):
-        """Returns list of variable names held by data"""
+        """Returns list of variable names held by data as list"""
         return self.var_names
     
     def get_date_bounds(self):
         """Returns tuple of upper/lower date boundaries"""
         return self.date_bounds
     
-    def get_lon(self):
-        """Returns list of longitude values"""
+    def longitudes(self):
+        """Returns numpy array of longitude values"""
         return self.wdata[lon_col].values
     
-    def get_lat(self):
-        """Returns list of latitude values"""
+    def latitudes(self):
+        """Returns numpy array of latitude values"""
         return self.wdata[lat_col].values
     
     def get_long_name(self, var):
@@ -302,9 +363,8 @@ class WeatherReader:
             raise Exception(f'coordinates not within bbox? lat:{latitude}')
         return data, long_name
 
-    def max_slice(self, name, start, stop):
-        """Return values for specified variable with one value per step
-           from start to stop reduced by max
+    def maxvals4timeslice(self, name, start, stop):
+        """Return values for specified variable with one value per step start to stop reduced by max
         
         Parameters
         ----------
@@ -321,9 +381,8 @@ class WeatherReader:
         """
         return self.reduce_lonlat_slice(name, np.nanmax, start, stop)
     
-    def mean_slice(self, name, start, stop):
-        """Return values for specified variable with one value per step
-           from start to stop reduced by mean
+    def meanvals4timeslice(self, name, start, stop):
+        """Return values for specified variable with one value per step from start to stop reduced by mean
         
         Parameters
         ----------
@@ -340,11 +399,12 @@ class WeatherReader:
         """
         return self.reduce_lonlat_slice(name, np.nanmean, start, stop)
     
-    def flattened_slice(self, name, start, stop):
+    def stackedvals4timeslice(self, name, start, stop):
         """Return values for specified variable from start to stop
-           flattened by concatenating time steps of all grid points,
-           so for a grid of size (x,y) with n steps, a numpy.ndarray
-           with shape (x*y, n) will be returned
+        
+        The values are flattened by concatenating time steps of all grid points,
+        so for a grid of size (x,y) with n steps, a numpy.ndarray
+        with shape (x*y, n) will be returned
         
         Parameters
         ----------
@@ -361,8 +421,9 @@ class WeatherReader:
         """
         return self.wdata[name].sel(time=slice(start, stop)).stack(loc=(lon_col, lat_col)).transpose()
     
-    def isin_sliceDE(self, name, start, stop):
-        """TODO"""
+    def isin4timesliceDE(self, name, start, stop):
+        """TODO
+        """
         try:
             contained = np.load(os.path.join(isin_path, 'isinDE.npy'))
         except:
@@ -371,8 +432,9 @@ class WeatherReader:
         return self.wdata[name].sel(time=slice(start, stop)).where(contained, other=np.nan, drop=False)\
                    .stack(loc=(lon_col, lat_col)).dropna('loc').transpose().values
     
-    def isin_slice_region(self, name, start, stop, region_id):
-        """TODO"""
+    def isin4timeslice_region(self, name, start, stop, region_id):
+        """TODO
+        """
         try:
             contained = np.load(os.path.join(isin_path, 'isinDE.npy'))
         except:
@@ -381,18 +443,19 @@ class WeatherReader:
         return self.wdata[name].sel(time=slice(start, stop)).where(contained, other=np.nan, drop=False)\
                    .stack(loc=(lon_col, lat_col)).dropna('loc').transpose().values
     
-    def isin_slice_map(self, name, start, stop, matrix):
-        """TODO"""
+    def isin4timeslice_map(self, name, start, stop, matrix):
+        """TODO
+        """
         return self.wdata[name].sel(time=slice(start, stop)).where(matrix, other=np.nan, drop=False)\
                    .stack(loc=(lon_col, lat_col)).dropna('loc').values
     
-    def demo_top_n_regions_slice(self, name, start, stop, n):
-        """TODO"""
-        return self.isin_slice_map(name, start, stop, self.util.demo_top_n_regions_map(n))
+    def demography_top_n_regions4timeslice(self, name, start, stop, n, year):
+        """TODO
+        """
+        return self.isin4timeslice_map(name, start, stop, self.util.demo_top_n_regions_map(n, year))
     
     def var_over_time(self, name):
-        """Returns variance over time reduced along longitude
-           and latitude dimensions and drops NA values
+        """Returns variance over time reduced along longitude and latitude dimensions and drops NA values
         
         Parameters
         ----------
@@ -408,8 +471,7 @@ class WeatherReader:
         return self.reduce_lonlat(name, np.nanvar)
     
     def nmin_val_days(self, name, n=4):
-        """Returns n min value days reduced with np.min along
-           longitude and latitude dimensions and drops NA values
+        """Returns n min value days reduced with np.min along longitude and latitude dimensions and drops NA values
         
         Parameters
         ----------
@@ -418,11 +480,10 @@ class WeatherReader:
         n    : integer
                specifies number of days to return
         """
-        return self.__nmin_reduce_days(name, np.nanmin, n)
+        return self._nmin_reduce_days(name, np.nanmin, n)
 
     def nmax_val_days(self, name, n=4):
-        """Returns n max value days reduced with np.min along
-           longitude and latitude dimensions and drops NA values
+        """Returns n max value days reduced with np.min along longitude and latitude dimensions and drops NA values
         
         Parameters
         ----------
@@ -431,11 +492,10 @@ class WeatherReader:
         n    : integer
                specifies number of days to return
         """
-        return self.__nmax_reduce_days(name, np.nanmin, n)
+        return self._nmax_reduce_days(name, np.nanmin, n)
     
     def nminvar_val_days(self, name, n=4):
-        """Returns n min value days reduced with np.var along
-           longitude and latitude dimensions and drops NA values
+        """Returns n min value days reduced with np.var along longitude and latitude dimensions and drops NA values
         
         Parameters
         ----------
@@ -444,11 +504,10 @@ class WeatherReader:
         n    : integer
                specifies number of days to return
         """
-        return self.__nmin_reduce_days(name, np.nanvar, n)
+        return self._nmin_reduce_days(name, np.nanvar, n)
     
     def nmaxvar_val_days(self, name, n=4):
-        """Returns n max value days reduced with np.var along
-           longitude and latitude dimensions and drops NA values
+        """Returns n max value days reduced with np.var along longitude and latitude dimensions and drops NA values
         
         Parameters
         ----------
@@ -457,11 +516,10 @@ class WeatherReader:
         n    : integer
                specifies number of days to return
         """
-        return self.__nmax_reduce_days(name, np.nanvar, n)
+        return self._nmax_reduce_days(name, np.nanvar, n)
     
     def nminmean_val_days(self, name, n=4):
-        """Returns n min value days reduced with np.mean along
-           longitude and latitude dimensions and drops NA values
+        """Returns n min value days reduced with np.mean along longitude and latitude dimensions and drops NA values
         
         Parameters
         ----------
@@ -470,11 +528,10 @@ class WeatherReader:
         n    : integer
                specifies number of days to return
         """
-        return self.__nmin_reduce_days(name, np.nanmean, n)
+        return self._nmin_reduce_days(name, np.nanmean, n)
     
     def nmaxmean_val_days(self, name, n=4):
-        """Returns n max value days reduced with np.mean along
-           longitude and latitude dimensions and drops NA values
+        """Returns n max value days reduced with np.mean along longitude and latitude dimensions and drops NA values
         
         Parameters
         ----------
@@ -483,11 +540,10 @@ class WeatherReader:
         n    : integer
                specifies number of days to return
         """
-        return self.__nmax_reduce_days(name, np.nanmean, n)
+        return self._nmax_reduce_days(name, np.nanmean, n)
     
     def nminmed_val_days(self, name, n=4):
-        """Returns n min value days reduced with np.median along
-           longitude and latitude dimensions and drops NA values
+        """Returns n min value days reduced with np.median along longitude and latitude dimensions and drops NA values
         
         Parameters
         ----------
@@ -496,11 +552,10 @@ class WeatherReader:
         n    : integer
                specifies number of days to return
         """
-        return self.__nmin_reduce_days(name, np.nanmedian, n)
+        return self._nmin_reduce_days(name, np.nanmedian, n)
     
     def nmaxmed_val_days(self, name, n=4):
-        """Returns n max value days reduced with np.median along
-           longitude and latitude dimensions and drops NA values
+        """Returns n max value days reduced with np.median along longitude and latitude dimensions and drops NA values
         
         Parameters
         ----------
@@ -509,11 +564,10 @@ class WeatherReader:
         n    : integer
                specifies number of days to return
         """
-        return self.__nmax_reduce_days(name, np.nanmedian, n)
+        return self._nmax_reduce_days(name, np.nanmedian, n)
     
     def nminsum_val_days(self, name, n=4):
-        """Returns n min value days reduced with np.sum along
-           longitude and latitude dimensions and drops NA values
+        """Returns n min value days reduced with np.sum along longitude and latitude dimensions and drops NA values
         
         Parameters
         ----------
@@ -522,11 +576,10 @@ class WeatherReader:
         n    : integer
                specifies number of days to return
         """
-        return self.__nmin_reduce_days(name, np.nanmean, n)
+        return self._nmin_reduce_days(name, np.nanmean, n)
     
     def nmaxsum_val_days(self, name, n=4):
-        """Returns n max value days reduced with np.sum along
-           longitude and latitude dimensions and drops NA values
+        """Returns n max value days reduced with np.sum along longitude and latitude dimensions and drops NA values
         
         Parameters
         ----------
@@ -535,7 +588,7 @@ class WeatherReader:
         n    : integer
                specifies number of days to return
         """
-        return self.__nmax_reduce_days(name, np.nanmean, n)
+        return self._nmax_reduce_days(name, np.nanmean, n)
     
 
 #wr = WeatherReader()
