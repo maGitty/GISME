@@ -32,6 +32,14 @@
 \usepackage{makecell}
 \usepackage{tabularx}
 \usepackage{float}
+\usepackage{pifont}
+\usepackage[table]{xcolor}
+
+\definecolor{darkgreen}{HTML}{00B000}
+\definecolor{darkred}{HTML}{D00000}
+
+\newcommand{\cmark}{\color{darkgreen}\ding{51}}%
+\newcommand{\xmark}{\color{darkred}\ding{55}}%
 
 \newcolumntype{L}{>{\raggedright\arraybackslash}X}
 
@@ -65,7 +73,7 @@ keepaspectratio]{logos/bulb.png}%
 \title{Evaluating the benefit of grid-based weather information in energy forecasting}
 
 %% Type of the thesis 
-\thesistype{Bachelors's Thesis}
+\thesistype{Bachelor's Thesis}
 %\thesistype{Seminar Paper}
 
 %% Change the faculty here
@@ -152,9 +160,9 @@ keepaspectratio]{logos/bulb.png}%
 %% - sections/abstract
 %% - sections/zusammenfassung
 
-\input{sections/acknowledgements}
-
 \input{sections/abstract}
+
+\input{sections/acknowledgements}
 
 \hypersetup{pageanchor=true}
 %% ------------------------
@@ -163,6 +171,13 @@ keepaspectratio]{logos/bulb.png}%
 \tableofcontents
 \listoffigures
 \listoftables
+
+
+%% ----------------
+%% |   Glossary   |
+%% ----------------
+
+\printglossary[title=Terms And Abbreviations,toctitle=Terms and abbreviations,type=\acronymtype]
 
 %% -----------------
 %% |   Main part   |
@@ -176,13 +191,6 @@ keepaspectratio]{logos/bulb.png}%
 \input{sections/evaluation.tex}
 \input{sections/discussion.tex}
 \input{sections/conclusion.tex}
-
-
-%% ----------------
-%% |   Glossary   |
-%% ----------------
-
-\printglossary[title=Terms and abbreviations,toctitle=Terms and abbreviations,type=\acronymtype]
 
 
 %% --------------------

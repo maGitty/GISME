@@ -18,7 +18,7 @@ This chapter introduces the methods that are applied in this thesis. The first g
 %
 %The used load data has been downloaded from Open Power System Data\footnote{\url{https://data.open-power-system-data.org/time_series/}}. As the format of the downloaded data is .csv, it has also been converted to .nc to obtain performant and uniform access to all data.\\
 
-\section{Forecasting methods}
+\section{Forecasting Methods}
 \label{sec:forecastmet}
 
 For time series forecasting, often used methods are \eg \gls{arma} models as mentioned in \tcite{Hyndman2018}. This sections will introduce the methods that are applied in this thesis to forecast the electricity load.\\% Forecasting: Principles and Practice\footnote{\url{https://otexts.com/fpp2}}.%, but  also \gls{nn}, where it is common to reduce the number of input variables in order to speed up computation, which is desirable for the huge amount of grid-based data that grows quadratically with size. There are also some papers that use regression models other than \gls{arma} such as \gls{lr}, \gls{mlr} or \gls{svm}. \tcite{Aguiar2016} applies \gls{nn} to do intra-day solar radiation forecasting with a forecasting horizon of 1-6 hours on Gran Canaria and, as in this thesis, grid-based data from \gls{ecmwf} is used.\\
@@ -51,7 +51,7 @@ The only difference between \Cref{eq:armax} and \Cref{eq:arma} is the additional
 %
 %\subsubsection{additional weather variables as exogenous inputs}
 
-\section{Feature selection techniques}
+\section{Feature Selection Techniques}
 \label{sec:featsel}
 
 Because the used weather data is grid-based, there are two more dimensions than usual, where only one value per time step exists for a variable. This is why feature selection here is more important in order to obtain a reasonable computation time. In the following, the used methods for feature selection are presented.\\
@@ -66,7 +66,7 @@ x_t = \frac{1}{l \times m} \sum_{i=1}^{l}\sum_{j=1}^{m}x_{ij}~,
 
 where $x_t$ is the calculated mean for time $t$, $l$ and $m$ are the size of the data along the axis of the longitude and latitude and $x_{ij}$ is the value of a weather variable at the grid point with longitude $i$ and latitude $j$.
 
-\subsection*{Using population data}
+\subsection*{Using Population Data}
 
 Another method involves population data from Eurostat\footnote{\url{https://ec.europa.eu/eurostat/data/database}}. It contains the population of NUTS 3 level regions. The regions are sorted by population and those with the highest population are used to filter the respective grid points that are then used as exogenous variables.\\
 

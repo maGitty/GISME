@@ -371,3 +371,6 @@ TSWLatexianTemp*
 
 # generated if using elsarticle.cls
 *.spl
+
+code/gisme/Makefile
+*/session.tks

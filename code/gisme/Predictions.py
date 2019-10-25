@@ -4,7 +4,7 @@
 In this module, the different methods for forecasting are implemented
 """
 
-from gisme import (de_load, data_path, log)
+from gisme import (de_load, data_path, log, data_max_date,numpy_funcs)
 from gisme.LoadReader import LoadReader
 from gisme.WeatherReader import WeatherReader
 
@@ -88,8 +88,8 @@ class TSForecast:
         """
         sum_str = f"{self.hours_ahead} hours ahead forecast from {self.fc_start} "\
             f"to {self.fc_stop} trained from {self.train_start} to {self.train_stop}:"\
-            f"\nrmse : {np.round(self.rmse(), 3)} , mae : {np.round(self.mae(), 3)} ,"\
-            f" mpe : {np.round(self.mpe(), 3)} , mape : {np.round(self.mape(), 3)}"
+            f"\nrmse : {np.round(self.rmse(), 3):.3f} , mae : {np.round(self.mae(), 3):.3f} ,"\
+            f" mpe : {np.round(self.mpe(), 3):.3f} , mape : {np.round(self.mape(), 3):.3f}"
         return sum_str
     
     def __teXstr__(self):
@@ -99,8 +99,8 @@ class TSForecast:
         -------
         The error measures as string in tex format to insert into a table only missing the type of the model
         """
-        return f"{np.round(self.rmse(), 3)} & {np.round(self.mae(), 3)} & "\
-               f"{np.round(self.mpe(), 3)} & {np.round(self.mape(), 3)}\\\\"
+        return f"{np.round(self.rmse(), 3):.3f} & {np.round(self.mae(), 3):.3f} & "\
+               f"{np.round(self.mpe(), 3):.3f} & {np.round(self.mape(), 3):.3f}\\\\"
     
     def __plot__(self):
         """Plots the respective forecast
@@ -196,8 +196,8 @@ class TSForecast:
         """
         sum_str = f"{self.hours_ahead} hours ahead forecast from {self.fc_start} "\
             f"to {self.fc_stop}\ntrained from {self.train_start} to {self.train_stop}:"\
-            f"\nrmse : {np.round(self.rmse(), 3)} , mae : {np.round(self.mae(), 3)} ,"\
-            f" mpe : {np.round(self.mpe(), 3)} , mape : {np.round(self.mape(), 3)}"
+            f"\nrmse : {np.round(self.rmse(), 3):.3f} , mae : {np.round(self.mae(), 3):.3f} ,"\
+            f" mpe : {np.round(self.mpe(), 3):.3f} , mape : {np.round(self.mape(), 3):.3f}"
         
         return sum_str
 
@@ -243,6 +243,24 @@ class ARMAXForecast:
     def __init__(self, start, stop, p=None, q=None, exog=None, const=True):
         """Initializes instance
         
+        possible choices for exogenous variables in @exog:
+          * 'load_lag'     : load data shifted by one week (with this parameter only data from 2015/01/08 can be used)
+          * 'dayofweek'    : week day (one dummy per day)
+          * 'weekend'      : dummy for whether it is weekend or not (1 or 0)
+          * 'data_counter' : counting data points beginning from 0
+          * combinations of weather variables and different types, joined with underscore (eg 't2m_mean', 'tcc_all'): 
+            weather variables:
+            ['u10', 'v10', 't2m', 'lai_hv', 'lai_lv', 'lcc',
+            'stl1', 'slhf', 'str', 'sshf', 'tcc', 'tcrw', 'fdir']
+            types:
+            ['min', 'max', 'mean', 'top10', 'all']
+            about types:
+              * 'min' reduces the data over longitude and latitude using the min value for each time step,
+              * 'max' reduces the data over longitude and latitude using the max value for each time step,
+              * 'mean' reduces the data over longitude and latitude using the average for each time step,
+              * 'top10' takes the grid points of the 10 regions with the highest population
+              * 'all' just adds each single grid point as an exogenous parameter
+        
         Parameters
         ----------
         start : datetime.datetime
@@ -270,189 +288,10 @@ class ARMAXForecast:
         self.stop = stop
         self.__armax_result__ = None
         self.forecasts = []
-        self.exog = exog
+        self.exog = None if exog is [] else exog
         self.has_const = const
-        self.__load_data()
-        
-    def __load_data(self):
-        """Loads data including exogenous variables as pandas.DataFrame based on self.exog
-           possible choices for exogenous variables:
-             - 'load_lag'     : load data shifted by one week (with this parameter only data from 2015/01/08 can be used)
-             - 'dayofweek'    : week day (one dummy per day)
-             - 'weekend'      : dummy for whether it is weekend or not (1 or 0)
-             - 'data_counter' : counting data points beginning from 0
-             - 't2m_max'      : maximum of 2 metre temperature for each step
-             - 't2m_mean'     : mean of 2 metre temperature for each step
-             - 't2m_top10'    : top 10 regions grid points compared by population of 2018
-             - 't2m_all'      : every grid point of 2 metre temperature as single exogenous variable
-             - 'u10_top10'    : top 10 regions grid points compared by population of 2018
-             - 'u10_all'      : every grid point of 10 metre U wind component as single exogenous variable
-             - 'v10_top10'    : top 10 regions grid points compared by population of 2018
-             - 'v10_all'      : every grid point of 10 metre V wind component as single exogenous variable
-             - 'lai_hv_top10' : top 10 regions grid points compared by population of 2018
-             - 'lai_hv_all'   : every grid point of high vegetation leaf area index as single exogenous variable
-             - 'lai_lv_top10' : top 10 regions grid points compared by population of 2018
-             - 'lai_lv_all'   : every grid point of low vegetation leaf area index as single exogenous variable
-             - 'lcc_top10'    : top 10 regions grid points compared by population of 2018
-             - 'lcc_all'      : every grid point of low cloud cover as single exogenous variable
-             - 'stl1_top10'   : top 10 regions grid points compared by population of 2018
-             - 'stl1_all'     : every grid point of soil temperature level 1 as single exogenous variable
-             - 'slhf_top10'   : top 10 regions grid points compared by population of 2018
-             - 'slhf_all'     : every grid point of surface latent heat flux as single exogenous variable
-             - 'str_top10'    : top 10 regions grid points compared by population of 2018
-             - 'str_all'      : every grid point of surface net thermal radiation as single exogenous variable
-             - 'sshf_top10'   : top 10 regions grid points compared by population of 2018
-             - 'sshf_all'     : every grid point of surface sensible heat flux as single exogenous variable
-             - 'tcc_top10'    : top 10 regions grid points compared by population of 2018
-             - 'tcc_all'      : every grid point of total cloud cover as single exogenous variable
-             - 'tcrw_top10'   : top 10 regions grid points compared by population of 2018
-             - 'tcrw_all'     : every grid point of total column rain water as single exogenous variable
-             - 'fdir_top10'   : top 10 regions grid points compared by population of 2018
-             - 'fdir_all'     : every grid point of total sky direct solar radiation at surface as single exogenous variable
-        """
-        last_date = datetime(2018, 12, 31)
-        
-        load_data = self.load_reader.vals4slice(de_load, self.start, last_date, step=1)
-        date_range = pd.date_range(self.start, last_date, freq='1H')
-        self.load_data = pd.DataFrame(data={'load': load_data}, index=date_range)
-        self.ex_data = pd.DataFrame(data=[], index=date_range)
-        
-        if self.exog is None:
-            return
-        
-        dow = date_range.to_series().dt.dayofweek
-        if 'load_lag' in self.exog:
-            delta1week = timedelta(weeks=1)
-            self.ex_data['load_shift'] = self.load_reader.vals4slice(de_load, self.start-delta1week,
-                                                                     last_date-delta1week, step=1)
-        if 'dayofweek' in self.exog:
-            self.ex_data['Monday'] = (dow == 0).astype(int)
-            self.ex_data['Tuesday'] = (dow == 1).astype(int)
-            self.ex_data['Wednesday'] = (dow == 2).astype(int)
-            self.ex_data['Thursday'] = (dow == 3).astype(int)
-            self.ex_data['Friday'] = (dow == 4).astype(int)
-            self.ex_data['Saturday'] = (dow == 5).astype(int)
-            self.ex_data['Sunday'] = (dow == 6).astype(int)
-        if 'weekend' in self.exog:
-            self.ex_data['weekend'] = dow.isin([5, 6]).astype(int)
-        if 'data_counter' in self.exog:
-            self.ex_data['data_counter'] = range(len(load_data))
-        if 't2m_max' in self.exog:
-            self.ex_data['t2m_max'] = self.weather_reader.maxvals4timeslice('t2m', self.start, last_date)
-        if 't2m_mean' in self.exog:
-            self.ex_data['t2m_mean'] = self.weather_reader.meanvals4timeslice('t2m', self.start, last_date)
-        if 't2m_top10' in self.exog:
-            for i, top_i in enumerate(self.weather_reader.demography_top_n_regions4timeslice('t2m', self.start,
-                                                                                             last_date, 10, 2018).transpose()):
-                self.ex_data[f't2m_top{i}gridpoint'] = top_i
-        if 't2m_all' in self.exog:
-            for i, t2m in enumerate(self.weather_reader.stackedvals4timeslice('t2m', self.start, last_date)):
-                self.ex_data[f't2m{i}'] = t2m
-        if 'u10_top10' in self.exog:
-            for i, top_i in enumerate(self.weather_reader.demography_top_n_regions4timeslice('u10', self.start,
-                                                                                             last_date, 10, 2018).transpose()):
-                self.ex_data[f'u10_top{i}gridpoint'] = top_i
-        if 'u10_all' in self.exog:
-            for i, u10 in enumerate(self.weather_reader.stackedvals4timeslice('u10', self.start, last_date)):
-                self.ex_data[f'u10{i}'] = u10
-        if 'v10_top10' in self.exog:
-            for i, top_i in enumerate(self.weather_reader.demography_top_n_regions4timeslice('v10', self.start,
-                                                                                             last_date, 10, 2018).transpose()):
-                self.ex_data[f'v10_top{i}gridpoint'] = top_i
-        if 'v10_all' in self.exog:
-            for i, v10 in enumerate(self.weather_reader.stackedvals4timeslice('v10', self.start, last_date)):
-                self.ex_data[f'v10{i}'] = v10
-        if 'lai_hv_top10' in self.exog:
-            for i, top_i in enumerate(self.weather_reader.demography_top_n_regions4timeslice('lai_hv' , self.start,
-                                                                                             last_date, 10, 2018).transpose()):
-                self.ex_data[f'lai_hv_top{i}gridpoint'] = top_i
-        if 'lai_hv_all' in self.exog:
-            for i, lai_hv in enumerate(self.weather_reader.stackedvals4timeslice('lai_hv', self.start, last_date)):
-                self.ex_data[f'lai_hv{i}'] = lai_hv
-        if 'lai_lv_top10' in self.exog:
-            for i, top_i in enumerate(self.weather_reader.demography_top_n_regions4timeslice('lai_lv', self.start,
-                                                                                             last_date, 10, 2018).transpose()):
-                self.ex_data[f'lai_lv_top{i}gridpoint'] = top_i
-        if 'lai_lv_all' in self.exog:
-            for i, lai_lv in enumerate(self.weather_reader.stackedvals4timeslice('lai_lv', self.start, last_date)):
-                self.ex_data[f'lai_lv{i}'] = lai_lv
-        if 'lcc_top10' in self.exog:
-            for i, top_i in enumerate(self.weather_reader.demography_top_n_regions4timeslice('lcc', self.start,
-                                                                                             last_date, 10, 2018).transpose()):
-                self.ex_data[f'lcc_top{i}gridpoint'] = top_i
-        if 'lcc_all' in self.exog:
-            for i, lcc in enumerate(self.weather_reader.stackedvals4timeslice('lcc', self.start, last_date)):
-                self.ex_data[f'lcc{i}'] = lcc
-        if 'stl1_top10' in self.exog:
-            for i, top_i in enumerate(self.weather_reader.demography_top_n_regions4timeslice('stl1', self.start,
-                                                                                             last_date, 10, 2018).transpose()):
-                self.ex_data[f'stl1_top{i}gridpoint'] = top_i
-        if 'stl1_all' in self.exog:
-            for i, stl1 in enumerate(self.weather_reader.stackedvals4timeslice('stl1', self.start, last_date)):
-                self.ex_data[f'stl1{i}'] = stl1
-        if 'slhf_top10' in self.exog:
-            for i, top_i in enumerate(self.weather_reader.demography_top_n_regions4timeslice('slhf', self.start,
-                                                                                             last_date, 10, 2018).transpose()):
-                self.ex_data[f'slhf_top{i}gridpoint'] = top_i
-        if 'slhf_all' in self.exog:
-            for i, slhf in enumerate(self.weather_reader.stackedvals4timeslice('slhf', self.start, last_date)):
-                self.ex_data[f'slhf{i}'] = slhf
-        if 'str_top10' in self.exog:
-            for i, top_i in enumerate(self.weather_reader.demography_top_n_regions4timeslice('str', self.start,
-                                                                                             last_date, 10, 2018).transpose()):
-                self.ex_data[f'str_top{i}gridpoint'] = top_i
-        if 'str_all' in self.exog:
-            for i, str_var in enumerate(self.weather_reader.stackedvals4timeslice('str', self.start, last_date)):
-                self.ex_data[f'str{i}'] = str_var
-        if 'sshf_top10' in self.exog:
-            for i, top_i in enumerate(self.weather_reader.demography_top_n_regions4timeslice('sshf', self.start,
-                                                                                             last_date, 10, 2018).transpose()):
-                self.ex_data[f'sshf_top{i}gridpoint'] = top_i
-        if 'sshf_all' in self.exog:
-            for i, sshf in enumerate(self.weather_reader.stackedvals4timeslice('sshf', self.start, last_date)):
-                self.ex_data[f'sshf{i}'] = sshf
-        if 'tcc_top10' in self.exog:
-            for i, top_i in enumerate(self.weather_reader.demography_top_n_regions4timeslice('tcc', self.start,
-                                                                                             last_date, 10, 2018).transpose()):
-                self.ex_data[f'tcc_top{i}gridpoint'] = top_i
-        if 'tcc_all' in self.exog:
-            for i, tcc in enumerate(self.weather_reader.stackedvals4timeslice('tcc', self.start, last_date)):
-                self.ex_data[f'tcc{i}'] = tcc
-        if 'tcrw_top10' in self.exog:
-            for i, top_i in enumerate(self.weather_reader.demography_top_n_regions4timeslice('tcrw', self.start,
-                                                                                             last_date, 10, 2018).transpose()):
-                self.ex_data[f'tcrw_top{i}gridpoint'] = top_i
-        if 'tcrw_all' in self.exog:
-            for i, tcrw in enumerate(self.weather_reader.stackedvals4timeslice('tcrw', self.start, last_date)):
-                self.ex_data[f'tcrw{i}'] = tcrw
-        if 'fdir_top10' in self.exog:
-            for i, top_i in enumerate(self.weather_reader.demography_top_n_regions4timeslice('fdir', self.start,
-                                                                                             last_date, 10, 2018).transpose()):
-                self.ex_data[f'fdir_top{i}gridpoint'] = top_i
-        if 'fdir_all' in self.exog:
-            for i, fdir in enumerate(self.weather_reader.stackedvals4timeslice('fdir', self.start, last_date)):
-                self.ex_data[f'fdir{i}'] = fdir
+        self._load_data()
     
-    def __load_exog(self, tstart, tstop):
-        """Loads exogenous variables as numpy.ndarray based on self.exog
-        
-        Parameters
-        ----------
-        tstart      : datetime.datetime
-                      start time
-        tstop       : datetime.datetime
-                      stop time
-        range_start : int
-                      if existing, specifies start point of data_counter
-              
-        Returns
-        -------
-        numpy.ndarray of exogenous data
-        """
-        if self.exog is None:
-            return
-        return self.ex_data[tstart:tstop].values
-
     @staticmethod
     def load(fname):
         """Loads ARMAXForecast instance from file name
@@ -485,6 +324,90 @@ class ARMAXForecast:
         log.info(f'saving armax as {fname}')
         pickle.dump(self, open(fname,'wb'))
         return fname
+    
+    def _get_exog(self,var_name):
+        """Private method that adds single exogenous variables to the exogenous data
+        
+        Parameters
+        ----------
+        var_name : string
+                   name of the variable to add to exogenous data
+        
+        Returns
+        -------
+        None
+        """
+        if var_name is 'load_lag':
+            delta1week = timedelta(weeks=1)
+            self.ex_data['load_shift'] = self.load_reader.vals4slice(de_load, self.start-delta1week,
+                                                                     data_max_date-delta1week, step=1)
+        elif var_name is 'dayofweek':
+            dow = self.ex_data.index.to_series().dt.dayofweek
+            self.ex_data['Monday'] = (dow == 0).astype(int)
+            self.ex_data['Tuesday'] = (dow == 1).astype(int)
+            self.ex_data['Wednesday'] = (dow == 2).astype(int)
+            self.ex_data['Thursday'] = (dow == 3).astype(int)
+            self.ex_data['Friday'] = (dow == 4).astype(int)
+            self.ex_data['Saturday'] = (dow == 5).astype(int)
+            self.ex_data['Sunday'] = (dow == 6).astype(int) 
+        elif var_name is 'weekend':
+            dow = self.ex_data.index.to_series().dt.dayofweek            
+            self.ex_data['weekend'] = dow.isin([5, 6]).astype(int)
+        elif var_name is 'data_counter':
+            self.ex_data['data_counter'] = range(len(self.load_data))
+        else:
+            var = var_name.split('_')
+            var_type = var[-1]
+            var = '_'.join(var[:-1]) if len(var) > 2 else var[0]
+            if var in self.weather_reader.get_vars():
+                if var_type == 'top10':
+                    data = self.weather_reader.demography_top_n_regions4timeslice(var, self.start, data_max_date, 10, 2018)
+                    for i, top_i in enumerate(data):
+                        self.ex_data[f'{var}{i}gridpoint'] = top_i
+                elif var_type == 'all':
+                    data = self.weather_reader.stackedvals4timeslice(var, self.start, data_max_date)
+                    for i, gridpoint in enumerate(data):
+                        self.ex_data[f'{var}{i}'] = gridpoint
+                else:
+                    numpy_func = numpy_funcs[var_type]
+                    self.ex_data[f'{var}_{var_type}'] = self.weather_reader.vals4timeslice_reduced(var, self.start,
+                                                                                                   data_max_date, numpy_func)  
+            else:
+                raise NameError(f'variable name not found: {var_name}')
+        #elif var_name.split('_')[0] in self.weather_reader.get_vars():
+            #var = var_name.split('_')[0]
+            #var_type = var_name.split('_')[1]
+            #if var_type == 'top10':
+                #data = self.weather_reader.demography_top_n_regions4timeslice(var, self.start, data_max_date, 10, 2018)
+                #for i, top_i in enumerate(data):
+                    #self.ex_data[f'{var}{i}gridpoint'] = top_i
+            #elif var_type == 'all':
+                #data = self.weather_reader.stackedvals4timeslice(var, self.start, data_max_date)
+                #for i, gridpoint in enumerate(data):
+                    #self.ex_data[f'{var}{i}'] = gridpoint
+            #else:
+                #numpy_func = numpy_funcs[var_type]
+                #self.ex_data[f'{var}_{var_type}'] = self.weather_reader.vals4timeslice_reduced(var, self.start,
+                                                                                               #data_max_date, numpy_func)                
+        #else:
+            #raise NameError(f'variable name not found: {var_name}')
+    
+    def _load_data(self):
+        """Private method that loads the load data, but also exogenous variables as pandas.DataFrame based on strings in self.exog
+        
+        Returns
+        -------
+        None
+        """
+        load_data = self.load_reader.vals4slice(de_load, self.start, data_max_date, step=1)
+        date_range = pd.date_range(self.start, data_max_date, freq='1H')
+        self.load_data = pd.DataFrame(data={'load': load_data}, index=date_range)
+        self.ex_data = pd.DataFrame(data=[], index=date_range)
+        
+        if self.exog is None:
+            return
+        for var_name in self.exog:
+            self._get_exog(var_name)
     
     def train(self):
         """Fits ARMAXForecast instance with specified endogenous and exogenous data
@@ -554,161 +477,3 @@ class ARMAXForecast:
         """
         log.info(f'\n{self.__armax_result__.summary()}')
 
-
-#start = datetime(2015,1,8)
-#stop = datetime(2017,12,31)
-#fc_end = datetime(2018,12,31)
-#exog = ['load_lag','t2m_mean','weekend','t2m_top10']
-##fc_end = stop + timedelta(days=14)
-
-#armax = ARMAXForecast(start,stop,2,1,const=True,exog=exog)
-#armax.train()
-#armax.summary()
-
-#armax.predict_one_step_ahead(fc_end)
-#log.info(armax.forecasts[0])
-#armax.forecasts[0].__plot__()
-
-#plt.legend()
-#plt.show()
-
-
-class LR_forecast:
-    """TODO
-    
-    """
-    def __init__(self,start,stop,frequency=1):
-        """TODO
-        
-        """
-        self.start=start
-        self.stop=stop
-        self.freq=frequency
-        self.__lr_result=None
-    
-    def train(self):
-        """TODO
-        
-        """
-        load_reader = LoadReader()
-        data = load_reader.vals4slice(de_load,
-                                      self.start,
-                                      self.stop,
-                                      step=self.freq).values
-        date_range = pd.date_range(self.start,
-                                   self.stop,
-                                   freq=f'{self.freq}H').to_pydatetime()
-        model = OLS(date_range,data)
-        self.__lr_result = model.fit()
-    
-    def predict(self,hours_ahead):
-        """TODO
-        
-        """
-        p = self.__lr_result.predict()
-        log.info(len(p))
-        log.info(p)
-
-
-#arma = ARMAResults.load('/home/marcel/Dropbox/data/ARMA_c_p2q2.pkl')
-#print(arma.aic)
-#print(dir(arma))
-#for x in range(10):
-    #print(arma.forecast())
-
-
-#aics = {}
-#bics = {}
-#hqics = {}
-#ar_params = range(1,6)
-#ma_params = range(1,6)
-#for ar_param in ar_params:
-    #for ma_param in ma_params:
-        #print(f'training model for p={ar_param} and q={ma_param}')
-        #try:
-            #model = ARMA(data,order=(ar_param,ma_param),dates=date_range)
-            
-            #arma_result = model.fit(method='css-mle',
-                                    #trend='c',
-                                    #transparams=True,
-                                    #disp=-1)
-            
-            #arma_result.save(f"{data_path}ARMA_c_p{ar_param}q{ma_param}.pkl")
-            #aics[(ar_param,ma_param)] = arma_result.aic
-            #bics[(ar_param,ma_param)] = arma_result.bic
-            #hqics[(ar_param,ma_param)] = arma_result.hqic
-            #print('done')
-        #except Exception as e:
-            #print(f'exception occured:\n{e}')
-
-#from operator import add,itemgetter
-#sums = []
-#for (aic,bic,hqic) in zip(aics.items(),bics.items(),hqics.items()):
-    #sums.append((aic[0],aic[1]+bic[1]+hqic[1]))
-
-#print(f'hqics:\n{sorted(hqics.items(),key=itemgetter(1))}')
-#print(f'sums:\n{sorted(sums,key=itemgetter(1))}')
-
-
-
-#lreg = LR_forecast(tstart, tstop)
-#lreg.train()
-#lreg.predict(24)
-
-#ldata = LoadReader().vals4slice(de_load,tstart,tstop,1)
-#pr = LinearRegression().fit()
-
-#start = datetime.now()
-#arima = ARIMA_forecast(datetime(2016,1,1),datetime(2018,5,1),data_column=de_load, p=4, d=0, q=2)
-#arima.train()
-#arima.aic()
-#fname = arima.save()
-
-#print(f'training took {(datetime.now()-start).seconds}s')
-
-##arima.plot_predict(336)
-
-#from matplotlib import pyplot as plt
-#start = datetime(2015,1,1)
-#stop = datetime(2017,12,31)
-#fc_range = 24
-#stop_delta = stop + timedelta(hours=fc_range)
-
-#date_range = pd.date_range(start,stop_delta,freq='2H')
-#load_reader = LoadReader()
-#data = load_reader.vals4slice(de_load,start,stop_delta,step=2)
-
-##arima = ARIMA_forecast()
-##arima.load("/home/marcel/Dropbox/data/ARIMA_p4d1q2.pkl")
-#forecast_range = pd.date_range(stop,stop_delta,freq='2H')
-#pred = arima.predict(fc_range)
-
-#plt.plot(date_range[-fc_range*4:],data[-fc_range*4:],color='b')
-#plt.plot(forecast_range,pred,color='r')
-
-#plt.show()
-
-#print(arima.arima_result.aic)
-
-#from statsmodels.graphics.tsaplots import plot_acf
-#from statsmodels.tsa.stattools import acf
-#from matplotlib import pyplot as plt
-#import numpy as np
-
-#start = datetime(2015,1,1)
-#stop = datetime(2017,12,31)
-#rd = LoadReader()
-#data = rd.vals4step(de_load,step=2).interpolate_na(dim='utc_timestamp',method='linear').values
-##data = rd.vals4slice(de_load,start,stop,step=2).values
-
-##autocorr = np.correlate(data,data,mode='full')
-##plt.plot(autocorr)
-#plot_acf(data,fft=True,use_vlines=True,lags=84)
-
-##autocorr = acf(data,missing='drop')
-##plt.plot(autocorr)
-
-#plt.show()
-
-
-    

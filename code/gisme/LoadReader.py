@@ -5,7 +5,7 @@ This module provides access to the used load data that
 has been downloaded from https://open-power-system-data.org/
 """
 
-from gisme import load_path, cest_col, utc_col, hasMWlbl
+from gisme import (load_path, cest_col, utc_col, hasMWlbl)
 
 import os
 import pandas as pd
@@ -33,26 +33,32 @@ class LoadReader:
             self.__ldata__ = load_file.interpolate_na('utc_timestamp')
             self.var_names = [name for name in load_file.data_vars]
             self.date_bounds = load_file[utc_col].min().values, load_file[utc_col].max().values
-
-    def _csv_to_nc(self):
+            
+    @staticmethod
+    def __csv_to_nc__(file_name):
         """Converts csv file to .nc file format for speedup and compatibility
+        
+        Parameters
+        ----------
+        file_name : string
+                    name of the .csv file
         
         Returns
         -------
         None
         """
-        load_file = pd.read_csv(f'{os.path.splitext(load_path)[0]}.csv', header=0, index_col=0)
+        load_file = pd.read_csv(file_name, header=0, index_col=0)
         load_file.index = pd.to_datetime(load_file.index)
         
         # convert to xarray.Dataset and drop unused local time column
         ds = load_file.to_xarray().drop(cest_col)
-        self.var_names = [var for var in ds.data_vars]
+        var_names = [var for var in ds.data_vars]
         
         # convert again to datetime, won't be recognized otherwise
         ds[utc_col] = pd.to_datetime(ds[utc_col])
         
         # set unit variable for each variable; all MW, exept for some shares
-        for var in self.var_names:
+        for var in var_names:
             unit = 'MW' if any(label in var for label in hasMWlbl) else 'share'
             ds[var].attrs.update(OrderedDict([('units', unit)]))
         
@@ -135,12 +141,3 @@ class LoadReader:
         xarray.DataArray containing desired data with respective timestamps
         """
         return self.__ldata__[name].sel(utc_timestamp=pd.date_range(*self.date_bounds, freq=f"{step}H"))
-        
-
-# rd = LoadReader()
-
-# start = datetime(2015,1,1)
-# stop = datetime(2017,12,31)
-
-# data = rd.vals4slice(de_load, start, stop, step=2).values
-# print(data)

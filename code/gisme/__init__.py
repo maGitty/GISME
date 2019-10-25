@@ -7,8 +7,13 @@ This module provides variables for other modules, especially:
   - paths to specific files in a multiplatform manner
   - often used strings
 
-In order to make the methods runnable, the data_path
-variable and out_path must be set properly
+NOTE:
+In order to make the methods runnable, the data_path variable and
+out_path must be set properly and contain all needed data
+Furthermore, data_min_date and data_max_date have to be set
+according to temporal data limitation
+Also, given, that geographic scope is changed, lon_min, lon_max,
+lat_min and lat_max have to be adjusted too
 
 the data_path structure must have the following structure:
 data_path
@@ -27,18 +32,29 @@ out_path
 |_ plots
   |_ >> this folder is used to store plots
 
+Data that must be acquired before execution:
+- data_path/power_load/time_series_15min_singleindex_filtered.nc
+  can be downloaded from https://data.open-power-system-data.org/time_series
+  NOTE, that the downloaded file is a .csv file, to convert it, use
+  LoadReader's static __csv_to_nc__(file_name) method to convert it to .nc
+- weather data in data_path/ecmwf
+  use the ecmwf_era5_request.py script to download the data
+- data_path/shapes/NUTS_RG_60M_2016_4326_LEVL_0.shp
+  data_path/shapes/NUTS_RG_01M_2016_4326_LEVL_3.shp
+  can be downloaded from
+  https://ec.europa.eu/eurostat/de/web/gisco/geodata/reference-data/administrative-units-statistical-units/nuts
 """
 
 __author__ = "Marcel Herm"
 __credits__ = ["Marcel Herm", "Nicole Ludwig", "Marian Turowski"]
 __license__ = "MIT"
-__version__ = "0.0.1"
+__version__ = "1.0"
 __maintainer__ = "Marcel Herm"
-__status__ = "Production"
 
 from pathlib import Path
 from datetime import datetime
 import os
+import numpy as np
 import logging
 
 log = logging.getLogger('GISME')
@@ -95,5 +111,8 @@ lat_min = 47
 lat_max = 55.5
 bbox = (lon_min, lon_max, lat_min, lat_max)
 
+numpy_funcs = {'min': np.nanmin, 'max': np.nanmax, 'mean': np.nanmean, 'median': np.nanmedian}
+
+# minimum and maximum dates for which data is available, has to be changed different data is used
 data_min_date = datetime(2015, 1, 8, 0)
 data_max_date = datetime(2018, 12, 31, 23)

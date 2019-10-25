@@ -18,7 +18,7 @@ import itertools
 import pandas as pd
 import numpy as np
 import shapefile as shp
-from datetime import datetime
+from datetime import datetime,timedelta
 from descartes import PolygonPatch
 from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
 from matplotlib import pyplot as plt, colors, cm, markers, rc, rcParams
@@ -473,11 +473,11 @@ class DataPlotter:
         -------
         None
         """
+        util = Utility()
         try:
             contained = np.load(os.path.join(isin_path, f'isin{region_id}.npy'))
         except:
             log.info(f'isin file not found in {isin_path} for region {region_id}')
-            util = Utility()
             contained = util.check_isin_region(region_id)
         
         fig, ax = plt.subplots()
@@ -486,7 +486,33 @@ class DataPlotter:
         ax.set_ylabel(lat_col)
         ax.set_xlabel(lon_col)
         
-        file_name = os.path.join(figure_path, f'isin{region_name}_{region_id}')
+        file_name = os.path.join(figure_path, f'isin{util.get_region_name(region_id)}_{region_id}')
+        self.__save_show_fig(fig, figure_path, file_name)
+
+    def plot_isin_top_n(self, n, year):
+        """Plot map showing which grid points are within n regions with highest population for specified year
+
+        Parameters
+        ----------
+        n    : integer
+               number of regions with highest population to plot
+        year : integer
+               specifies for which year population is checked
+
+        Returns
+        -------
+        None
+        """
+        util = Utility()
+        contained = util.demo_top_n_regions_map(n,2018)
+        
+        fig, ax = plt.subplots()
+        ax.imshow(contained, cmap=plt.cm.Greys, extent=bbox)
+        
+        ax.set_ylabel(lat_col)
+        ax.set_xlabel(lon_col)
+        
+        file_name = os.path.join(figure_path, f'isin_top{n}_year{year}')
         self.__save_show_fig(fig, figure_path, file_name)
 
     def plot_demo4year(self, year):
@@ -743,12 +769,12 @@ class DataPlotter:
         log.info(armax.forecasts[0])
         
         if plot_range is None:
-            fc_range = pd.date_range(tstop, forecast_end, freq='1H')
-            ax.plot(fc_range, forecast, label='1H forecast')
-            ax.plot(fc_range, armax.forecasts[0].actual, label='actual value')
+            fc_range = pd.date_range(tstop+timedelta(hours=1), forecast_end, freq='1H')
+            ax.plot(fc_range, forecast.forecast, label='1H forecast')
+            ax.plot(fc_range, forecast.actual, label='actual value')
         else:
             fc_range = pd.date_range(plot_range[0], plot_range[1], freq='1H')
-            df = armax.forecasts[0].sel(plot_range[0], plot_range[1])
+            df = forecast.sel(plot_range[0], plot_range[1])
             ax.plot(fc_range, df['forecast'].values, label='1H forecast')
             ax.plot(fc_range, df['actual'].values, label='actual value')
         
@@ -764,61 +790,3 @@ class DataPlotter:
                                  f'{"" if plot_range is None else "_" + plot_range[1].strftime("%Y%m%d%H")}')
         self.__save_show_fig(fig, dir_pth, file_name)
 
-
-# var = 't2m'
-# n = 1
-
-# # used numpy functions
-# funcs = [np.nanmin, np.nanmax, np.nanvar, np.nanmean, np.nanmedian, np.nansum]
-
-
-# pl = DataPlotter(fmt='pdf', save=True, show=False, isin=True)  # , shape=(2, 2))
-
-# t_start = datetime(2015, 1, 8)
-# t_stop = datetime(2017, 12, 31)
-# end = datetime(2018, 12, 31)
-
-# plot_start = datetime(2018, 1, 1)
-# plot_end = datetime(2018, 1, 8)
-
-# items = ['t2m_mean', 'weekend', 't2m_top10', 'load_lag', 'data_counter']
-# combinations = [list(itertools.compress(items, mask)) for mask in itertools.product(*[[0, 1]]*len(items))]
-# combinations.remove([])
-# combinations.insert(0, None)
-
-# for exog in combinations:
-#     print(exog)
-#     pl.plot_armax_forecast(t_start, t_stop, end, 2, 2, exog=exog, plot_range=(plot_start, plot_end))
-
-# pl.plot_armax_forecast(t_start, t_stop, end, 1, 0, plot_range=(plot_start, plot_end))
-# pl.plot_armax_forecast(t_start, t_stop, end, 1, 0, exog=['weekend'], plot_range=(plot_start, plot_end))
-# pl.plot_armax_forecast(t_start, t_stop, end, 1, 0, exog=['dayofweek'], plot_range=(plot_start, plot_end))
-# pl.plot_armax_forecast(t_start, t_stop, end, 1, 0, exog=['load_lag'], plot_range=(plot_start, plot_end))
-
-# pl.plot_isinRegion('DE212')
-# pl.plot_isinRegion('DE929')
-# pl.plot_isinRegion('DEA23')
-
-# rd= WeatherReader()
-# pl.plot_load([de_load,hertz_load,amprion_load,tennet_load,transnet_load],start,stop)
-# for var in rd.get_vars():
-#     for func in funcs:
-#         pl.plot_load_time_func(var,start,stop,func)
-
-# pl.plot_load_time_func(var,start,stop,np.mean,aspect=(18,5),skip_bottom_labels=True)
-
-# pl.plot_nmax_var(var,1)
-# pl.plot_nmax_var(var,4)
-# pl.plot_isin()
-# rd = WeatherReader()
-# for var in rd.get_vars():
-#     pl.plot_nmin(var,n)
-#     pl.plot_nmax(var,n)
-#     pl.plot_nmin_var(var,n)
-#     pl.plot_nmax_var(var,n)
-#     pl.plot_nmin_mean(var,n)
-#     pl.plot_nmax_mean(var,n)
-#     pl.plot_nmin_med(var,n)
-#     pl.plot_nmax_med(var,n)
-#     pl.plot_nmin_sum(var,n)
-#     pl.plot_nmax_sum(var,n)

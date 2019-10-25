@@ -40,7 +40,7 @@ class WeatherReader:
         self.filename = os.path.join(era5_path, '*.nc')
         with xr.open_mfdataset(self.filename) as nc_file:
             # dropna drops times with no values, carefully use, might throw away single points somewhere
-            self.wdata = nc_file.interpolate_na('time')  # .dropna('time')
+            self.wdata = nc_file  # .dropna('time')
         
         self.var_names = [name for name in self.wdata.data_vars]
         self.date_bounds = self.wdata['time'].min().values, self.wdata['time'].max().values
@@ -241,8 +241,9 @@ class WeatherReader:
             variable = self.wdata[var].dropna('time')
             unit = pow_regex.sub("^{\g<2>}", variable.units).replace(' ', '~')
             print(f'{variable.long_name} & ${unit}$ & '
-                  f'{variable.values.min().round(2):.2f} & '
-                  f'{variable.values.max().round(2):.2f} \\\\')
+                  f'{variable.values.mean().round(2):.2f} & '
+                  f'{variable.values.min().round(2):.2f} & '\
+                  f'{variable.values.max().round(2):.2f}\\\\')
     
     def vals4time(self, name, datetime, isin=False):
         """Returns the values for specified variable and time
@@ -363,6 +364,26 @@ class WeatherReader:
             raise Exception(f'coordinates not within bbox? lat:{latitude}')
         return data, long_name
 
+    def vals4timeslice_reduced(self,name,start,stop,func):
+        """Return values for specified variable with one value per step start to stop reduced by given function
+        
+        Parameters
+        ----------
+        name  : string
+                name of the variable
+        start : datetime.datetime
+                start time
+        stop  : datetime.datetime
+                stop time
+        func  : numpy function
+                function used to reduce along longitude and latitude
+        
+        Returns
+        -------
+        xarray.DataArray of specified variable reduced over longitude and latitude by max
+        """
+        return self.reduce_lonlat_slice(name, func, start, stop)
+
     def maxvals4timeslice(self, name, start, stop):
         """Return values for specified variable with one value per step start to stop reduced by max
         
@@ -447,7 +468,7 @@ class WeatherReader:
         """TODO
         """
         return self.wdata[name].sel(time=slice(start, stop)).where(matrix, other=np.nan, drop=False)\
-                   .stack(loc=(lon_col, lat_col)).dropna('loc').values
+                   .stack(loc=(lon_col, lat_col)).dropna('loc').transpose().values
     
     def demography_top_n_regions4timeslice(self, name, start, stop, n, year):
         """TODO
@@ -589,8 +610,4 @@ class WeatherReader:
                specifies number of days to return
         """
         return self._nmax_reduce_days(name, np.nanmean, n)
-    
 
-#wr = WeatherReader()
-#print(pd.date_range(*wr.get_date_bounds(),freq='1H'))
-#print(wr.demoTopNregionsSlice('t2m',datetime(2017,1,1),datetime(2018,1,1),10).shape)

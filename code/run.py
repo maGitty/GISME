@@ -1,7 +1,8 @@
 #!/usr/bin/python3
 
-"""TODO
-
+"""
+After having installed all required packages, using the provided requirements.txt,
+this script allows executing the methods implemented in the gisme package.
 """
 
 # module imports
@@ -32,7 +33,8 @@ from statsmodels.tsa.arima_model import ARMA
 #stop = datetime(2017,12,31)
 #fc_end = datetime(2018,12,31)
 
-#pl = DataPlotter(fmt='pdf', save=True, show=False, isin=True)  # , shape=(2, 2))
+#pl = DataPlotter(fmt='pdf', save=True, show=True, isin=True)  # , shape=(2, 2))
+#pl.plot_isin_top_n(100,2018)
 
 #t_start = datetime(2015, 1, 8)
 #t_stop = datetime(2017, 12, 31)
@@ -40,6 +42,8 @@ from statsmodels.tsa.arima_model import ARMA
 
 #plot_start = datetime(2018, 1, 1)
 #plot_end = datetime(2018, 1, 8)
+#pl.plot_armax_forecast(t_start, t_stop, end, 2, 2, exog=['t2m_max'])
+#pl.plot_armax_forecast(t_start, t_stop, end, 2, 2, exog=['t2m_mean'])
 
 #for exog in top10vars:
     #print(exog)
@@ -48,8 +52,50 @@ from statsmodels.tsa.arima_model import ARMA
     #except Exception as e:
         #print(str(e))
 
-ut = Utility()
-print(ut.demo_top_n_regions(10))
+#ut = Utility()
+#print(ut.demo_top_n_regions(10))
+
+#wr = WeatherReader()
+#print(wr.get_vars())
+#print(wr.longitudes().size*wr.latitudes().size)
+#wr.print_vars_texfmt()
+
+start = datetime(2015,1,8)
+stop = datetime(2017,12,31)
+fc_end = datetime(2018,12,31)
+
+#for i in range(3,6):
+    #armax = ARMAXForecast(start,stop,i,i,['load_lag','t2m_mean'])
+    #armax.train()
+    #armax.summary()
+    #print(armax.predict_one_step_ahead(fc_end))
+
+armax = ARMAXForecast(start,stop,2,2,['load_lag'])
+armax.train()
+armax.summary()
+fc = armax.predict_one_step_ahead(fc_end)
+print(fc)
+
+wvars = ['u10', 'v10', 't2m', 'lai_hv', 'lai_lv', 'lcc',
+         'stl1', 'slhf', 'str', 'sshf', 'tcc', 'tcrw', 'fdir']
+
+for var in wvars:
+    print(var)
+    var = f'{var}_mean'
+    armax = ARMAXForecast(start,stop,2,2,['load_lag',var])
+    armax.train()
+    armax.summary()
+    fc = armax.predict_one_step_ahead(fc_end)
+    print(fc)
+
+#for i in ['t2m_median','t2m_min','t2m_max','t2m_mean']:
+    
+    #armax = ARMAXForecast(start, stop, 1, 1, exog=[i], const=True)
+    #armax.train()
+    #armax.summary()
+    #fc = armax.predict_one_step_ahead(fc_end)
+    #print(fc)
+
 
 def best_model():
     lr = LoadReader()
