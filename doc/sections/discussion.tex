@@ -1,7 +1,11 @@
 \chapter{Discussion}
 \label{ch:discussion}
 
-This chapter is supposed to discuss your results. Point out what your results mean.
-What are the limitations of your approach, managerial implications or future impact?
+Considering the main research question of this thesis, whether grid-based weather information does have a benefit on energy forecasting, it is now possible to approach an answer. As already pointed out in \Cref{sec:results}, using the actual grid points themselves does not result in any improvement, but the results rather deteriorate. This seems to suggest that there is no benefit at all, using grid-based data for energy forecasting. However, grid-based data can be very useful when it is being conglomerated or compressed in a representative form, such as the mean over the longitude and latitude. This can also be observed in \Cref{sec:results}, where the averaged 2 metre temperature actually improves the forecast accuracy. The special upside in using grid-based data, such as the data from \gls{ecmwf}, is, that it can be conglomerated over any desired locality as it is available for most locations. This allows it to be used for forecasts at arbitrary locations. Though, from the missing results to most of the given weather variables, it is can not be said which of them are most suitable to be used as inputs for energy forecasting. This provides an interesting subject for further research. But also other methods could be considered for further research, like filtering grid points by economic activity. Another possibility would be to use completely different models such as \gls{rnn}, which are particularly suitable for time series forecasting.\\
+%outlook: try other methods to compress the data as representative as possible, mean over highest populated regions, or regions filtered by economic activity also compressed or so
+%Looking at the results from \Cref{sec:results}, 
 
-Explain the broader picture but be critical with your methods.
+%This chapter is supposed to discuss your results. Point out what your results mean.
+%What are the limitations of your approach, managerial implications or future impact?
+%
+%Explain the broader picture but be critical with your methods.

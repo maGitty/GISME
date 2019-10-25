@@ -1,0 +1,38 @@
+\usepackage{ifthen}
+
+\newcommand{\KITSatz}[2][\empty]{ 
+   \setlength{\vgdist}{0.2cm}
+   \KITframe[KITgreen15]{
+
+       \parbox{0.95\textwidth}{
+          \ifthenelse{\equal{#1}{\empty}}
+            {\textbf{Satz}: \newline #2}
+            {\textbf{Satz (#1):} \newline #2}
+       }
+   }
+   \setlength{\vgdist}{0cm}
+}
+
+\newcommand{\KITDefinition}[2][\empty]{ 
+   \setlength{\vgdist}{0.2cm}
+   \KITframe[KITgreen15]{
+
+       \parbox{0.95\textwidth}{
+          \ifthenelse{\equal{#1}{\empty}}
+            {\textbf{Definition}: \newline #2}
+            {\textbf{Definition (#1)}: \newline #2}  
+       }
+   }
+   \setlength{\vgdist}{0cm}
+}
+
+\newcommand{\KITKasten}[2]{ 
+   \setlength{\vgdist}{0.2cm}
+   \KITframe[KITgreen15]{
+
+       \parbox{0.95\textwidth}{
+            {\textbf{#1} \newline #2}
+       }
+   }
+   \setlength{\vgdist}{0cm}
+}

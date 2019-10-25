@@ -1,0 +1,18 @@
+\RequirePackage{KITdefs}
+\ProvidesPackage{enhKITbeamer}
+
+\newcommand{\nixHeader}[5][0mm]{}
+
+\newcommand{\nix}[1][0mm]{}
+\newcommand{\saveFrame}[1][0mm]{}
+
+\newcommand{\removeKITFrame}{
+   \let\saveFrame=\KIT@MFrame
+   \let\KIT@MFrame=\nix
+}
+
+
+\newcommand{\restoreKITFrame}{
+   \let\KIT@MFrame=\saveFrame
+}
+

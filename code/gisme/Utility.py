@@ -189,6 +189,3 @@ class Utility:
     
         return contained
 
-
-#ut = Utility()
-#print(ut.demo_top_n_regions(10))
