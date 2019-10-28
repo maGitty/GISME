@@ -18,7 +18,12 @@ class LoadReader:
     
     Attributes
     ----------
-    TODO
+    __ldata__   : numpy.ndarray
+                  all load data
+    var_names   : list of strings
+                  names of all variables
+    date_bounds : tuple of datetime.datetime
+                  start and end datetime of data
     """
     def __init__(self):
         """Initializes instance

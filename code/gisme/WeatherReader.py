@@ -19,7 +19,18 @@ class WeatherReader:
     
     Attributes
     ----------
-    TODO
+    isin        : boolean
+                  whether to filter data by isinDE mask
+    util        : Utility
+                  used for several utility functions
+    filename    : string
+                  files containing weather data
+    wdata       : xarray.DataSet
+                  the complete weather data
+    var_names   : list of strings
+                  short names of all variables
+    date_bounds : tuple of datetime.datetime
+                  start and end datetime of data
     """
     def __init__(self, isin=False):
         """Initializes instance, set path to open files, store some information for faster response
@@ -438,12 +449,27 @@ class WeatherReader:
         
         Returns
         -------
-        xarray.DataArray of specified variable reduced over longitude and latitude by mean
+        xarray.DataArray with stacked grid points of specified variable
         """
         return self.wdata[name].sel(time=slice(start, stop)).stack(loc=(lon_col, lat_col)).transpose()
     
     def isin4timesliceDE(self, name, start, stop):
-        """TODO
+        """Return values for specified variable from start to stop filtered by DE map
+        
+        The values are flattened by concatenating time steps of all grid points
+        
+        Parameters
+        ----------
+        name  : string
+                name of the variable
+        start : datetime.datetime
+                start time
+        stop  : datetime.datetime
+                stop time
+        
+        Returns
+        -------
+        xarray.DataArray with stacked grid points of specified variable filtered by DE map
         """
         try:
             contained = np.load(os.path.join(isin_path, 'isinDE.npy'))
@@ -454,7 +480,24 @@ class WeatherReader:
                    .stack(loc=(lon_col, lat_col)).dropna('loc').transpose().values
     
     def isin4timeslice_region(self, name, start, stop, region_id):
-        """TODO
+        """Return values for specified variable from start to stop filtered by region map
+        
+        The values are flattened by concatenating time steps of all grid points
+        
+        Parameters
+        ----------
+        name      : string
+                    name of the variable
+        start     : datetime.datetime
+                    start time
+        stop      : datetime.datetime
+                    stop time
+        region_id : string
+                    id of region
+        
+        Returns
+        -------
+        xarray.DataArray with stacked grid points of specified variable filtered by region map
         """
         try:
             contained = np.load(os.path.join(isin_path, 'isinDE.npy'))
@@ -465,13 +508,49 @@ class WeatherReader:
                    .stack(loc=(lon_col, lat_col)).dropna('loc').transpose().values
     
     def isin4timeslice_map(self, name, start, stop, matrix):
-        """TODO
+        """Return values for specified variable from start to stop filtered by specified map
+        
+        The values are flattened by concatenating time steps of all grid points
+        
+        Parameters
+        ----------
+        name   : string
+                 name of the variable
+        start  : datetime.datetime
+                 start time
+        stop   : datetime.datetime
+                 stop time
+        matrix : 2 dimensional numpy.ndarray
+                 mask to filter wanted grid points
+        
+        Returns
+        -------
+        xarray.DataArray with stacked grid points of specified variable filtered by specified map
         """
         return self.wdata[name].sel(time=slice(start, stop)).where(matrix, other=np.nan, drop=False)\
-                   .stack(loc=(lon_col, lat_col)).dropna('loc').transpose().values
+                   .stack(loc=(lon_col, lat_col)).dropna('loc').transpose()
     
     def demography_top_n_regions4timeslice(self, name, start, stop, n, year):
-        """TODO
+        """Return values for specified variable from start to stop filtered by top n regions map
+        
+        The values are flattened by concatenating time steps of all grid points
+        
+        Parameters
+        ----------
+        name  : string
+                name of the variable
+        start : datetime.datetime
+                start time
+        stop  : datetime.datetime
+                stop time
+        n     : integer
+                number of regions with highest population
+        year  : integer
+                year for which to check population
+        
+        Returns
+        -------
+        xarray.DataArray with stacked grid points of specified variable filtered by top n regions map
         """
         return self.isin4timeslice_map(name, start, stop, self.util.demo_top_n_regions_map(n, year))
     

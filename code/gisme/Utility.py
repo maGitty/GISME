@@ -20,7 +20,10 @@ class Utility:
     
     Attributes
     ----------
-    TODO
+    lats : list of float
+           all latitude values of grid
+    lons : list of float
+           all longitude values of grid
     """
     def __init__(self):
         """Initialize Utility instance"""

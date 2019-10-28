@@ -17,9 +17,9 @@ In this section, the different types of data that are used within this thesis ar
 
 The data used in this thesis originates from \gls{ecmwf}, which is a research institute that produces global numerical weather predictions and other data. It is time series based and for each timestamp there is a 2-dimensional array referred to by longitude and latitude respectively.\\
 
-It must be mentioned, that, as the data that is used, has been reanalysed. This means, that the expected error is likely to be smaller than if working with real-time data.\\
+It must be mentioned, that, as the data that is used, has been reanalysed. This means, that the expected error is likely to be smaller than it would be if working with real-time data.\\
 
-As data parameters, there are also longitude and latitude, where the longitude is chosen to be from 5.5 to 15.5 and the latitude from 47 to 55.5. As the resolution of the used grid is at 0.25 degrees, this results in a total of 1435 grid points per timestamp. As the range of the data from \gls{ecmwf} extends from 2015/1/1 to 2018/12/31, there is a total of 1461 days with each 24 timestamps due to the 1 hours frequency and thus 35064 timestamps. Considering that there is a value for each point in the grid and every timestamp, there are 50316840 values for each variable and thus 654118920 values for 13 variables.\\
+As data parameters, there are also longitude and latitude, where the longitude is chosen to range from 5.5 to 15.5 and the latitude from 47 to 55.5. As the resolution of the used grid is at 0.25 degrees, this results in a total of 1435 grid points per timestamp. As the range of the data from \gls{ecmwf} extends from 2015/1/1 to 2018/12/31, there is a total of 1461 days with each 24 timestamps due to the frequency of 1 hour and thus consists of 35064 timestamps. Considering that there is a value for each point in the grid and every timestamp, there are 50316840 values for each variable and thus 654118920 values for 13 variables.\\
 
 %In \Cref{fig:maxvar4_maps}, there are maps of Germany plotted, showing the 2 metre temperature at the four times with the highest variance.
 %\Cref{fig:maxvar4_maps} shows four plots of the data on a map of Germany and \Cref{fig:isin_compare}. In this case the temperature measured at 2 metres is visualized.\\
@@ -34,35 +34,37 @@ As data parameters, there are also longitude and latitude, where the longitude i
 \begin{figure}[h!]%
 \centering
 \includegraphics[width=\textwidth]{plots/t2m/bundles/maxvar4_maps}%
-\caption{Four maps showing the four times with the highest 2 metre temperature variance in Germany, where top left is the highest, top right the second highest, bottom left the third highest and bottom right the fourth highest variance.}%
+\caption{Four maps showing the four times with the highest 2 metre temperature variance in Germany, where top left has the highest, top right the 2nd highest, bottom left the 3rd highest and bottom right the 4th highest variance.}%
 \label{fig:maxvar4_maps}%
 \end{figure}
 
-In order to reduce complexity, a shapefile of the \acrshort{nuts} dataset was used. The shapefile contains all countries in the EU. The shape of Germany was filtered from this data and each point in the dataset is checked whether it is within Germany or not. The result can be seen in the left figure in \Cref{fig:isin_compare}. An example for a complete map without filtering is shown in \Cref{fig:maxvar4_maps}, where a map of the four times with the highest variance in 2 metre temperature are displayed, respectively. The filtered map first is stored in a numpy.ndarray and then applied on the data to mask unwanted data. The filtered map is visualized in the right figure in \Cref{fig:isin_compare}. The same process was made for NUTS 3 level districts which later in this section considering population data.\\
+In order to reduce complexity, a shapefile of the \acrshort{nuts} dataset was used. The shapefile contains all countries in the EU. The shape of Germany was filtered from this data and each point in the dataset is checked whether it is within Germany or not. The result can be seen in the left figure in \cref{fig:isin_compare}. An example for a complete map without filtering is shown in \cref{fig:maxvar4_maps}, where a map of the four times with the highest variance in 2 metre temperature are displayed, respectively. The filtered map firstly is stored in a numpy.ndarray and then applied on the data to mask unwanted data. The filtered map is visualized in the right figure in \cref{fig:isin_compare}. The same process was made for NUTS 3 level districts considering population data, which is mentioned later in this section.\\
 
 \begin{figure}[h!]%
 	\centering
 	\begin{subfigure}{.5\textwidth}
 		\centering
 		\includegraphics[width=.85\textwidth]{plots/isinDE}%
+		\caption{}
 		\label{fig:isinDE}%
 	\end{subfigure}%
 	\begin{subfigure}{.5\textwidth}
 		\centering
 		\includegraphics[width=.95\textwidth]{plots/t2m/maxvar/0_map_isin}%
+		\caption{}
 		\label{fig:t2m_maxvar_0_map_isin}%
 	\end{subfigure}
-	\caption[2D boolean numpy.ndarray (left) used to filter grid squares within Germany. It was created by using a shapefile of Germany from Eurostat and checking for each point of the grid if it is within the shapefile. When applied to the weather data, only relevant data within Germany is obtained (right).]{2D boolean numpy.ndarray (left) used to filter grid squares that are within Germany. It was created by using a shapefile of Germany from Eurostat\footnotemark and checking for each point of the grid whether it is within the shape. When applied to the weather data, only relevant data within Germany is obtained (right).}
+	\caption[2D boolean numpy.ndarray (a) used to filter grid squares within Germany. It was created by using a shapefile of Germany from Eurostat and checking for each point of the grid if it is within the shapefile. When applied to the weather data, only relevant data within Germany is obtained (b).]{2D boolean numpy.ndarray (a) used to filter grid squares that are within Germany. It was created by using a shapefile of Germany from Eurostat\footnotemark and checking for each point of the grid whether it is within the shape. When applied to the weather data, only relevant data within Germany is obtained (b).}
 	\label{fig:isin_compare}
 \end{figure}
 \footnotetext{\url{https://ec.europa.eu/eurostat/de/web/gisco/geodata/reference-data/administrative-units-statistical-units/nuts}}
 
-The initial dataset contains a set of variables listed in \Cref{tab:wvars} where also the units, mean, min and max are shown for each variable respectively.\\
+The initial dataset contains a set of variables listed in \cref{tab:wvars} where also the units, mean, min and max are shown for each variable respectively.\\
 
 \begin{table}[h!]%
 \rowcolors{2}{white}{gray!25}
 \centering
-\caption[Exogenous weather variables used to forecast the load including min, max values from \acrshort{ecmwf}.]{List of exogenous weather variables used to forecast the load including min, max values from \acrshort{ecmwf}\footnotemark.}
+\caption[Exogenous weather variables used to forecast the load including min, max values from \acrshort{ecmwf}.]{List of exogenous weather variables used to forecast the load including mean, min, max values from \acrshort{ecmwf}\footnotemark.}
 \footnotesize
 \begin{tabularx}{\linewidth}{Llrrr}
 \tablehead variable name & \tablehead units & \tablehead mean & \tablehead min & \tablehead max \\\hline
@@ -87,7 +89,7 @@ Total sky direct solar radiation at surface & $J~m^{-2}$ & 282134.31 & -0.12 & 3
 
 \subsection*{Load Data}
 
-Besides weather data used to refine the forecasting results, also historic load data was needed. Therefore data has been retained from Open Power System Data\footnote{\url{https://data.open-power-system-data.org/time_series/}}. \Cref{fig:t2m_mean_18A5_twofold_24F} shows the distribution of loads over time with one point per day at 12 am UTC time. The color shows the mean temperature measured at 2 metres. The same data in a single plot is added in the Appendix as \Cref{fig:t2m_mean_2015010112_2018123112_24F}, it is split here in two plots for better distinction of single points.\\
+Besides weather data used to refine the forecasting results, historic load data is needed, as well. For this purpose, data has been retrieved from Open Power System Data\footnote{\url{https://data.open-power-system-data.org/time_series/}}. \Cref{fig:t2m_mean_18A5_twofold_24F} shows the distribution of loads over time with one point per day at 12 am UTC time. The color shows the mean temperature measured at 2 metres. The same data in a single plot is added in the Appendix as \cref{fig:t2m_mean_2015010112_2018123112_24F}, where it is split in two plots for better distinction of single points.\\
 
 %\begin{figure}[h!]%
 %\centering
@@ -108,58 +110,58 @@ Besides weather data used to refine the forecasting results, also historic load 
 		\includegraphics[width=2.9\textwidth,angle=-90,origin=c]{plots/plot_load_time_func/t2m_mean_18A5_2015010112_2016123112_24F}%
 		\label{fig:t2m_mean_18A5_2015010112_2016123112_24F}%
 	\end{subfigure}
-	\caption{Load curve with mean of 2 metre measured temperature in Germany as color from 2015/1/1 to 2018/12/31 with one single point per day at 12 AM UTC time respectively.}
+	\caption{Load data over time with mean of 2 metre measured temperature in Germany as color from 2015/1/1 to 2018/12/31 with one single point per day at 12 AM UTC time, respectively.}
 	\label{fig:t2m_mean_18A5_twofold_24F}
 \end{figure}
 
 
 \subsection*{Population Data}
 
-For further improvement and in order to filter important points in the grid, population data for Germany has been acquired from Eurostat\footnote{\url{https://ec.europa.eu/eurostat/data/database}}. The data is being visualized in \Cref{fig:demo2018_logscale} with a logarithmic scale to improve visual distinction between the different regions which would be difficult for a non-logarithmic scale.\\
+For further improvement and in order to filter important points in the grid, population data for Germany has been acquired from Eurostat\footnote{\url{https://ec.europa.eu/eurostat/data/database}}. The data is being visualized in \cref{fig:demo2018_logscale} with a logarithmic scale to improve visual distinction between the different regions which would be difficult using a a non-logarithmic scale.\\
 
 \begin{figure}[h!]%
 \centering
 \includegraphics[width=\textwidth]{plots/demo/demo2018_logscale}%
-\caption{Population of Germany for each region respectively using a logarithmic scale for better distinction.}%
+\caption{Population of Germany for each region, respectively, using a logarithmic scale for better distinction.}%
 \label{fig:demo2018_logscale}%
 \end{figure}
 
 
 \subsection*{Data Preprocessing}
 
-As both, the load data and the weather data come from trustful sources, the need for data preprocessing is very limited. Nevertheless, there is still some missing or doubtful data. \Eg the values for the first months of the load data, that are located at the end of 2014, are much smaller than those after 2015. There is a possibility that this might be correct data, but to avoid uncertainties, only data from the beginning of 2015 to the end of 2018 is used. Also, there are some missing values that are linearly interpolated over time. The same about missing values applies to the weather data. Here it would also be possible to interpolate over locality, but for some time steps, there are no values at all, which is why temporal interpolation makes more sense in this case.\\
+As both the load data and the weather data come from trustful sources, the need for data preprocessing is very limited. Nevertheless, there is still some missing or doubtful data. \Eg the values for the first months of the load data, that are located at the end of 2014, are much smaller than those after 2015. There is a possibility that this might be correct data, but to avoid uncertainties, only data from the beginning of 2015 to the end of 2018 is used. Furthermore, there are some missing values that are linearly interpolated over time. The same applies to missing values applies to the weather data. Here it would also be possible to interpolate over locality, but for some time steps, there are no values at all, which is why temporal interpolation makes more sense in this case.\\
 
 
 \section{Implementation}
 \label{sec:prog}
 
-This section will first outline which programming language is used and why. After that there are two points about the documentation and an additional comment about the process of implementation.\\
+This section will first outline which programming language is used and why. After that the documentation is discussed, as well as the process of implementation.\\
 
-For the programming part, Python\footnote{\url{https://www.python.org/}} 3.6+ has been chosen, as there is a variety of libraries to process all used file formats and because it tends to be a time saving language, also for visualization. Furthermore, Python has a highly vibrant and supportive community.\\
+For the programming part, Python\footnote{\url{https://www.python.org/}} 3.6+ has been chosen, as there is a variety of libraries to process all used file formats, because it tends to be a time saving language and also for visualization purposes. Furthermore, Python has a highly active and supportive community.\\
 
-In regard to coding styles, especially when it comes to docstrings, the numpy conventions are used. This style is based on the reStructuredText\footnote{\url{http://docutils.sourceforge.net/rst.html}} markup syntax. The three major points for this are first, that it is a popular and often used style, second, it is also a visually oriented style which means, that it is easy to read as can be seen in \Cref{fig:wing_docstrings} and last, it is supported by several automated documentation tools that create a PDF or HTML based documentation from existing source code with docstrings. For this purpose, the Sphinx\footnote{\url{http://www.sphinx-doc.org}} tool is used.\\
+In regard to coding styles, especially when it comes to docstrings, the numpy conventions are used. This style is based on the reStructuredText\footnote{\url{http://docutils.sourceforge.net/rst.html}} markup syntax. The three major advantages are first, that it is a popular and often used style, second, that it is a visually oriented style, which means that it is easy to read, as can be seen in \cref{fig:wing_docstrings} and last, it is supported by several automated documentation tools that create a PDF or HTML based documentation from existing source code with docstrings. For this purpose, the Sphinx\footnote{\url{http://www.sphinx-doc.org}} tool is used.\\
 
 \begin{figure}[h!]%
 \centering
 \includegraphics[width=\textwidth]{logos/Predictions_Wing_001}%
-\caption[Python code and numpy docstring in the Wing IDE.]{Python code and numpy docstring in the Wing IDE.\footnotemark.}%
+\caption[A screenshot of Python code and numpy docstring in the Wing IDE.]{A screenshot of Python code and numpy docstring in the Wing IDE.\footnotemark.}%
 \label{fig:wing_docstrings}%
 \end{figure}
 \footnotetext{\url{https://wingware.com/}}
 
-Considering the \gls{arma} model, the statsmodels\footnote{\url{http://www.statsmodels.org/stable/index.html}} package is used. During the process of implementation, it turned out that the forecasting functionality of this model does not behave correctly when using exogenous data. Therefore, this had to be implemented newly. At this point, I would like to thank Kaleb Phipps\footnote{\url{https://www.iai.kit.edu/2154_2880.php}} who provided some very useful code, saving me a lot of time that would have otherwise been spent for debugging.\\
+Considering the \gls{arma} model, the statsmodels\footnote{\url{http://www.statsmodels.org/stable/index.html}} package is used. During the process of implementation, it turned out that the forecasting functionality of this model does not behave correctly when using exogenous data. Therefore, this had to be newly implemented. At this point, I would like to thank Kaleb Phipps\footnote{\url{https://www.iai.kit.edu/2154_2880.php}} who provided some very useful code, saving me a lot of time that would have otherwise been spent for debugging.\\
 
 
 \section{Results}
 \label{sec:results}
 
-In this section, there are first two points about model selection. After that, the acquired results are presented.\\
+In this section, there are at first two key elements about model selection. Afterwards, the acquired results are presented.\\
 
 %At this point, I would like to thank Kaleb Phipps\footnote{\url{https://www.iai.kit.edu/2154_2880.php}} who provided some very useful code, saving me a lot of time that would have otherwise been spent for debugging due to indexing issues. Also, I would like to thank Nicole Ludwig again\footnote{\Cref{ack:nicole}}, since she put a lot of effort in bug tracing.\\ % TODO put this in acknowledgements
 
 \subsection*{Model Selection}
 
-The first steps for estimating reasonable values for $p$ and $q$ values of an \gls{arma} often are the \gls{acf} and the \gls{pacf}. The respective plots in \Cref{fig:acf_compare} may suggest a $p$ value between 3 and 6 and a $q$ value between 2 and 4.\\
+The first steps for estimating reasonable values for $p$ and $q$ values of an \gls{arma} often are the \gls{acf} and the \gls{pacf}. The respective plots in \cref{fig:acf_compare} may suggest a $p$ value between 3 and 6 and a $q$ value between 2 and 4.\\
 
 \begin{figure}[h!]%
 	\centering
@@ -179,7 +181,7 @@ The first steps for estimating reasonable values for $p$ and $q$ values of an \g
 	\label{fig:acf_compare}
 \end{figure}
 
-Information criteria are often used metrics for \gls{arma} models when $p$ and $q$ are limited to a small range of numbers. Then all those models are fitted and the respective information criteria are computed. In general, as can be seen in \Cref{tab:ic_table}, the \gls{aic}, \gls{bic} and \gls{hqic} get smaller for higher $p$ and $q$ values, which is the desired behaviour, as smaller values are better when comparing information criteria for different models that use the same data. However, for higher $p$ and $q$ values of 4 or 5, it can be observed, that the information criteria do not decrease considerably. Thus, it can be said, that appropriate $p$ and $q$ values may be found between 2 and 4. The missing values in the table result from cases where some parameters could not be computed.\\
+Information criteria are often used metrics for \gls{arma} models when $p$ and $q$ are limited to a small range of numbers. Then all those models are fitted and the respective information criteria are computed. In general, as can be seen in \cref{tab:ic_table}, the \gls{aic}, \gls{bic} and \gls{hqic} get smaller for higher $p$ and $q$ values, which is the desired behaviour, as smaller values are better when comparing information criteria for different models that use the same data. However, for higher $p$ and $q$ values of 4 or 5, it can be observed, that the information criteria do not decrease considerably. Thus, it can be said, that appropriate $p$ and $q$ values may be found between 2 and 4. The missing values in the table result from cases where some parameters could not be computed.\\
 
 \begin{table}
 \rowcolors{2}{white}{gray!25}
@@ -200,7 +202,7 @@ AIC\newline ~BIC\newline \rule{0pt}{1em}HQIC & 5 & 464173.18\newline 464230.42\n
 
 \subsection*{ARMAX}
 
-\Cref{fig:armax_fc}, \Cref{fig:armax_fc_dayofweek} and \Cref{fig:armax_fc_load_lag} show plots of one step ahead forecasts of ARMA(2,2) and ARMAX(2,2) models. This equals a one hour forecast due to the one hour resolution of the data. The training data has a time range from 2015/01/08 00:00 to 2017/12/31 00:00 and the forecast horizon covers the range from 2017/12/31 01:00 to 2018/12/31 00:00.\\
+\Cref{fig:armax_fc}, \cref{fig:armax_fc_dayofweek} and \cref{fig:armax_fc_load_lag} show plots of one step ahead forecasts of ARMA(2,2) and ARMAX(2,2) models. This equals a one hour forecast due to the one hour resolution of the data. The training data ranges from 2015/01/08 00:00 to 2017/12/31 00:00 and the forecast horizon covers the range from 2017/12/31 01:00 to 2018/12/31 00:00.\\
 
 \begin{figure}[h!]%
 \centering
@@ -253,14 +255,14 @@ Rhein-Sieg-Kreis & 599056\\
 \label{tab:top10_population}
 \end{table}
 
-In \Cref{tab:armax_forecast_table}, 168h shifted load means the time series, where the actual load data is shifted back in time by one week. The temp mean variable is the mean of the 2 metre temperature for each step in time, respectively. The data counter represents a counter, that counts the steps from 0 up to the length of the data. And last top 10 regions temp denotes the grid points of the 10 regions with the highest population, each grid point as a single time series.\\
+As already can be estimated from the information criteria in \cref{tab:ic_table}, there is a huge difference between the ARMA(1,0) and the ARMA(2,2) model. This results in a difference of more than 1.3\% of the \gls{mape} and can be observed in \cref{tab:armax_forecast_table}. It can be seen, that of all exogenous variables used, including load data shifted by one week, has the greatest impact on the forecast error, causing these model to have the lowest error. In contrast to that, including the 10 regions with the highest population lead to a higher error. This could result from the high correlation between neighbouring grid points in single regions. The respective regions with the highest population are listed in \cref{tab:top10_population}. A model for the 2 metre temperature with all grid points has been fit, too, but the number of 1435 exogenous variables implies a massive amount of computation time, which is unpracticable for real-time forecasting. Furthermore, due to the high correlation between the different grid points, there is a high chance for errors during training. Also, a model with that many variables is prone to over-fitting and thus has a higher error on new data, which can be seen in \cref{fig:armax_fc_t2m_all}. It is very interesting that including the mean temperature seems to result in a slightly better result than using any constellation of single grid points, such as \eg the 10 regions with the highest population.\\
 
-As already can be estimated from the information criteria in \Cref{tab:ic_table}, there is a huge difference between the ARMA(1,0) and the ARMA(2,2) model. This results in a difference of more than 1.3\% of the \gls{mape} and can be observed in \Cref{tab:armax_forecast_table}. It can be seen, that of all exogenous variables used, including load data shifted by one week, has the greatest impact on the forecast error, causing these model to have the lowest error. In contrast to that, including the 10 regions with the highest population lead to a higher error. This could result from the high correlation between neighbouring grid points in single regions. The respective regions with the highest population are listed in \Cref{tab:top10_population}. A model for the 2 metre temperature with all grid points has been fitted too, but the number of 1435 exogenous variables implies a massive amount of computation time which is unpracticable for real-time forecasting. Furthermore, due to the high correlation between the different grid points, there is a high chance for errors during training. Also, a model with that many variables is prone to over-fitting and thus has a higher error on new data which can be seen in \Cref{fig:armax_fc_t2m_all}. It is very interesting that including the mean temperature seems to result in a slightly better result than using any constellation of single grid points such as \eg the 10 regions with the highest population.\\
+In \cref{tab:armax_forecast_table}, 168h shifted load means the time series, where the actual load data is shifted back in time by one week. The temp mean variable is the mean of the 2 metre temperature for each step in time, respectively. The data counter variable counts the steps from 0 up to the length of the data. And the last, which is top 10 regions temp denotes the grid points of the 10 regions with the highest population, with each grid point as a single time series.\\
 
 \begin{sidewaystable}[!ht]%
 \rowcolors{2}{white}{gray!25}
 \centering
-\caption{\acrshort{arma}/\acrshort{armax} performance using different input data. For each error metric, the field with the best value is highlighted in green.}
+\caption{\acrshort{arma}/\acrshort{armax} performance using different input data and models. For each error metric, the field with the best value is highlighted in green.}
 \footnotesize
 \begin{tabularx}{\linewidth}{Xlllllrrrr}
 \tablehead model & \tablehead 168h shifted load & \tablehead temp mean & \tablehead data counter & \tablehead weekend & \tablehead top 10 regions temp & \tablehead\gls{rmse} & \tablehead\gls{mae} & \tablehead\gls{mpe} & \tablehead\gls{mape}\\\hline

@@ -40,7 +40,21 @@ class DataPlotter:
     
     Attributes
     ----------
-    TODO
+    fmt     : string
+              preferred output format of plots such as 'pdf', 'eps', 'jpg' or
+              similar supported by matplotlib
+    save    : boolean
+              whether to save plot or not
+    show    : boolean
+              whether to display plot or not
+    shape   : integer tuple
+              for map multiplot, specify arrangement as tuple of length 2
+    isin    : boolean
+              for map plot, whether to filter by isinDE mask
+    wreader : WeatherReader
+              used to load weather data
+    lreader : LoadReader
+              used to load load data
     """
     def __init__(self, fmt='pdf', save=True, show=False, shape=None, isin=False):
         """Initializes WeatherPlot instance

@@ -361,7 +361,8 @@ class ARMAXForecast:
             var = '_'.join(var[:-1]) if len(var) > 2 else var[0]
             if var in self.weather_reader.get_vars():
                 if var_type == 'top10':
-                    data = self.weather_reader.demography_top_n_regions4timeslice(var, self.start, data_max_date, 10, 2018)
+                    data = self.weather_reader.demography_top_n_regions4timeslice(var, self.start,
+                                                                                  data_max_date, 10, 2018).values
                     for i, top_i in enumerate(data):
                         self.ex_data[f'{var}{i}gridpoint'] = top_i
                 elif var_type == 'all':
@@ -432,7 +433,9 @@ class ARMAXForecast:
         self.const = fit_params[0] if self.has_const else 0
         self.exB = fit_params[1 if self.has_const else 0:-self.p-self.q]
         self.arP = fit_params[-self.p-self.q:-self.q] if self.q > 0 else fit_params[-self.p:]
+        self.arP = self.arP[::-1]
         self.maQ = fit_params[-self.q:] if self.q > 0 else []
+        self.maQ = self.maQ[::-1]
     
     def predict_one_step_ahead(self,fc_end):
         """Predicts one step ahead from instance stop time to given fc_end for every hour
@@ -446,27 +449,82 @@ class ARMAXForecast:
         -------
         TSForecast instance containing actual and forecast values
         """
-        data = self.load_data[self.stop-timedelta(hours=self.p-1):fc_end].values[:,0]
+        endog = self.load_data[self.stop-timedelta(hours=self.p-1):fc_end].values[:,0]
         exog = self.ex_data[self.stop-timedelta(hours=self.p-1):fc_end].values
         if self.q > 0:
-            resid = np.zeros(len(data)-self.p+self.q)
+            resid = np.zeros(len(endog)-self.p+self.q)
             resid[:self.q] = self.__armax_result__.resid[-self.q:]
-        pred = np.empty(len(data)-self.p)
+        pred = np.empty(len(endog)-self.p)
         def m_t(index):
             return self.const if self.exog is None else self.const + np.dot(self.exB, exog[index].transpose())
         
-        for t in range(len(data)-self.p):
-            ar_term = m_t(t+self.p) + np.dot(self.arP[::-1],data[t:t+self.p]-m_t(slice(t, t+self.p)))
-            ma_term = 0 if self.q == 0 else np.dot(self.maQ[::-1], resid[t:t+self.q])
+        for t in range(len(endog)-self.p):
+            ar_term = m_t(t+self.p) + np.dot(self.arP,endog[t:t+self.p]-m_t(slice(t, t+self.p)))
+            ma_term = 0 if self.q == 0 else np.dot(self.maQ, resid[t:t+self.q])
             y = ar_term + ma_term
             if self.q > 0:
-                resid[t+self.q] = data[t+self.p] - y
+                resid[t+self.q] = endog[t+self.p] - y
             pred[t] = y
         
         fc = TSForecast(1, pred, self.load_data[self.stop+timedelta(hours=1):fc_end].values[:,0],
                         self.start, self.stop, self.stop+timedelta(hours=1), fc_end) 
         self.forecasts.append(fc)
         return fc
+    
+    def predict_multi_step_ahead(self,fc_end,steps_ahead):
+        """Predicts multiple steps ahead from instance stop time to given fc_end for every hour
+        
+        WARNING: not fully implemented yet, do not use for actual forecasting by now
+        
+        Parameters 
+        ---------- 
+        fc_end      : datetime.datetime 
+                      time of last forecast
+        steps_ahead : integer
+                      specifies how many steps ahead to forecast
+        
+        Returns 
+        -------
+        list of TSForecasts containing actual and forecast values for each forecast step respectively
+        """
+        deltaN_m1 = timedelta(hours=steps_ahead-1)
+        endog = self.load_data[self.stop-timedelta(hours=self.p-1):fc_end+deltaN_m1].values[:,0]
+        exog = self.ex_data[self.stop-timedelta(hours=self.p-1):fc_end+deltaN_m1].values
+        
+        if self.q > 0:
+            resid = np.zeros(len(endog)-self.p+self.q)
+            resid[:self.q] = self.__armax_result__.resid[-self.q:]
+        
+        def m_t(index):
+            return self.const if self.exog is None else self.const + np.dot(self.exB, exog[index].transpose())
+        
+        pred = np.empty((steps_ahead,len(endog)-self.p-steps_ahead+1))
+        for step in range(1,1+steps_ahead):
+            if step == 1:
+                data = endog[:1-steps_ahead]
+            else:
+                data[:self.p] = endog[step-1:step-1+self.p]
+                data[self.p:] = pred[step-2]
+            for t in range(len(data)-self.p):
+                t_s = t + step
+                t_s_m1 = t_s - 1
+                ar_term = m_t(t_s_m1+self.p) + np.dot(self.arP, data[t:t+self.p]-m_t(slice(t_s_m1, t_s_m1+self.p)))
+                ma_term = 0 if self.q == 0 else np.dot(self.maQ, resid[t_s_m1:t_s_m1+self.q])
+                y = ar_term + ma_term
+                if self.q > 0 and resid[t_s+self.q] != 0:
+                    resid[t_s+self.q] = data[t_s+self.p] - y
+                pred[step-1,t] = y
+            
+        delta_step = timedelta(hours=step)
+        delta_step_m1 = timedelta(hours=step-1) 
+        forecasts = []
+        for step in range(steps_ahead):
+            fc = TSForecast(step+1, pred[step],
+                            self.load_data[self.stop+delta_step:fc_end+delta_step_m1].values[:,0],
+                            self.start, self.stop, self.stop+delta_step, fc_end+delta_step_m1)
+            forecasts.append(fc)
+            self.forecasts.append(fc)
+        return forecasts
     
     def summary(self):
         """Prints summary

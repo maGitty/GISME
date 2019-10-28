@@ -33,7 +33,9 @@
 \usepackage{tabularx}
 \usepackage{float}
 \usepackage{pifont}
+\usepackage{wallpaper}
 \usepackage[table]{xcolor}
+\usepackage{pdfpages}
 
 \definecolor{darkgreen}{HTML}{00B000}
 \definecolor{darkred}{HTML}{D00000}
@@ -205,5 +207,11 @@ keepaspectratio]{logos/bulb.png}%
 %% ----------------
 \appendix
 \input{sections/appendix.tex}
+
+\newpage
+\clearpage ~
+\newpage
+
+\includepdf{logos/bulb.pdf}
 
 \end{document}

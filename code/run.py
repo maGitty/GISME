@@ -70,23 +70,26 @@ fc_end = datetime(2018,12,31)
     #armax.summary()
     #print(armax.predict_one_step_ahead(fc_end))
 
-armax = ARMAXForecast(start,stop,2,2,['load_lag'])
+armax = ARMAXForecast(start,stop,1,1)
 armax.train()
 armax.summary()
-fc = armax.predict_one_step_ahead(fc_end)
-print(fc)
+print(armax.predict_one_step_ahead(fc_end))
+fc = armax.predict_multi_step_ahead(fc_end,1)
+for i in fc:
+    print(i)
+print(armax.predict_one_step_ahead(fc_end))
 
-wvars = ['u10', 'v10', 't2m', 'lai_hv', 'lai_lv', 'lcc',
-         'stl1', 'slhf', 'str', 'sshf', 'tcc', 'tcrw', 'fdir']
+#wvars = ['u10', 'v10', 't2m', 'lai_hv', 'lai_lv', 'lcc',
+         #'stl1', 'slhf', 'str', 'sshf', 'tcc', 'tcrw', 'fdir']
 
-for var in wvars:
-    print(var)
-    var = f'{var}_mean'
-    armax = ARMAXForecast(start,stop,2,2,['load_lag',var])
-    armax.train()
-    armax.summary()
-    fc = armax.predict_one_step_ahead(fc_end)
-    print(fc)
+#for var in wvars:
+    #print(var)
+    #var = f'{var}_mean'
+    #armax = ARMAXForecast(start,stop,2,2,['load_lag',var])
+    #armax.train()
+    #armax.summary()
+    #fc = armax.predict_one_step_ahead(fc_end)
+    #print(fc)
 
 #for i in ['t2m_median','t2m_min','t2m_max','t2m_mean']:
     
