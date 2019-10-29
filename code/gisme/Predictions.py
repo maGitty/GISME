@@ -365,6 +365,10 @@ class ARMAXForecast:
                                                                                   data_max_date, 10, 2018).values
                     for i, top_i in enumerate(data):
                         self.ex_data[f'{var}{i}gridpoint'] = top_i
+                if var_type == 'isinDE':
+                    data = self.weather_reader.isin4timesliceDE(var, self.start, data_max_date).values
+                    for i, point_i in enumerate(data):
+                        self.ex_data[f'{var}{i}inDE'] = point_i
                 elif var_type == 'all':
                     data = self.weather_reader.stackedvals4timeslice(var, self.start, data_max_date)
                     for i, gridpoint in enumerate(data):

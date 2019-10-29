@@ -105,6 +105,14 @@
 \tikzstyle{circle4} = [circle,draw=kit-green70,fill=kit-green70,inner sep=0pt,minimum size=.8cm]
 \tikzstyle{circle5} = [circle,draw=kit-green100,fill=kit-green100,inner sep=0pt,minimum size=.8cm]
 
+%\tikzset{
+%  invisible/.style={opacity=.4},
+%  visible on/.style={alt={#1{}{invisible}}},
+%  alt/.code args={<#1>#2#3}{%
+%    \alt<#1>{\pgfkeysalso{#2}}{\pgfkeysalso{#3}} % \pgfkeysalso doesn't change the path
+%  },
+%}
+
 \tikzstyle{neuron} = [circle,draw=black,fill=none,inner sep=0pt,minimum size=4mm]
 \tikzstyle{arrow} = [thick,->,>=stealth]
 
@@ -145,42 +153,56 @@
 %\noKITFrame
 \removeKITFrame
 
-\begin{frame}
-\vspace{26mm}\hspace{20mm}
-{\Huge Acknowledgements}
-\end{frame}
 
-\begin{frame}{Introduction}
+\begin{frame}<1>[label=toc]{Overview}
 \vspace{1cm}
 \begin{tikzpicture}[node distance=1cm]
-  \node (fst) [circle1,label=0:Topic] {1};
+  \node (fst) [circle1,label=0:Introduction] {1};
+  \pause
   \node (snd) [circle2,below of=fst,xshift=.4cm,label=0:Related Work] {2};
+  \pause
   \node (trd) [circle3,below of=snd,xshift=.4cm,label=0:Methods] {3};
+  \pause
   \node (fth) [circle4,below of=trd,xshift=.4cm,label=0:Evaluation] {4};
+  \pause
   \node (sth) [circle5,below of=fth,xshift=.4cm,label=0:Conclusion] {5};
 \end{tikzpicture}
 
 \end{frame}
 
+
+\begin{frame}{Introduction}
+
+\begin{figure}[h!]%
+	\centering
+	\includegraphics[height=.9\textheight]{../doc/plots/t2m/maxvar/0_map}%
+\end{figure}
+
+\end{frame}
+
+
+\againframe<2>{toc}
+
+
 \begin{frame}{Related Works}
 
-\vspace{20pt}
+%\vspace{20pt}
 \begin{table}[!ht]%
 \rowcolors{2}{white}{gray!25}
 \centering
-\tiny
-\begin{tabularx}{\linewidth}{lllll}
-\textbf{paper} & \textbf{type of weather data} & \textbf{forecast time series} & \textbf{methods} & \textbf{forecast horizon}\\\Xhline{2\arrayrulewidth}
-\tcite{Ludwig2015} & station-based & energy prices & ARMA,ARMAX,LASSO,RF & 24h\\
+\scriptsize
+\begin{tabularx}{\linewidth}{p{22mm}XXXX}
+\textbf{paper} & \textbf{type of\newline weather data} & \textbf{forecast time\newline series} & \textbf{methods} & \textbf{forecast\newline horizon}\\\Xhline{2\arrayrulewidth}
+\tcite{Ludwig2015} & station-based & energy prices & ARMA,ARMAX,\newline LASSO,RF & 24h\\
 \tcite{Salcedo-Sanz2018} & grid-based & solar radiation & ELM,CRO,MARS,\newline MLR,SVR,GGA & 24h\\
-\tcite{Diagne2013} & grid-based & solar radiation & ARMA,ARIMA,CARDS,\newline NN,WNN & 5 min-6h\\\Xhline{2\arrayrulewidth}
+\tcite{Diagne2013} & grid-based & solar radiation & ARMA,ARIMA,\newline CARDS,NN,WNN & 5 min-6h\\\Xhline{2\arrayrulewidth}
 \tcite{Aguiar2016} & mixed & solar radiation & NN & 1-6h\\
 \tcite{Bofinger2006} & mixed & solar power & MOS,IDW & 24-120h\\
-\tcite{Haben2018} & station-based & low voltage electricity load & KDE,SSLR,ARWD,\newline ARWDY,HWT & up to 4 days\\
+\tcite{Haben2018} & station-based & low voltage\newline electricity load & KDE,SSLR,ARWD,\newline ARWDY,HWT & up to 4 days\\
 \tcite{Alessandrini2015} & station-based & wind power & ANEN & 0-132h\\\Xhline{2\arrayrulewidth}
-\tcite{Sperati2016} & grid-based & solar power & PDF,NN,VD,EMOS,PE & 0-72h\\
-\tcite{DeFelice2015} & grid-based & electricity demand & LR,SVM & 1-2 months\\
-\tcite{Davo2016} & grid-based & wind power,solar radiation & PCA,ANEN,NN & 0-72h\\\Xhline{2\arrayrulewidth}
+\tcite{Sperati2016} & grid-based & solar power & PDF,NN,VD,\newline EMOS,PE & 0-72h\\
+\tcite{DeFelice2015} & grid-based & electricity\newline demand & LR,SVM & 1-2 months\\
+\tcite{Davo2016} & grid-based & wind power,\newline solar radiation & PCA,ANEN,NN & 0-72h\\\Xhline{2\arrayrulewidth}
 \textbf{This thesis} & grid-based & electricity load & ARMA,ARMAX & 1h\\
 %\tcite{Aertsen2012} & mixed & \gls{ok},\gls{ck},\gls{rk} & long term & TODO\\ %  maybe not relevant du to only considering station-based measures and thus using interpolation methods (kriging)
 %\tcite{Kaminska-Chuchmala2014} & distributed &  & & & \\
@@ -191,6 +213,10 @@
 \end{table}
 
 \end{frame}
+
+
+\againframe<3>{toc}
+
 
 \begin{frame}{Methodology}
 
@@ -210,6 +236,10 @@ MAPE = \frac{1}{k}\times 100 \sum_{i=1}^{k} \left|\frac{y_i-\hat{y}_i}{y_i}\righ
 \end{equation}
 
 \end{frame}
+
+
+\againframe<4>{toc}
+
 
 \begin{frame}{Evaluation I}
 
@@ -232,6 +262,7 @@ Data filtered using shapefile from Eurostat\footnote{\url{https://ec.europa.eu/e
 
 \end{frame}
 
+
 \begin{frame}{Evaluation II}
 
 Stuffy stuff.
@@ -243,9 +274,10 @@ Stuffy stuff.
 
 \end{frame}
 
+
 \begin{frame}{Evaluation III}
 
-Wing stuffy\footnote{\url{https://wingware.com/}}. Be no wowy, mesa no talk much about disa.
+Wing stuffy\footnote{\url{https://wingware.com/}}. optional, max 30s%Be no wowy, mesa no talk much about disa.
 
 \begin{figure}[h!]%
 \centering
@@ -253,6 +285,7 @@ Wing stuffy\footnote{\url{https://wingware.com/}}. Be no wowy, mesa no talk much
 \end{figure}
 
 \end{frame}
+
 
 \begin{frame}{Evaluation IV}
 
@@ -274,6 +307,7 @@ Autocorrelation and partial autocorrelation function.
 
 \end{frame}
 
+
 \begin{frame}{Evaluation V}
 
 \begin{table}
@@ -293,6 +327,7 @@ AIC\newline ~BIC\newline \rule{0pt}{1em}HQIC & 5 & 464173.18\newline 464230.42\n
 
 \end{frame}
 
+
 \begin{frame}{Evaluation VI}
 
 Only load ARMA(2,2) from 2017/12/31 to 2018/01/08 using load data from 2015/01/080 to 2017/12/31 for training.
@@ -303,6 +338,7 @@ Only load ARMA(2,2) from 2017/12/31 to 2018/01/08 using load data from 2015/01/0
 \end{figure}
 
 \end{frame}
+
 
 \begin{frame}{Evaluation VII}
 
@@ -315,6 +351,7 @@ Forecast from 2017/12/31 to 2018/01/08 for ARMAX(2,2) with load data from 2015/0
 
 \end{frame}
 
+
 \begin{frame}{Evaluation VIII}
 
 forecast from 2017/12/31 to 2018/01/08 for ARMAX(2,2) with load data from 2015/01/08 to 2017/12/31 for train and load data shifted back in time by 1 week for same time range as exog.
@@ -325,6 +362,7 @@ forecast from 2017/12/31 to 2018/01/08 for ARMAX(2,2) with load data from 2015/0
 \end{figure}%
 
 \end{frame}
+
 
 \begin{frame}{Evaluation IX}
 
@@ -337,16 +375,17 @@ Forecast from 2017/12/31 to 2018/01/08 for ARMAX(1,0) with load data from 2017/0
 
 \end{frame}
 
+
 \begin{frame}{Evaluation X}
 
-ARMA/ARMAX performance using different input data and models. % 1 = 168h shifted load, 2 = 2 metre temperature mean over longitude and latitude, 3 = data counter, 4 = weekend dummy, 5 = top 10 regions grid points for 2 metre temperature
+ARMA/ARMAX performance using different input data and models. 1=shifted load,2=t2m mean,3=counter,4=weekend,5=top 10 regions t2m
 
 \begin{table}[!ht]%
 \rowcolors{2}{white}{gray!25}
 \centering
-\tiny
+\scriptsize
 \begin{tabularx}{\linewidth}{Xlllllrrrr}
-\textbf{model} & \textbf{shifted load} & \textbf{t2m mean} & \textbf{counter} & \textbf{weekend} & \textbf{top ten regions} & \textbf{RMSE} & \textbf{MAE} & \textbf{MPE} & \textbf{MAPE}\\\hline
+\textbf{model} & \textbf{1} & \textbf{2} & \textbf{3} & \textbf{4} & \textbf{5} & \textbf{RMSE} & \textbf{MAE} & \textbf{MPE} & \textbf{MAPE}\\\hline
 ARMA(1,0) & \xmark & \xmark & \xmark & \xmark & \xmark & 2621.940 & 1961.213 & 0.006 & 3.460\\
 ARMA(2,2) & \xmark & \xmark & \xmark & \xmark & \xmark & 1727.742 & 1216.559 & 0.220 & 2.114\\
 ARMAX(2,2) & \cmark & \cmark & \xmark & \xmark & \xmark & 1024.265 & 628.298 & -0.020 & \cellcolor{green!35}1.103\\
@@ -356,22 +395,16 @@ ARMAX(2,2) & \cmark & \cmark & \cmark & \cmark & \xmark & 1024.295 & 628.324 & -
 ARMAX(2,2) & \cmark & \xmark & \xmark & \xmark & \xmark & 1030.753 & 633.436 & 0.101 & 1.112\\
 ARMAX(2,2) & \cmark & \xmark & \xmark & \cmark & \xmark & 1030.756 & 633.433 & 0.101 & 1.112\\
 ARMAX(2,2) & \cmark & \xmark & \cmark & \xmark & \xmark & 1029.191 & 633.093 & -0.165 & 1.114\\
-ARMAX(2,2) & \cmark & \xmark & \cmark & \cmark & \xmark & 1029.199 & 633.103 & -0.165 & 1.114\\
 ARMAX(2,2) & \cmark & \xmark & \xmark & \xmark & \cmark & 1043.292 & 649.564 & -0.018 & 1.144\\
 ARMAX(2,2) & \cmark & \xmark & \cmark & \xmark & \cmark & 1043.711 & 650.046 & -0.012 & 1.145\\
-ARMAX(2,2) & \cmark & \xmark & \cmark & \cmark & \cmark & 1051.469 & 659.243 & -0.012 & 1.164\\
 ARMAX(2,2) & \cmark & \cmark & \xmark & \cmark & \cmark & 1051.801 & 659.805 & -0.021 & 1.165\\
 ARMAX(2,2) & \cmark & \cmark & \cmark & \cmark & \cmark & 1051.956 & 660.006 & \cellcolor{green!35}-0.004 & 1.165\\
-ARMAX(2,2) & \cmark & \cmark & \xmark & \xmark & \cmark & 1062.208 & 667.663 & -0.011 & 1.179\\
 ARMAX(2,2) & \cmark & \xmark & \cmark & \xmark & \xmark & 1656.760 & 1178.435 & 0.021 & 2.043\\
 ARMAX(2,2) & \xmark & \cmark & \xmark & \xmark & \xmark & 1662.298 & 1179.187 & 0.185 & 2.039\\
 ARMAX(2,2) & \xmark & \cmark & \xmark & \cmark & \xmark & 1661.909 & 1179.681 & 0.187 & 2.040\\
 ARMAX(2,2) & \xmark & \cmark & \cmark & \cmark & \xmark & 1656.224 & 1179.021 & 0.022 & 2.044\\
-ARMAX(2,2) & \xmark & \xmark & \cmark & \xmark & \xmark & 1730.620 & 1226.238 & -0.382 & 2.119\\
-ARMAX(2,2) & \xmark & \xmark & \cmark & \cmark & \xmark & 1730.620 & 1226.237 & -0.382 & 2.119\\
 ARMAX(2,2) & \xmark & \cmark & \cmark & \cmark & \cmark & 1811.407 & 1321.255 & 0.043 & 2.315\\
 ARMAX(2,2) & \xmark & \xmark & \cmark & \xmark & \cmark & 2004.932 & 1444.396 & -0.036 & 2.547\\
-ARMAX(2,2) & \xmark & \cmark & \cmark & \xmark & \cmark & 2032.248 & 1456.478 & -0.025 & 2.570\\
 ARMAX(2,2) & \xmark & \xmark & \xmark & \xmark & \cmark & 2130.514 & 1508.978 & 0.211 & 2.663\\
 %ARMAX(2,2) & \xmark & \xmark & \xmark & \xmark & \xmark & & & & \\
 \end{tabularx}
@@ -380,9 +413,13 @@ ARMAX(2,2) & \xmark & \xmark & \xmark & \xmark & \cmark & 2130.514 & 1508.978 & 
 \end{frame}
 
 
+\againframe<5>{toc}
+
+
 \begin{frame}{Conclusion}
 
-Memba NN?
+Maybe use NN, RNN? At least, mention, that redundant information of grid-based data must somehow be filtered in order to improve forecasts and speed up computation.\\
+\vspace{5mm}
 
 \begin{tikzpicture}[x=1.5cm, y=.6cm, >=stealth]
 \foreach \m/\l [count=\y] in {1,2,3,missing,4}
@@ -409,12 +446,18 @@ Memba NN?
   \node [align=center, above] at (\x,1) {};
 \end{tikzpicture}
 
-
 \end{frame}
+
+
+\begin{frame}
+\vspace{26mm}\hspace{20mm}
+{\Huge Acknowledgements}\\
+\end{frame}
+
 
 \begin{frame}[allowframebreaks]{References}
-
 \printbibliography[heading=none]
 \end{frame}
+
 
 \end{document}

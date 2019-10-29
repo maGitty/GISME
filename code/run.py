@@ -33,16 +33,17 @@ from statsmodels.tsa.arima_model import ARMA
 #stop = datetime(2017,12,31)
 #fc_end = datetime(2018,12,31)
 
-#pl = DataPlotter(fmt='pdf', save=True, show=True, isin=True)  # , shape=(2, 2))
+pl = DataPlotter(fmt='pdf', save=True, show=True, isin=False)  # , shape=(2, 2))
+#pl.plot_nmax_var('t2m',1)
 #pl.plot_isin_top_n(100,2018)
 
-#t_start = datetime(2015, 1, 8)
-#t_stop = datetime(2017, 12, 31)
-#end = datetime(2018, 12, 31)
+t_start = datetime(2015, 1, 8)
+t_stop = datetime(2017, 12, 31)
+end = datetime(2018, 12, 31)
 
-#plot_start = datetime(2018, 1, 1)
-#plot_end = datetime(2018, 1, 8)
-#pl.plot_armax_forecast(t_start, t_stop, end, 2, 2, exog=['t2m_max'])
+plot_start = datetime(2018, 1, 1)
+plot_end = datetime(2018, 1, 8)
+pl.plot_armax_forecast(t_start, t_stop, end, 1, 0, exog=['t2m_isinDE'], plot_range=(plot_start, plot_end))
 #pl.plot_armax_forecast(t_start, t_stop, end, 2, 2, exog=['t2m_mean'])
 
 #for exog in top10vars:
@@ -60,7 +61,7 @@ from statsmodels.tsa.arima_model import ARMA
 #print(wr.longitudes().size*wr.latitudes().size)
 #wr.print_vars_texfmt()
 
-start = datetime(2015,1,8)
+start = datetime(2017,1,8)
 stop = datetime(2017,12,31)
 fc_end = datetime(2018,12,31)
 
@@ -70,14 +71,15 @@ fc_end = datetime(2018,12,31)
     #armax.summary()
     #print(armax.predict_one_step_ahead(fc_end))
 
-armax = ARMAXForecast(start,stop,1,1)
-armax.train()
-armax.summary()
-print(armax.predict_one_step_ahead(fc_end))
-fc = armax.predict_multi_step_ahead(fc_end,1)
-for i in fc:
-    print(i)
-print(armax.predict_one_step_ahead(fc_end))
+#armax = ARMAXForecast(start,stop,1,0,['t2m_isinDE'])
+#print('start training')
+#armax.train()
+#armax.summary()
+#print(armax.predict_one_step_ahead(fc_end))
+#fc = armax.predict_multi_step_ahead(fc_end,2)
+#for i in fc:
+    #print(i)
+#print(armax.predict_one_step_ahead(fc_end))
 
 #wvars = ['u10', 'v10', 't2m', 'lai_hv', 'lai_lv', 'lcc',
          #'stl1', 'slhf', 'str', 'sshf', 'tcc', 'tcrw', 'fdir']

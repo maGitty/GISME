@@ -477,7 +477,7 @@ class WeatherReader:
             log.info(f'isin file not found in {data_path}')
             contained = self.util.check_isinDE()
         return self.wdata[name].sel(time=slice(start, stop)).where(contained, other=np.nan, drop=False)\
-                   .stack(loc=(lon_col, lat_col)).dropna('loc').transpose().values
+                   .stack(loc=(lon_col, lat_col)).dropna('loc').transpose()
     
     def isin4timeslice_region(self, name, start, stop, region_id):
         """Return values for specified variable from start to stop filtered by region map
@@ -505,7 +505,7 @@ class WeatherReader:
             log.info(f'isin file not found in {data_path}')
             contained = self.util.check_isin_region(region_id)
         return self.wdata[name].sel(time=slice(start, stop)).where(contained, other=np.nan, drop=False)\
-                   .stack(loc=(lon_col, lat_col)).dropna('loc').transpose().values
+                   .stack(loc=(lon_col, lat_col)).dropna('loc').transpose()
     
     def isin4timeslice_map(self, name, start, stop, matrix):
         """Return values for specified variable from start to stop filtered by specified map
