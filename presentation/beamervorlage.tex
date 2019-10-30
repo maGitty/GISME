@@ -147,8 +147,8 @@
   \maketitle
 \end{frame}
 
-  \makeatletter
-  \makeatother
+\makeatletter
+\makeatother
 
 %\noKITFrame
 \removeKITFrame
@@ -330,11 +330,11 @@ AIC\newline ~BIC\newline \rule{0pt}{1em}HQIC & 5 & 464173.18\newline 464230.42\n
 
 \begin{frame}{Evaluation VI}
 
-Only load ARMA(2,2) from 2017/12/31 to 2018/01/08 using load data from 2015/01/080 to 2017/12/31 for training.
+%Only load ARMA(2,2) from 2017/12/31 to 2018/01/08 using load data from 2015/01/080 to 2017/12/31 for training.
 
 \begin{figure}[h!]%
 \centering
-\includegraphics[height=.8\textheight]{../doc/plots/ARMAXfc/ARMAX_p2q2_data2015to2017_fcto2018123100_plot_range2018010100_2018010800}%
+\includegraphics[height=\textheight]{../doc/plots/ARMAXfc/ARMAX_p2q2_data2015to2017_fcto2018123100_plot_range2018010100_2018010800}%
 \end{figure}
 
 \end{frame}
@@ -342,11 +342,11 @@ Only load ARMA(2,2) from 2017/12/31 to 2018/01/08 using load data from 2015/01/0
 
 \begin{frame}{Evaluation VII}
 
-Forecast from 2017/12/31 to 2018/01/08 for ARMAX(2,2) with load data from 2015/01/08 to 2017/12/31 for train and grid points of ten regions with highest pop as exog.
+%Forecast from 2017/12/31 to 2018/01/08 for ARMAX(2,2) with load data from 2015/01/08 to 2017/12/31 for train and grid points of ten regions with highest pop as exog.
 
 \begin{figure}[h!]%
 \centering
-\includegraphics[height=.8\textheight]{../doc/plots/ARMAXfc/ARMAX_p2q2_data2015to2017_fcto2018123100_t2m_top10_plot_range2018010100_2018010800}%
+\includegraphics[height=\textheight]{../doc/plots/ARMAXfc/ARMAX_p2q2_data2015to2017_fcto2018123100_t2m_top10_plot_range2018010100_2018010800}%
 \end{figure}
 
 \end{frame}
@@ -354,11 +354,11 @@ Forecast from 2017/12/31 to 2018/01/08 for ARMAX(2,2) with load data from 2015/0
 
 \begin{frame}{Evaluation VIII}
 
-forecast from 2017/12/31 to 2018/01/08 for ARMAX(2,2) with load data from 2015/01/08 to 2017/12/31 for train and load data shifted back in time by 1 week for same time range as exog.
+%forecast from 2017/12/31 to 2018/01/08 for ARMAX(2,2) with load data from 2015/01/08 to 2017/12/31 for train and load data shifted back in time by 1 week for same time range as exog.
 
 \begin{figure}[h!]%
 \centering
-\includegraphics[height=.8\textheight]{../doc/plots/ARMAXfc/ARMAX_p2q2_data2015to2017_fcto2018123100_load_lag_plot_range2018010100_2018010800}%
+\includegraphics[height=\textheight]{../doc/plots/ARMAXfc/ARMAX_p2q2_data2015to2017_fcto2018123100_load_lag_plot_range2018010100_2018010800}%
 \end{figure}%
 
 \end{frame}
@@ -366,19 +366,17 @@ forecast from 2017/12/31 to 2018/01/08 for ARMAX(2,2) with load data from 2015/0
 
 \begin{frame}{Evaluation IX}
 
-Forecast from 2017/12/31 to 2018/01/08 for ARMAX(1,0) with load data from 2017/01/01 to 2017/12/31 for train and all 1435 grid points of the t2m variable as exog.
+%Forecast from 2017/12/31 to 2018/01/08 for ARMAX(1,0) with load data from 2017/01/01 to 2017/12/31 for train and all 1435 grid points of the t2m variable as exog.
 
 \begin{figure}[h!]%
 \centering
-\includegraphics[height=.8\textheight]{../doc/plots/ARMAXfc/ARMAX_p1q0_data2017010100to2017123100_fc2017123101to2018010800_t2m_all}%
+\includegraphics[height=\textheight]{../doc/plots/ARMAXfc/ARMAX_p1q0_data2017010100to2017123100_fc2017123101to2018010800_t2m_all}%
 \end{figure}%
 
 \end{frame}
 
 
 \begin{frame}{Evaluation X}
-
-ARMA/ARMAX performance using different input data and models. 1=shifted load,2=t2m mean,3=counter,4=weekend,5=top 10 regions t2m
 
 \begin{table}[!ht]%
 \rowcolors{2}{white}{gray!25}
@@ -410,6 +408,8 @@ ARMAX(2,2) & \xmark & \xmark & \xmark & \xmark & \cmark & 2130.514 & 1508.978 & 
 \end{tabularx}
 \end{table}
 
+1=shifted load,2=t2m mean,3=counter,4=weekend,5=top 10 regions t2m
+
 \end{frame}
 
 
@@ -421,33 +421,14 @@ ARMAX(2,2) & \xmark & \xmark & \xmark & \xmark & \cmark & 2130.514 & 1508.978 & 
 Maybe use NN, RNN? At least, mention, that redundant information of grid-based data must somehow be filtered in order to improve forecasts and speed up computation.\\
 \vspace{5mm}
 
-\begin{tikzpicture}[x=1.5cm, y=.6cm, >=stealth]
-\foreach \m/\l [count=\y] in {1,2,3,missing,4}
-  \node [every neuron/.try, neuron \m/.try] (input-\m) at (0,1-\y*1.25) {};
-\foreach \m [count=\y] in {1,missing,2}
-  \node [every neuron/.try, neuron \m/.try ] (hidden-\m) at (1,-\y*1.25) {};
-\foreach \m [count=\y] in {1,missing,2}
-  \node [every neuron/.try, neuron \m/.try ] (output-\m) at (2,-\y*1.25) {};
-\foreach \l [count=\i] in {1,2,3,n}
-  \draw [<-] (input-\i) -- ++(-.5,0)
-    node [above, midway] {$i_\l$};
-\foreach \l [count=\i] in {1,n}
-  \node [above] at (hidden-\i.north) {$h_\l$};
-\foreach \l [count=\i] in {1,n}
-  \draw [->] (output-\i) -- ++(1,0)
-    node [above, midway] {$o_\l$};
-\foreach \i in {1,...,4}
-  \foreach \j in {1,...,2}
-    \draw [->] (input-\i) -- (hidden-\j);
-\foreach \i in {1,...,2}
-  \foreach \j in {1,...,2}
-    \draw [->] (hidden-\i) -- (output-\j);
-\foreach \l [count=\x from 0] in {}
-  \node [align=center, above] at (\x,1) {};
-\end{tikzpicture}
-
 \end{frame}
 
+\begin{frame}{Summary}
+
+Summ Summ Summ Summ Summ Summ Summ Summ Summ Summ\\
+Lorem Summum.
+
+\end{frame}
 
 \begin{frame}
 \vspace{26mm}\hspace{20mm}

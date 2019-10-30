@@ -38,7 +38,7 @@ As data parameters, there are also longitude and latitude, where the longitude i
 \label{fig:maxvar4_maps}%
 \end{figure}
 
-In order to reduce complexity, a shapefile of the \acrshort{nuts} dataset was used. The shapefile contains all countries in the EU. The shape of Germany was filtered from this data and each point in the dataset is checked whether it is within Germany or not. The result can be seen in the left figure in \cref{fig:isin_compare}. An example for a complete map without filtering is shown in \cref{fig:maxvar4_maps}, where a map of the four times with the highest variance in 2 metre temperature are displayed, respectively. The filtered map firstly is stored in a numpy.ndarray and then applied on the data to mask unwanted data. The filtered map is visualized in the right figure in \cref{fig:isin_compare}. The same process was made for NUTS 3 level districts considering population data, which is mentioned later in this section.\\
+In order to reduce complexity, a shapefile of the \acrshort{nuts} dataset was used. The shapefile contains all countries in the EU. The shape of Germany was filtered from this data and each point in the dataset is checked whether it is within Germany or not. An example for a complete map without filtering is shown in \Cref{fig:maxvar4_maps}, where a map of the four times with the highest variance in 2 metre temperature are displayed, respectively. The filter map can be seen in the left figure in \Cref{fig:isin_compare}. It firstly is stored in a numpy.ndarray and then applied on the data to mask unwanted data. The filtered weather data is visualized in the right figure in \Cref{fig:isin_compare}. The same process was made for NUTS 3 level districts considering population data, which is mentioned later in this section.\\
 
 \begin{figure}[h!]%
 	\centering
@@ -59,7 +59,7 @@ In order to reduce complexity, a shapefile of the \acrshort{nuts} dataset was us
 \end{figure}
 \footnotetext{\url{https://ec.europa.eu/eurostat/de/web/gisco/geodata/reference-data/administrative-units-statistical-units/nuts}}
 
-The initial dataset contains a set of variables listed in \cref{tab:wvars} where also the units, mean, min and max are shown for each variable respectively.\\
+The initial dataset contains a set of variables listed in \Cref{tab:wvars} where also the units, mean, min and max are shown for each variable respectively.\\
 
 \begin{table}[h!]%
 \rowcolors{2}{white}{gray!25}
@@ -89,7 +89,7 @@ Total sky direct solar radiation at surface & $J~m^{-2}$ & 282134.31 & -0.12 & 3
 
 \subsection*{Load Data}
 
-Besides weather data used to refine the forecasting results, historic load data is needed, as well. For this purpose, data has been retrieved from Open Power System Data\footnote{\url{https://data.open-power-system-data.org/time_series/}}. \Cref{fig:t2m_mean_18A5_twofold_24F} shows the distribution of loads over time with one point per day at 12 am UTC time. The color shows the mean temperature measured at 2 metres. The same data in a single plot is added in the Appendix as \cref{fig:t2m_mean_2015010112_2018123112_24F}, where it is split in two plots for better distinction of single points.\\
+Besides weather data used to refine the forecasting results, historic load data is needed, as well. For this purpose, data has been retrieved from Open Power System Data\footnote{\url{https://data.open-power-system-data.org/time_series/}}. \Cref{fig:t2m_mean_18A5_twofold_24F} shows the distribution of loads over time with one point per day at 12 am UTC time. The color shows the mean temperature measured at 2 metres. The same data in a single plot is added in the Appendix as \Cref{fig:t2m_mean_2015010112_2018123112_24F}, where it is split in two plots for better distinction of single points.\\
 
 %\begin{figure}[h!]%
 %\centering
@@ -98,7 +98,7 @@ Besides weather data used to refine the forecasting results, historic load data 
 %\label{fig:t2m_mean_2015010112_2018123112_24F}%
 %\end{figure}
 
-\begin{figure}[H]%
+\begin{figure}[h!]%
 	\centering
 	\begin{subfigure}{.5\textwidth}
 		\centering
@@ -117,7 +117,7 @@ Besides weather data used to refine the forecasting results, historic load data 
 
 \subsection*{Population Data}
 
-For further improvement and in order to filter important points in the grid, population data for Germany has been acquired from Eurostat\footnote{\url{https://ec.europa.eu/eurostat/data/database}}. The data is being visualized in \cref{fig:demo2018_logscale} with a logarithmic scale to improve visual distinction between the different regions which would be difficult using a a non-logarithmic scale.\\
+For further improvement and in order to filter important points in the grid, population data for Germany has been acquired from Eurostat\footnote{\url{https://ec.europa.eu/eurostat/data/database}}. The data is being visualized in \Cref{fig:demo2018_logscale} with a logarithmic scale to improve visual distinction between the different regions which would be difficult using a a non-logarithmic scale.\\
 
 \begin{figure}[h!]%
 \centering
@@ -139,7 +139,7 @@ This section will first outline which programming language is used and why. Afte
 
 For the programming part, Python\footnote{\url{https://www.python.org/}} 3.6+ has been chosen, as there is a variety of libraries to process all used file formats, because it tends to be a time saving language and also for visualization purposes. Furthermore, Python has a highly active and supportive community.\\
 
-In regard to coding styles, especially when it comes to docstrings, the numpy conventions are used. This style is based on the reStructuredText\footnote{\url{http://docutils.sourceforge.net/rst.html}} markup syntax. The three major advantages are first, that it is a popular and often used style, second, that it is a visually oriented style, which means that it is easy to read, as can be seen in \cref{fig:wing_docstrings} and last, it is supported by several automated documentation tools that create a PDF or HTML based documentation from existing source code with docstrings. For this purpose, the Sphinx\footnote{\url{http://www.sphinx-doc.org}} tool is used.\\
+In regard to coding styles, especially when it comes to docstrings, the numpy conventions are used. This style is based on the reStructuredText\footnote{\url{http://docutils.sourceforge.net/rst.html}} markup syntax. The three major advantages are first, that it is a popular and often used style, second, that it is a visually oriented style, which means that it is easy to read, as can be seen in \Cref{fig:wing_docstrings} and last, it is supported by several automated documentation tools that create a PDF or HTML based documentation from existing source code with docstrings. For this purpose, the Sphinx\footnote{\url{http://www.sphinx-doc.org}} tool is used.\\
 
 \begin{figure}[h!]%
 \centering
@@ -161,7 +161,7 @@ In this section, there are at first two key elements about model selection. Afte
 
 \subsection*{Model Selection}
 
-The first steps for estimating reasonable values for $p$ and $q$ values of an \gls{arma} often are the \gls{acf} and the \gls{pacf}. The respective plots in \cref{fig:acf_compare} may suggest a $p$ value between 3 and 6 and a $q$ value between 2 and 4.\\
+The first steps for estimating reasonable values for $p$ and $q$ values of an \gls{arma} often are the \gls{acf} and the \gls{pacf}. The respective plots in \Cref{fig:acf_compare} may suggest a $p$ value between 3 and 6 and a $q$ value between 2 and 4.\\
 
 \begin{figure}[h!]%
 	\centering
@@ -177,11 +177,11 @@ The first steps for estimating reasonable values for $p$ and $q$ values of an \g
 		\caption{}
 		\label{fig:pacf_load_lags48}%
 	\end{subfigure}
-	\caption{Autocorrelation (a) and Partial Autocorrelation (b) plots used to select the order of \acrshort{arma} and \acrshort{armax} models.}
+	\caption{Plots of the \acrshort{acf} (a) and \acrshort{pacf} (b) used to select the order of \acrshort{arma} and \acrshort{armax} models.}
 	\label{fig:acf_compare}
 \end{figure}
 
-Information criteria are often used metrics for \gls{arma} models when $p$ and $q$ are limited to a small range of numbers. Then all those models are fitted and the respective information criteria are computed. In general, as can be seen in \cref{tab:ic_table}, the \gls{aic}, \gls{bic} and \gls{hqic} get smaller for higher $p$ and $q$ values, which is the desired behaviour, as smaller values are better when comparing information criteria for different models that use the same data. However, for higher $p$ and $q$ values of 4 or 5, it can be observed, that the information criteria do not decrease considerably. Thus, it can be said, that appropriate $p$ and $q$ values may be found between 2 and 4. The missing values in the table result from cases where some parameters could not be computed.\\
+Information criteria are often used metrics for \gls{arma} models when $p$ and $q$ are limited to a small range of numbers. Then all those models are fitted and the respective information criteria are computed. In general, as can be seen in \Cref{tab:ic_table}, the \gls{aic}, \gls{bic} and \gls{hqic} get smaller for higher $p$ and $q$ values, which is the desired behaviour, as smaller values are better when comparing information criteria for different models that use the same data. However, for higher $p$ and $q$ values of 4 or 5, it can be observed, that the information criteria do not decrease considerably. Thus, it can be said, that appropriate $p$ and $q$ values may be found between 2 and 4. The missing values result from cases where some parameters could not be computed.\\
 
 \begin{table}
 \rowcolors{2}{white}{gray!25}
@@ -202,7 +202,7 @@ AIC\newline ~BIC\newline \rule{0pt}{1em}HQIC & 5 & 464173.18\newline 464230.42\n
 
 \subsection*{ARMAX}
 
-\Cref{fig:armax_fc}, \cref{fig:armax_fc_dayofweek} and \cref{fig:armax_fc_load_lag} show plots of one step ahead forecasts of ARMA(2,2) and ARMAX(2,2) models. This equals a one hour forecast due to the one hour resolution of the data. The training data ranges from 2015/01/08 00:00 to 2017/12/31 00:00 and the forecast horizon covers the range from 2017/12/31 01:00 to 2018/12/31 00:00.\\
+\Cref{fig:armax_fc}, \Cref{fig:armax_fc_dayofweek} and \Cref{fig:armax_fc_load_lag} show plots of one step ahead forecasts of ARMA(2,2) and ARMAX(2,2) models. This equals a one hour forecast due to the one hour resolution of the data. The training data ranges from 2015/01/08 00:00 to 2017/12/31 00:00 and the forecast horizon covers the range from 2017/12/31 01:00 to 2018/12/31 00:00.\\
 
 \begin{figure}[h!]%
 \centering
@@ -255,9 +255,9 @@ Rhein-Sieg-Kreis & 599056\\
 \label{tab:top10_population}
 \end{table}
 
-As already can be estimated from the information criteria in \cref{tab:ic_table}, there is a huge difference between the ARMA(1,0) and the ARMA(2,2) model. This results in a difference of more than 1.3\% of the \gls{mape} and can be observed in \cref{tab:armax_forecast_table}. It can be seen, that of all exogenous variables used, including load data shifted by one week, has the greatest impact on the forecast error, causing these model to have the lowest error. In contrast to that, including the 10 regions with the highest population lead to a higher error. This could result from the high correlation between neighbouring grid points in single regions. The respective regions with the highest population are listed in \cref{tab:top10_population}. A model for the 2 metre temperature with all grid points has been fit, too, but the number of 1435 exogenous variables implies a massive amount of computation time, which is unpracticable for real-time forecasting. Furthermore, due to the high correlation between the different grid points, there is a high chance for errors during training. Also, a model with that many variables is prone to over-fitting and thus has a higher error on new data, which can be seen in \cref{fig:armax_fc_t2m_all}. It is very interesting that including the mean temperature seems to result in a slightly better result than using any constellation of single grid points, such as \eg the 10 regions with the highest population.\\
+As already can be estimated from the information criteria in \Cref{tab:ic_table}, there is a huge difference between the ARMA(1,0) and the ARMA(2,2) model. This results in a difference of more than 1.3\% of the \gls{mape} and can be observed in \Cref{tab:armax_forecast_table}. It can be seen, that of all exogenous variables used, including load data shifted by one week, has the greatest impact on the forecast error, causing these model to have the lowest error. In contrast to that, including the 10 regions with the highest population lead to a higher error. This could result from the high correlation between neighbouring grid points in single regions. The respective regions with the highest population are listed in \Cref{tab:top10_population}. A model for the 2 metre temperature with all grid points has been fit, too, but the number of 1435 exogenous variables implies a massive amount of computation time, which is unpracticable for real-time forecasting. Furthermore, due to the high correlation between the different grid points, there is a high chance for errors during training. Also, a model with that many variables is prone to over-fitting and thus has a higher error on new data, which can be seen in \Cref{fig:armax_fc_t2m_all}. It is very interesting that including the mean temperature seems to result in a slightly better result than using any constellation of single grid points, such as \eg the 10 regions with the highest population.\\
 
-In \cref{tab:armax_forecast_table}, 168h shifted load means the time series, where the actual load data is shifted back in time by one week. The temp mean variable is the mean of the 2 metre temperature for each step in time, respectively. The data counter variable counts the steps from 0 up to the length of the data. And the last, which is top 10 regions temp denotes the grid points of the 10 regions with the highest population, with each grid point as a single time series.\\
+In \Cref{tab:armax_forecast_table}, 168h shifted load means the time series, where the actual load data is shifted back in time by one week. The temp mean variable is the mean of the 2 metre temperature for each step in time, respectively. The data counter variable counts the steps from 0 up to the length of the data. And the last, which is top 10 regions temp denotes the grid points of the 10 regions with the highest population, with each grid point as a single time series.\\
 
 \begin{sidewaystable}[!ht]%
 \rowcolors{2}{white}{gray!25}
