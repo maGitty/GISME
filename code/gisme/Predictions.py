@@ -244,7 +244,7 @@ class ARMAXForecast:
         """Initializes instance
         
         possible choices for exogenous variables in @exog:
-          * 'load_lag'     : load data shifted by one week (with this parameter only data from 2015/01/08 can be used)
+          * 'load_lag168h' : load data shifted by one week (with this parameter only data from 2015/01/08 can be used)
           * 'dayofweek'    : week day (one dummy per day)
           * 'weekend'      : dummy for whether it is weekend or not (1 or 0)
           * 'data_counter' : counting data points beginning from 0
@@ -337,7 +337,7 @@ class ARMAXForecast:
         -------
         None
         """
-        if var_name is 'load_lag':
+        if var_name is 'load_lag168h':
             delta1week = timedelta(weeks=1)
             self.ex_data['load_shift'] = self.load_reader.vals4slice(de_load, self.start-delta1week,
                                                                      data_max_date-delta1week, step=1)
